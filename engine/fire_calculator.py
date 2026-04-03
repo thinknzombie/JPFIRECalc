@@ -687,6 +687,27 @@ def run_fire_scenario(
     # --- Net worth trajectory -----------------------------------------------
     trajectory = project_net_worth(profile, assumptions, region_key, projection_years=50)
 
+    # --- Monte Carlo simulation ---------------------------------------------
+    from engine.monte_carlo import run_monte_carlo
+    pension_start_year = max(0, profile.nenkin_claim_age - profile.target_retirement_age)
+    mc_result = run_monte_carlo(
+        initial_portfolio_jpy=fire_number,
+        annual_expenses_jpy=fire_info["net_annual_need_jpy"] + nhi_solve["nhi_premium"],
+        net_pension_annual_jpy=net_pension,
+        pension_start_year=pension_start_year,
+        simulation_years=assumptions.simulation_years,
+        n_simulations=assumptions.monte_carlo_simulations,
+        mean_return=assumptions.retirement_return_pct / 100,
+        volatility=assumptions.return_volatility_pct / 100,
+        inflation_rate=assumptions.japan_inflation_pct / 100,
+        sequence_of_returns_risk=assumptions.sequence_of_returns_risk,
+        seed=42,
+    )
+
+    # --- Sensitivity analysis -----------------------------------------------
+    from engine.sensitivity import run_sensitivity_analysis
+    sensitivity = run_sensitivity_analysis(profile, assumptions, region_key)
+
     return ScenarioResult(
         scenario_id=scenario_id,
         scenario_name=scenario_name,
@@ -712,5 +733,7 @@ def run_fire_scenario(
         current_residence_tax_jpy=residence_tax["total"],
         current_effective_tax_rate_pct=tax_result["effective_rate_pct"],
         trajectory=trajectory,
+        monte_carlo=mc_result,
+        sensitivity=sensitivity,
         warnings=warnings,
     )
