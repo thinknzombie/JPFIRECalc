@@ -1,0 +1,132 @@
+{
+  "_notes": "Monthly expense templates in JPY. These are rough medians — users should adjust to their actual lifestyle. Includes typical NHI and excludes income tax (calculated separately).",
+
+  "regions": {
+    "tokyo": {
+      "name": "Tokyo (23 wards)",
+      "name_ja": "東京23区",
+      "nhi_municipality_key": "tokyo_shinjuku",
+      "monthly_expenses": {
+        "rent":        110000,
+        "utilities":    15000,
+        "food":         60000,
+        "transport":    12000,
+        "healthcare":    5000,
+        "communication": 5000,
+        "entertainment": 30000,
+        "misc":          20000
+      },
+      "total_monthly": 257000,
+      "notes": "Rent assumes 1LDK in a mid-range Tokyo ward. Higher for Minato/Shibuya, lower for outer wards.",
+      "car_needed": false
+    },
+    "osaka": {
+      "name": "Osaka / Kansai",
+      "name_ja": "大阪・関西",
+      "nhi_municipality_key": "osaka_city",
+      "monthly_expenses": {
+        "rent":         75000,
+        "utilities":    14000,
+        "food":         50000,
+        "transport":    10000,
+        "healthcare":    5000,
+        "communication": 5000,
+        "entertainment": 25000,
+        "misc":          16000
+      },
+      "total_monthly": 200000,
+      "notes": "Osaka city proper. Kobe/Kyoto slightly higher.",
+      "car_needed": false
+    },
+    "nagoya": {
+      "name": "Nagoya / Tokai",
+      "name_ja": "名古屋・東海",
+      "nhi_municipality_key": "nagoya_city",
+      "monthly_expenses": {
+        "rent":         65000,
+        "utilities":    13000,
+        "food":         48000,
+        "transport":    13000,
+        "healthcare":    5000,
+        "communication": 5000,
+        "entertainment": 20000,
+        "misc":          14000
+      },
+      "total_monthly": 183000,
+      "notes": "Nagoya is car-friendly; transport includes car costs.",
+      "car_needed": true
+    },
+    "fukuoka": {
+      "name": "Fukuoka / Kyushu",
+      "name_ja": "福岡・九州",
+      "nhi_municipality_key": "fukuoka_city",
+      "monthly_expenses": {
+        "rent":         60000,
+        "utilities":    12000,
+        "food":         45000,
+        "transport":    10000,
+        "healthcare":    5000,
+        "communication": 5000,
+        "entertainment": 20000,
+        "misc":          13000
+      },
+      "total_monthly": 170000,
+      "notes": "Fukuoka offers excellent quality of life at lower cost than Tokyo.",
+      "car_needed": false
+    },
+    "sapporo": {
+      "name": "Sapporo / Hokkaido",
+      "name_ja": "札幌・北海道",
+      "nhi_municipality_key": "sapporo_city",
+      "monthly_expenses": {
+        "rent":         55000,
+        "utilities":    18000,
+        "food":         45000,
+        "transport":    12000,
+        "healthcare":    5000,
+        "communication": 5000,
+        "entertainment": 18000,
+        "misc":          12000
+      },
+      "total_monthly": 170000,
+      "notes": "Higher utilities due to heating costs in winter.",
+      "car_needed": true
+    },
+    "secondary_city": {
+      "name": "Secondary City",
+      "name_ja": "地方都市",
+      "nhi_municipality_key": "national_average",
+      "monthly_expenses": {
+        "rent":         50000,
+        "utilities":    13000,
+        "food":         42000,
+        "transport":    15000,
+        "healthcare":    5000,
+        "communication": 5000,
+        "entertainment": 15000,
+        "misc":          10000
+      },
+      "total_monthly": 155000,
+      "notes": "Represents a mid-size regional city (Sendai, Kumamoto, Niigata, etc). Car usually needed.",
+      "car_needed": true
+    },
+    "rural": {
+      "name": "Rural / Inaka",
+      "name_ja": "田舎・農村部",
+      "nhi_municipality_key": "rural_average",
+      "monthly_expenses": {
+        "rent":         30000,
+        "utilities":    14000,
+        "food":         35000,
+        "transport":    20000,
+        "healthcare":    5000,
+        "communication": 5000,
+        "entertainment": 10000,
+        "misc":           8000
+      },
+      "total_monthly": 127000,
+      "notes": "Very low rent (often under 30,000 yen). Car is essential — transport costs include car ownership. Food costs lower with home gardening possible.",
+      "car_needed": true
+    }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "_source": "Municipal websites and厚生労働省 — approximate FY2024 rates. Verify annually.",
+  "_notes": "National Health Insurance (国民健康保険) premiums = medical component + support component + long-term care component (age 40-64). Rates are % of taxable income (前年所得 - 430,000 deduction). Per-capita charges are per household member.",
+
+  "annual_cap_jpy": 1060000,
+  "_notes_cap": "FY2024 combined cap (medical + support). Long-term care has a separate cap of 170,000.",
+
+  "long_term_care_annual_cap_jpy": 170000,
+
+  "national_average": {
+    "name": "National Average",
+    "medical_income_rate":    0.0740,
+    "medical_per_capita":     29000,
+    "support_income_rate":    0.0230,
+    "support_per_capita":     9500,
+    "ltc_income_rate":        0.0160,
+    "ltc_per_capita":         6500
+  },
+
+  "municipalities": {
+    "tokyo_shinjuku": {
+      "name": "Tokyo — Shinjuku (新宿区)",
+      "medical_income_rate":    0.0758,
+      "medical_per_capita":     47300,
+      "support_income_rate":    0.0229,
+      "support_per_capita":     14000,
+      "ltc_income_rate":        0.0170,
+      "ltc_per_capita":         16200
+    },
+    "tokyo_setagaya": {
+      "name": "Tokyo — Setagaya (世田谷区)",
+      "medical_income_rate":    0.0746,
+      "medical_per_capita":     43200,
+      "support_income_rate":    0.0225,
+      "support_per_capita":     13000,
+      "ltc_income_rate":        0.0168,
+      "ltc_per_capita":         15500
+    },
+    "osaka_city": {
+      "name": "Osaka City (大阪市)",
+      "medical_income_rate":    0.0912,
+      "medical_per_capita":     20000,
+      "support_income_rate":    0.0290,
+      "support_per_capita":     7700,
+      "ltc_income_rate":        0.0280,
+      "ltc_per_capita":         8800
+    },
+    "nagoya_city": {
+      "name": "Nagoya City (名古屋市)",
+      "medical_income_rate":    0.0755,
+      "medical_per_capita":     28000,
+      "support_income_rate":    0.0230,
+      "support_per_capita":     8500,
+      "ltc_income_rate":        0.0175,
+      "ltc_per_capita":         6800
+    },
+    "fukuoka_city": {
+      "name": "Fukuoka City (福岡市)",
+      "medical_income_rate":    0.0840,
+      "medical_per_capita":     32000,
+      "support_income_rate":    0.0270,
+      "support_per_capita":     9800,
+      "ltc_income_rate":        0.0230,
+      "ltc_per_capita":         7500
+    },
+    "sapporo_city": {
+      "name": "Sapporo City (札幌市)",
+      "medical_income_rate":    0.0830,
+      "medical_per_capita":     25000,
+      "support_income_rate":    0.0260,
+      "support_per_capita":     8000,
+      "ltc_income_rate":        0.0210,
+      "ltc_per_capita":         6500
+    },
+    "kyoto_city": {
+      "name": "Kyoto City (京都市)",
+      "medical_income_rate":    0.0820,
+      "medical_per_capita":     22000,
+      "support_income_rate":    0.0250,
+      "support_per_capita":     7500,
+      "ltc_income_rate":        0.0200,
+      "ltc_per_capita":         6500
+    },
+    "hiroshima_city": {
+      "name": "Hiroshima City (広島市)",
+      "medical_income_rate":    0.0780,
+      "medical_per_capita":     24000,
+      "support_income_rate":    0.0240,
+      "support_per_capita":     7800,
+      "ltc_income_rate":        0.0185,
+      "ltc_per_capita":         6200
+    },
+    "rural_average": {
+      "name": "Rural / Inaka (average)",
+      "medical_income_rate":    0.0820,
+      "medical_per_capita":     22000,
+      "support_income_rate":    0.0255,
+      "support_per_capita":     7200,
+      "ltc_income_rate":        0.0195,
+      "ltc_per_capita":         6100
+    }
+  },
+
+  "income_deduction_for_nhi": 430000,
+  "_notes_deduction": "前年所得から基礎控除43万円を引いた額が保険料算定の基礎所得"
+}

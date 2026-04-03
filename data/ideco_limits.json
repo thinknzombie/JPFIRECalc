@@ -1,0 +1,39 @@
+{
+  "_source": "iDeCo公式サイト / 厚生労働省 — limits as of 2024",
+  "_url": "https://www.ideco-koushiki.jp",
+
+  "monthly_limits_jpy": {
+    "self_employed":                       68000,
+    "company_no_pension":                  23000,
+    "company_with_dc_only":                20000,
+    "company_with_db_or_mutual_aid":       12000,
+    "company_with_dc_and_db":              12000,
+    "civil_servant":                       20000,
+    "_notes_civil_servant": "Increased from 12,000 to 20,000 from December 2024",
+    "housewife_husband_with_dc":           23000,
+    "housewife_husband_no_pension":        23000
+  },
+
+  "access_age": 60,
+  "_notes_access": "Cannot withdraw before age 60 under any circumstances. Minimum contribution period: 2 years.",
+
+  "tax_treatment": {
+    "contributions": "fully deductible from income (所得控除)",
+    "growth": "tax-free within account",
+    "withdrawal_lump_sum": "taxed as retirement income (退職所得) — retirement income deduction applies",
+    "withdrawal_annuity": "taxed as miscellaneous income (雑所得) — public pension deduction applies"
+  },
+
+  "retirement_income_deduction": {
+    "_notes": "退職所得控除 for iDeCo lump sum. Years = ideco contribution years.",
+    "per_year_up_to_20_years": 400000,
+    "per_year_above_20_years": 700000,
+    "minimum_deduction": 800000,
+    "_example": "20 years → 8,000,000 deduction. 30 years → 8,000,000 + 7,000,000 = 15,000,000 deduction."
+  },
+
+  "lump_sum_tax_formula": {
+    "_notes": "Taxable amount = (balance - retirement_income_deduction) / 2. Then apply income tax brackets.",
+    "divisor": 2
+  }
+}

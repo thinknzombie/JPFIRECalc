@@ -1,0 +1,75 @@
+{
+  "_source": "National Tax Agency (国税庁) — 2024 tax year",
+  "_url": "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2260.htm",
+  "_notes": "Income tax (所得税) brackets apply to taxable income after all deductions. Rates are marginal.",
+
+  "income_tax_brackets": [
+    { "min": 0,        "max": 1950000,  "rate": 0.05,  "deduction": 0       },
+    { "min": 1950000,  "max": 3300000,  "rate": 0.10,  "deduction": 97500   },
+    { "min": 3300000,  "max": 6950000,  "rate": 0.20,  "deduction": 427500  },
+    { "min": 6950000,  "max": 9000000,  "rate": 0.23,  "deduction": 636000  },
+    { "min": 9000000,  "max": 18000000, "rate": 0.33,  "deduction": 1536000 },
+    { "min": 18000000, "max": 40000000, "rate": 0.40,  "deduction": 2796000 },
+    { "min": 40000000, "max": null,     "rate": 0.45,  "deduction": 4796000 }
+  ],
+
+  "surtax_rate": 0.021,
+
+  "employment_income_deduction": {
+    "_notes": "給与所得控除 — deduction from gross employment income before applying brackets",
+    "brackets": [
+      { "min": 0,        "max": 1625000,  "deduction": 550000,                  "rate": null  },
+      { "min": 1625000,  "max": 1800000,  "deduction": null,                    "rate": 0.40, "min_deduction": 650000  },
+      { "min": 1800000,  "max": 3600000,  "deduction": null,                    "rate": 0.30, "min_deduction": 540000  },
+      { "min": 3600000,  "max": 6600000,  "deduction": null,                    "rate": 0.20, "min_deduction": 540000  },
+      { "min": 6600000,  "max": 8500000,  "deduction": null,                    "rate": 0.10, "min_deduction": 660000  },
+      { "min": 8500000,  "max": null,     "deduction": 1950000,                 "rate": null  }
+    ]
+  },
+
+  "basic_deduction": {
+    "_notes": "基礎控除 — phases out at high income",
+    "brackets": [
+      { "max_income": 24000000, "deduction": 480000 },
+      { "max_income": 24500000, "deduction": 320000 },
+      { "max_income": 25000000, "deduction": 160000 },
+      { "max_income": null,     "deduction": 0       }
+    ]
+  },
+
+  "spouse_deduction": {
+    "_notes": "配偶者控除 / 配偶者特別控除",
+    "full_deduction": 380000,
+    "taxpayer_income_limit": 10000000,
+    "spouse_income_limit_full": 1030000
+  },
+
+  "dependent_deduction_per_person": 380000,
+  "dependent_deduction_aged_70_plus": 580000,
+
+  "public_pension_income_deduction": {
+    "_notes": "公的年金等控除 — deduction applied to pension income",
+    "under_65": [
+      { "min": 0,        "max": 1300000,  "deduction": 600000,  "rate": null  },
+      { "min": 1300000,  "max": 4100000,  "deduction": null,    "rate": 0.25, "base": 275000  },
+      { "min": 4100000,  "max": 7700000,  "deduction": null,    "rate": 0.15, "base": 685000  },
+      { "min": 7700000,  "max": null,     "deduction": null,    "rate": 0.05, "base": 1455000 }
+    ],
+    "age_65_plus": [
+      { "min": 0,        "max": 3300000,  "deduction": 1100000, "rate": null  },
+      { "min": 3300000,  "max": 4100000,  "deduction": null,    "rate": 0.25, "base": 275000  },
+      { "min": 4100000,  "max": 7700000,  "deduction": null,    "rate": 0.15, "base": 685000  },
+      { "min": 7700000,  "max": null,     "deduction": null,    "rate": 0.05, "base": 1455000 }
+    ]
+  },
+
+  "retirement_income_deduction": {
+    "_notes": "退職所得控除 — for iDeCo lump sum and retirement severance",
+    "per_year_under_20": 400000,
+    "per_year_over_20":  700000,
+    "minimum": 800000
+  },
+
+  "capital_gains_tax_rate": 0.20315,
+  "_notes_capital_gains": "15.315% national (incl. 2.1% surtax) + 5% residence tax = 20.315% total"
+}

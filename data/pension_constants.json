@@ -1,0 +1,54 @@
+{
+  "_source": "日本年金機構 (Japan Pension Service) — FY2024 values",
+  "_url": "https://www.nenkin.go.jp",
+
+  "kokumin_nenkin": {
+    "_notes": "老齢基礎年金 — National/Basic Pension",
+    "full_annual_benefit_jpy": 816000,
+    "_notes_full": "Full benefit for 40 years (480 months) of contributions as of 2024",
+    "full_contribution_months": 480,
+    "monthly_premium_jpy": 16980,
+    "_notes_premium": "FY2024 flat-rate monthly premium for self-employed/non-employed",
+    "eligible_from_age": 65,
+    "early_claim_min_age": 60,
+    "early_reduction_per_month": 0.004,
+    "_notes_early": "0.4% reduction per month claimed before 65 (max 24% reduction at 60)",
+    "deferral_max_age": 75,
+    "deferral_increase_per_month": 0.007,
+    "_notes_deferral": "0.7% increase per month deferred past 65 (max 84% increase at 75)",
+    "min_contribution_years": 10
+  },
+
+  "kosei_nenkin": {
+    "_notes": "老齢厚生年金 — Employees' Pension Insurance",
+    "post_2003_multiplier": 0.005481,
+    "_notes_multiplier": "Monthly benefit = Σ(standard monthly remuneration) × 0.005481. Standard remuneration is the月額 used for premium calculation.",
+    "pre_2003_multiplier": 0.007125,
+    "_notes_pre2003": "Pre-2003 formula used a different multiplier with a fixed 1.031 bonus rate",
+    "employer_rate": 0.0915,
+    "employee_rate": 0.0915,
+    "_notes_rate": "Total 18.3% split equally — rate has been fixed since 2017",
+    "eligible_from_age": 65,
+    "_notes_special": "Special old-age pension (特別支給) may start at 61-64 for those born before certain dates"
+  },
+
+  "pension_income_deduction": {
+    "_notes": "公的年金等控除 — see also tax_brackets.json for full brackets. Minimum deductions:",
+    "under_65_minimum_jpy": 600000,
+    "age_65_plus_minimum_jpy": 1100000
+  },
+
+  "deferral_break_even": {
+    "_notes": "Approximate break-even years from deferral start age (ignoring tax effects)",
+    "defer_to_70": { "deferral_years": 5, "increase_pct": 42, "break_even_years_after_70": 11.9 },
+    "defer_to_75": { "deferral_years": 10, "increase_pct": 84, "break_even_years_after_75": 11.9 }
+  },
+
+  "totalization_countries": [
+    "United States", "United Kingdom", "Germany", "France", "Australia",
+    "Canada", "South Korea", "China", "Italy", "Netherlands", "Czech Republic",
+    "Spain", "Ireland", "Brazil", "Switzerland", "Hungary", "India",
+    "Luxembourg", "Philippines", "Slovakia", "Finland", "Sweden", "Portugal"
+  ],
+  "_notes_totalization": "Countries with social security totalization agreements (社会保障協定). Contribution periods can be combined to meet minimum eligibility. Check specific treaty for details."
+}
