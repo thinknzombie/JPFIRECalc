@@ -1284,6 +1284,42 @@ img, svg { display: block; max-width: 100%; }
    ============================================================ */
 .chart-container { width: 100%; min-height: 320px; }
 
+/* Chart info button (ℹ icon next to chart title) */
+.chart-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: var(--space-1);
+  background: none;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+  flex-shrink: 0;
+}
+.chart-info-btn:hover,
+.chart-info-btn[aria-expanded="true"] {
+  color: var(--color-primary);
+  background: var(--color-primary-dim);
+}
+
+/* Chart info panel (expandable description below title) */
+.chart-info-panel {
+  background: var(--color-primary-dim);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  animation: fadeSlideDown var(--transition-base) ease;
+}
+.chart-info-panel strong { color: var(--color-text); }
+.chart-info-panel em     { color: var(--color-text); font-style: normal; font-weight: var(--weight-medium); }
+
 /* ============================================================
    HTMX Spinner
    ============================================================ */

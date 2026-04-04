@@ -6,7 +6,7 @@ SCENARIOS_DIR. The profile (FinancialProfile) is stored alongside the scenario
 so that a complete calculation can be re-run from disk.
 
 Public API:
-  save(profile, scenario)     → writes {id}.json, returns scenario.id
+  save(profile, scenario)     → writes {id}.json atomically, returns scenario.id
   load(scenario_id)           → (FinancialProfile, Scenario)
   load_all()                  → list[(FinancialProfile, Scenario)] sorted by mtime desc
   delete(scenario_id)         → bool (True if deleted, False if not found)
@@ -15,11 +15,15 @@ Public API:
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
 from pathlib import Path
 
 from models.profile import FinancialProfile
 from models.scenario import Scenario
+
+logger = logging.getLogger(__name__)
 
 # Sentinel — routes inject the real path via init_store()
 _SCENARIOS_DIR: Path | None = None
@@ -63,7 +67,11 @@ def _path(scenario_id: str) -> Path:
 
 def save(profile: FinancialProfile, scenario: Scenario) -> str:
     """
-    Persist profile + scenario to disk.
+    Persist profile + scenario to disk using an atomic write.
+
+    Writes to a .tmp file first, then renames to the final path.
+    On Linux (Railway), os.replace() is atomic at the filesystem level,
+    so a crash mid-write never leaves a corrupt .json file behind.
 
     Returns the scenario ID so callers can redirect to the detail page.
     """
@@ -71,7 +79,19 @@ def save(profile: FinancialProfile, scenario: Scenario) -> str:
         "profile": profile.to_dict(),
         "scenario": scenario.to_dict(),
     }
-    _path(scenario.id).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    final_path = _path(scenario.id)
+    tmp_path = final_path.with_suffix(".tmp")
+    try:
+        tmp_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        os.replace(tmp_path, final_path)  # atomic on POSIX; best-effort on Windows
+    except Exception:
+        # Clean up the temp file if anything went wrong before the rename
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+        raise
     return scenario.id
 
 
@@ -94,7 +114,8 @@ def load_all() -> list[tuple[FinancialProfile, Scenario]]:
     """
     Return all saved scenarios, newest first (by file mtime).
 
-    Missing or corrupt files are skipped silently.
+    Corrupt or unreadable files are skipped and logged as warnings so they
+    show up in Railway logs without crashing the dashboard.
     """
     results: list[tuple[float, FinancialProfile, Scenario]] = []
     for p in _dir().glob("*.json"):
@@ -103,7 +124,8 @@ def load_all() -> list[tuple[FinancialProfile, Scenario]]:
             profile = FinancialProfile.from_dict(payload["profile"])
             scenario = Scenario.from_dict(payload["scenario"])
             results.append((p.stat().st_mtime, profile, scenario))
-        except Exception:
+        except Exception as exc:
+            logger.warning("Skipping corrupt scenario file %s: %s", p.name, exc)
             continue
     results.sort(key=lambda x: x[0], reverse=True)
     return [(profile, scenario) for _, profile, scenario in results]

@@ -143,10 +143,20 @@
 {# ── Monte Carlo Chart ─────────────────────────────────────────────────────── #}
 {% if result.monte_carlo %}
 <div class="results-card">
-  <h3 class="results-card__title" data-i18n="result.mc_chart">Portfolio Survival — Monte Carlo
+  <h3 class="results-card__title">
+    <span data-i18n="result.mc_chart">Portfolio Survival — Monte Carlo</span>
     <span class="badge">{{ result.monte_carlo.success_rate_pct }}% success</span>
+    <button type="button" class="chart-info-btn" aria-label="About this chart"
+            data-chart-info="mc">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
+      </svg>
+    </button>
   </h3>
-  <div id="mcChart" class="chart-container" data-chart="montecarlo"
+  <div class="chart-info-panel" id="chart-info-mc" hidden>
+    <p data-i18n="chart.mc.info">Runs hundreds of simulations with randomised annual returns to show a range of outcomes. <strong>p50</strong> is the median — half of scenarios end above this line, half below. <strong>p10</strong> is the pessimistic 10th percentile; <strong>p90</strong> is optimistic. The shaded bands show the spread. The <em>success rate</em> is the percentage of simulations where the portfolio survives the full retirement period without hitting zero.</p>
+  </div>
+  <div id="mcChart" class="chart-container"
     data-p10='{{ result.monte_carlo.p10 | tojson }}'
     data-p25='{{ result.monte_carlo.p25 | tojson }}'
     data-p50='{{ result.monte_carlo.p50 | tojson }}'
@@ -160,9 +170,19 @@
 {# ── Sensitivity / Tornado Chart ───────────────────────────────────────────── #}
 {% if result.sensitivity %}
 <div class="results-card">
-  <h3 class="results-card__title" data-i18n="result.sensitivity">Sensitivity Analysis
+  <h3 class="results-card__title">
+    <span data-i18n="result.sensitivity">Sensitivity Analysis</span>
     <span class="badge badge--secondary" data-i18n="result.sensitivity_sub">Impact on Years to FIRE</span>
+    <button type="button" class="chart-info-btn" aria-label="About this chart"
+            data-chart-info="tornado">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
+      </svg>
+    </button>
   </h3>
+  <div class="chart-info-panel" id="chart-info-tornado" hidden>
+    <p data-i18n="chart.tornado.info">Each bar shows how much your <em>Years to FIRE</em> changes when one variable is adjusted by ±20%. <strong>Red bars</strong> (right) show the pessimistic scenario — more years needed. <strong>Green bars</strong> (left) show the optimistic scenario — fewer years. The longest bars are the variables with the biggest impact on your plan; focus on those first.</p>
+  </div>
   {# Data block — read by charts.js via getElementById('tornadoData') #}
   <script type="application/json" id="tornadoData">
   [
@@ -187,7 +207,18 @@
 {# ── Net Worth Trajectory ──────────────────────────────────────────────────── #}
 {% if result.trajectory %}
 <div class="results-card">
-  <h3 class="results-card__title" data-i18n="result.trajectory">Net Worth Projection</h3>
+  <h3 class="results-card__title">
+    <span data-i18n="result.trajectory">Net Worth Projection</span>
+    <button type="button" class="chart-info-btn" aria-label="About this chart"
+            data-chart-info="trajectory">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
+      </svg>
+    </button>
+  </h3>
+  <div class="chart-info-panel" id="chart-info-trajectory" hidden>
+    <p data-i18n="chart.trajectory.info">The <strong>solid line</strong> shows your projected portfolio value during the accumulation phase — while you're working and saving. The <strong>dashed line</strong> shows the drawdown phase after retirement. The projection uses a fixed annual return (not randomised like Monte Carlo) and includes contributions, pension offsets, NHI, and inflation. Hover over the chart to see exact values at each age.</p>
+  </div>
   <script type="application/json" id="trajectoryData">
   [
     {% for yr in result.trajectory %}

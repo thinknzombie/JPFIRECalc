@@ -58,5 +58,17 @@
   document.addEventListener('DOMContentLoaded', function() {
     JPFIRECharts.renderAll();
   });
+
+  // Chart info panel toggle
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.chart-info-btn');
+    if (!btn) return;
+    const key = btn.dataset.chartInfo;
+    const panel = document.getElementById('chart-info-' + key);
+    if (!panel) return;
+    const isOpen = !panel.hidden;
+    panel.hidden = isOpen;
+    btn.setAttribute('aria-expanded', String(!isOpen));
+  });
 </script>
 {% endblock %}

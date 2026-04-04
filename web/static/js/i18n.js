@@ -237,6 +237,11 @@ const I18n = (() => {
       "compare.mc_median": "Monte Carlo — Median Portfolio (p50)",
       "compare.already_fired": "Already FIRE'd",
 
+      // ── Chart info panels ─────────────────────────────────────────────────
+      "chart.mc.info": "Runs hundreds of simulations with randomised annual returns to show a range of outcomes. <strong>p50</strong> is the median — half of scenarios end above this line, half below. <strong>p10</strong> is the pessimistic 10th percentile; <strong>p90</strong> is optimistic. The shaded bands show the spread. The <em>success rate</em> is the percentage of simulations where the portfolio survives the full retirement period without hitting zero.",
+      "chart.tornado.info": "Each bar shows how much your <em>Years to FIRE</em> changes when one variable is adjusted by ±20%. <strong>Red bars</strong> (right) show the pessimistic scenario — more years needed. <strong>Green bars</strong> (left) show the optimistic scenario — fewer years. The longest bars are the variables with the biggest impact on your plan; focus on those first.",
+      "chart.trajectory.info": "The <strong>solid line</strong> shows your projected portfolio value during the accumulation phase — while you're working and saving. The <strong>dashed line</strong> shows the drawdown phase after retirement. The projection uses a fixed annual return (not randomised like Monte Carlo) and includes contributions, pension offsets, NHI, and inflation. Hover over the chart to see exact values at each age.",
+
       // ── Errors ────────────────────────────────────────────────────────────
       "error.back": "Go to Dashboard",
       "error.home": "Home",
@@ -465,6 +470,11 @@ const I18n = (() => {
       "compare.net_worth": "資産推移グラフ",
       "compare.mc_median": "モンテカルロ — 中央値ポートフォリオ (p50)",
       "compare.already_fired": "FIRE達成済み",
+
+      // ── Chart info panels ─────────────────────────────────────────────────
+      "chart.mc.info": "ランダムな年次リターンを用いた多数のシミュレーションを実行し、結果の分布を表示します。<strong>p50</strong>は中央値（シナリオの半分がこの線より上、半分が下）。<strong>p10</strong>は悲観的な下位10%、<strong>p90</strong>は楽観的な上位10%です。シェード帯はばらつきの幅を示します。<em>成功率</em>は、退職期間全体でポートフォリオがゼロにならずに生存したシミュレーションの割合です。",
+      "chart.tornado.info": "各バーは、1つの変数を±20%変化させたときに<em>FIREまでの年数</em>がどれだけ変わるかを示します。<strong>赤いバー</strong>（右側）は悲観的シナリオ（年数が増える）、<strong>緑のバー</strong>（左側）は楽観的シナリオ（年数が減る）です。バーが長いほどプランへの影響が大きい変数です。まずそこに注目しましょう。",
+      "chart.trajectory.info": "<strong>実線</strong>は就労・積立期間中のポートフォリオ推移を示します。<strong>破線</strong>は退職後の取り崩し期間を示します。この予測はモンテカルロと異なり固定リターンを使用し、積立・年金オフセット・国保・インフレを考慮しています。グラフにマウスを合わせると各年齢での資産額が確認できます。",
 
       // ── Errors ────────────────────────────────────────────────────────────
       "error.back": "ダッシュボードへ戻る",
