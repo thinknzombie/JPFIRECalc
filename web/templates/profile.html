@@ -144,29 +144,51 @@
       </div>
     </div>
 
-    {# ── Foreigners Mode ───────────────────────────────────────────────────── #}
+    {# ── Foreigners Mode (collapsible) ────────────────────────────────────── #}
+    {# Auto-expand if user has already filled in foreigner-specific fields #}
+    {% set foreigner_active = (
+         profile.nationality and profile.nationality | upper != 'JP'
+      or profile.treaty_country
+      or (profile.years_in_japan and profile.years_in_japan > 0)
+    ) %}
     <div class="form-card form-card--foreigners">
-      {{ section("Foreigners Mode", "Enables DTA treaty notes, exit tax warnings, and non-permanent resident analysis.", key="section.foreigners") }}
-      <div class="form-grid form-grid--2">
-        {{ field("nationality", "Nationality (ISO 3166-1 alpha-2)",
-                 value=profile.nationality, placeholder="JP, US, GB, AU…") }}
-        {{ field_select("residency_status", "Japan Residency Status",
-                        options=[
-                          ("citizen",            "Japanese Citizen"),
-                          ("permanent_resident", "Permanent Resident (永住者)"),
-                          ("long_term_resident", "Long-Term Resident (定住者)"),
-                          ("spouse_visa",        "Spouse / Child of Japanese National"),
-                          ("work_visa",          "Work Visa"),
-                          ("student_visa",       "Student Visa"),
-                          ("other",              "Other"),
-                        ],
-                        selected=profile.residency_status) }}
-        {{ field("treaty_country", "Home Country (for DTA notes)",
-                 value=profile.treaty_country,
-                 placeholder="e.g. United States, United Kingdom, Australia") }}
-        {{ field("years_in_japan", "Years Resident in Japan",
-                 value=profile.years_in_japan,
-                 type="number", min=0, max=60) }}
+      <button type="button"
+              class="collapsible-header"
+              id="foreignerToggle"
+              aria-expanded="{{ 'true' if foreigner_active else 'false' }}"
+              aria-controls="foreignerFields">
+        <div class="collapsible-header__text">
+          <h3 class="form-section-title" data-i18n="section.foreigners">Foreigners Mode</h3>
+          <p class="form-section-subtitle" data-i18n="section.foreigners.sub">Enables DTA treaty notes, exit tax warnings, and non-permanent resident analysis.</p>
+        </div>
+        <svg class="collapsible-chevron" width="20" height="20" viewBox="0 0 20 20"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true">
+          <polyline points="5 8 10 13 15 8"/>
+        </svg>
+      </button>
+      <div id="foreignerFields" class="collapsible-body" {% if not foreigner_active %}hidden{% endif %}>
+        <div class="form-grid form-grid--2">
+          {{ field("nationality", "Nationality (ISO 3166-1 alpha-2)",
+                   value=profile.nationality, placeholder="JP, US, GB, AU…") }}
+          {{ field_select("residency_status", "Japan Residency Status",
+                          options=[
+                            ("citizen",            "Japanese Citizen"),
+                            ("permanent_resident", "Permanent Resident (永住者)"),
+                            ("long_term_resident", "Long-Term Resident (定住者)"),
+                            ("spouse_visa",        "Spouse / Child of Japanese National"),
+                            ("work_visa",          "Work Visa"),
+                            ("student_visa",       "Student Visa"),
+                            ("other",              "Other"),
+                          ],
+                          selected=profile.residency_status) }}
+          {{ field("treaty_country", "Home Country (for DTA notes)",
+                   value=profile.treaty_country,
+                   placeholder="e.g. United States, United Kingdom, Australia") }}
+          {{ field("years_in_japan", "Years Resident in Japan",
+                   value=profile.years_in_japan,
+                   type="number", min=0, max=60) }}
+        </div>
       </div>
     </div>
 
@@ -204,6 +226,7 @@
 
 {% block scripts %}
 <script>
+  // ── Real Estate toggle (checkbox) ──────────────────────────────────────────
   const ownsProperty = document.getElementById('owns_property');
   const propertyFields = document.getElementById('propertyFields');
   if (ownsProperty && propertyFields) {
@@ -211,6 +234,19 @@
       propertyFields.style.display = ownsProperty.checked ? '' : 'none';
     });
   }
+
+  // ── Foreigners Mode toggle (collapsible header button) ────────────────────
+  const foreignerToggle = document.getElementById('foreignerToggle');
+  const foreignerFields = document.getElementById('foreignerFields');
+  if (foreignerToggle && foreignerFields) {
+    foreignerToggle.addEventListener('click', () => {
+      const expanded = foreignerToggle.getAttribute('aria-expanded') === 'true';
+      foreignerToggle.setAttribute('aria-expanded', String(!expanded));
+      foreignerFields.hidden = expanded;
+    });
+  }
+
+  // ── Tooltip hover ─────────────────────────────────────────────────────────
   document.querySelectorAll('.tooltip-trigger').forEach(el => {
     el.addEventListener('mouseenter', () => {
       const tip = document.createElement('div');
