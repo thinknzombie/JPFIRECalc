@@ -147,9 +147,8 @@
     {# ── Foreigners Mode (collapsible) ────────────────────────────────────── #}
     {# Auto-expand if user has already filled in foreigner-specific fields #}
     {% set foreigner_active = (
-         profile.nationality and profile.nationality | upper != 'JP'
-      or profile.treaty_country
-      or (profile.years_in_japan and profile.years_in_japan > 0)
+         (profile.nationality and profile.nationality | upper != 'JP')
+      or (profile.treaty_country and profile.treaty_country | trim != '')
     ) %}
     <div class="form-card form-card--foreigners">
       <button type="button"

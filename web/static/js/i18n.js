@@ -497,20 +497,28 @@ const I18n = (() => {
       }
     });
 
-    // 2. Auto-translate form field labels by input name
-    //    Macros wrap label text in <span>, so we target that span.
-    //    e.g. <label for="current_age"> → look up field.current_age
+    // 2a. Auto-translate standard field labels by input name
+    //     Macros wrap label text in <span>, so we target that span.
+    //     e.g. <label for="current_age"> → look up field.current_age
     document.querySelectorAll('label[for]').forEach(label => {
       const inputName = label.getAttribute('for');
       const key = 'field.' + inputName;
       const text = t(key);
-      // Only replace if we have a real translation (not the key itself)
       if (!text || text === key) return;
-      // Find the first <span> child (wrapping the label text)
       const span = label.querySelector('span:first-child');
-      if (span) {
-        span.textContent = text;
-      }
+      if (span) span.textContent = text;
+    });
+
+    // 2b. Auto-translate checkbox labels (label wraps input directly, no for= attr)
+    //     Target .checkbox-text span inside .checkbox-label, keyed by input name.
+    document.querySelectorAll('label.checkbox-label').forEach(label => {
+      const input = label.querySelector('input[type="checkbox"]');
+      if (!input || !input.name) return;
+      const key = 'field.' + input.name;
+      const text = t(key);
+      if (!text || text === key) return;
+      const span = label.querySelector('.checkbox-text');
+      if (span) span.textContent = text;
     });
 
     // 3. Update lang toggle button label (shows the OTHER language)
