@@ -1052,6 +1052,82 @@ img, svg { display: block; max-width: 100%; }
 .text-muted   { color: var(--color-text-muted); }
 
 /* ============================================================
+   Error page
+   ============================================================ */
+.error-page {
+  text-align: center;
+  padding: var(--space-24) var(--space-6);
+}
+.error-page__code {
+  font-size: var(--text-5xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-primary);
+  letter-spacing: -0.04em;
+  margin-bottom: var(--space-4);
+}
+.error-page__title {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-3);
+}
+.error-page__body {
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+  margin-bottom: var(--space-8);
+}
+.error-page__actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+}
+
+/* ============================================================
+   Form validation
+   ============================================================ */
+.form-inline-error {
+  background: rgba(224,82,82,0.08);
+  border: 1px solid rgba(224,82,82,0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  line-height: var(--leading-relaxed);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.form-input:invalid,
+.form-input.is-invalid { border-color: var(--color-danger); }
+.form-input:invalid:focus { box-shadow: 0 0 0 3px rgba(224,82,82,0.15); }
+
+/* ============================================================
+   Mobile nav toggle
+   ============================================================ */
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+}
+.nav-toggle span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--color-text-muted);
+  border-radius: 2px;
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+.nav-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ============================================================
    Foreigners Mode
    ============================================================ */
 .results-card--foreigners {
@@ -1159,7 +1235,23 @@ img, svg { display: block; max-width: 100%; }
    Responsive
    ============================================================ */
 @media (max-width: 768px) {
-  .nav-links { gap: 0; }
+  .nav-toggle { display: flex; }
+
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: var(--nav-height);
+    left: 0; right: 0;
+    background: var(--color-bg-elevated);
+    border-bottom: 1px solid var(--color-border);
+    flex-direction: column;
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-1);
+    z-index: 99;
+  }
+  .nav-links[data-open="true"] { display: flex; }
+  .navbar { position: relative; }
+
   .nav-link { padding: var(--space-2); font-size: var(--text-xs); }
   .hero { padding: var(--space-16) var(--space-4) var(--space-12); }
   .feature-grid { grid-template-columns: 1fr; }

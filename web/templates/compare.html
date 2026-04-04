@@ -35,7 +35,9 @@
       <div class="compare-pill" style="--pill-color: {{ loop.index | scenario_color }}">
         <span class="compare-pill__dot"></span>
         <span class="compare-pill__name">{{ item.scenario.name }}</span>
-        <a href="{{ url_for('compare.index', ids=selected_ids | reject('equalto', item.scenario.id) | list) }}"
+        {% set remove_url = namespace(href='/compare/?') %}
+        {% for sid in selected_ids %}{% if sid != item.scenario.id %}{% set remove_url.href = remove_url.href + 'ids=' + sid + '&' %}{% endif %}{% endfor %}
+        <a href="{{ remove_url.href.rstrip('&') if remove_url.href != '/compare/?' else url_for('scenarios.index') }}"
            class="compare-pill__remove" aria-label="Remove {{ item.scenario.name }}">×</a>
       </div>
       {% endfor %}

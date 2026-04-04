@@ -34,15 +34,9 @@
   </div>
 </div>
 
-<div class="container" id="resultsContainer"
-     hx-get="{{ url_for('scenarios.run', scenario_id=scenario.id) }}"
-     hx-trigger="revealed"
-     hx-swap="innerHTML"
-     hx-indicator="#resultsSpinner">
-
-  {# Initial render — full results (no JS required) #}
+<div class="container" id="resultsContainer">
+  {# Full server-rendered results — no HTMX double-run #}
   {% include "partials/results.html" %}
-
 </div>
 
 <div id="resultsSpinner" class="htmx-indicator spinner-overlay" aria-label="Calculating…">

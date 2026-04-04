@@ -21,6 +21,19 @@ def create_app(config_name=None):
     import storage.scenario_store as store
     store.init_store(app.config["SCENARIOS_DIR"])
 
+    # Error handlers
+    from flask import render_template as _rt
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return _rt("error.html", code=404, title="Page Not Found",
+                   message="The page you're looking for doesn't exist."), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        return _rt("error.html", code=500, title="Something Went Wrong",
+                   message="An unexpected error occurred. Please try again or return to the dashboard."), 500
+
     # Jinja2 filters
     _SCENARIO_COLORS = ["#5b6af0", "#e8b84b", "#34c77b", "#e05252", "#a78bfa"]
 

@@ -15,6 +15,37 @@ import storage.scenario_store as store
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
 
+def _validate_profile_form(form) -> list[str]:
+    """Return a list of validation error messages, or [] if valid."""
+    errors = []
+    def iv(key):
+        try: return int(form.get(key, 0) or 0)
+        except (ValueError, TypeError): return None
+
+    age = iv("current_age")
+    retire_age = iv("target_retirement_age")
+    income = iv("annual_gross_income_jpy")
+    expenses = iv("monthly_expenses_jpy")
+
+    if age is None or not (18 <= age <= 80):
+        errors.append("Current age must be between 18 and 80.")
+    if retire_age is None or not (30 <= retire_age <= 90):
+        errors.append("Target retirement age must be between 30 and 90.")
+    if age is not None and retire_age is not None and retire_age <= age:
+        errors.append("Target retirement age must be greater than current age.")
+    if income is None or income < 0:
+        errors.append("Annual gross income must be 0 or more.")
+    if expenses is None or expenses < 0:
+        errors.append("Monthly expenses must be 0 or more.")
+    nisa = iv("monthly_nisa_contribution_jpy")
+    if nisa is not None and nisa > 100_000:
+        errors.append("Monthly NISA (tsumitate) contribution cannot exceed ¥100,000.")
+    claim_age = iv("nenkin_claim_age")
+    if claim_age is not None and not (60 <= claim_age <= 75):
+        errors.append("Pension claim age must be between 60 and 75.")
+    return errors
+
+
 def _profile_from_form(form) -> FinancialProfile:
     """Parse the flat POST form into a FinancialProfile dataclass."""
     def i(key, default=0):
@@ -87,6 +118,13 @@ def new():
 
 @profile_bp.route("/new", methods=["POST"])
 def create():
+    errors = _validate_profile_form(request.form)
+    if errors:
+        for e in errors:
+            flash(e, "error")
+        return render_template("profile.html", profile=_profile_from_form(request.form),
+                               scenario=None, action=url_for("profile.create"),
+                               title="New Profile")
     profile = _profile_from_form(request.form)
     scenario = Scenario(
         name=request.form.get("scenario_name", "My Scenario"),
@@ -122,7 +160,15 @@ def update(scenario_id):
         _, scenario = store.load(scenario_id)
     except FileNotFoundError:
         flash("Scenario not found.", "error")
-        return redirect(url_for("main.dashboard"))
+        return redirect(url_for("scenarios.index"))
+    errors = _validate_profile_form(request.form)
+    if errors:
+        for e in errors:
+            flash(e, "error")
+        return render_template("profile.html", profile=_profile_from_form(request.form),
+                               scenario=scenario,
+                               action=url_for("profile.update", scenario_id=scenario_id),
+                               title=f"Edit Profile — {scenario.name}")
     profile = _profile_from_form(request.form)
     scenario.name = request.form.get("scenario_name", scenario.name)
     scenario.region = request.form.get("region", scenario.region)

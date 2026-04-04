@@ -17,6 +17,31 @@ import storage.scenario_store as store
 scenarios_bp = Blueprint("scenarios", __name__, url_prefix="/scenarios")
 
 
+def _validate_assumptions_form(form) -> list[str]:
+    errors = []
+    def fv(key):
+        try: return float(form.get(key, 0) or 0)
+        except (ValueError, TypeError): return None
+
+    ret = fv("investment_return_pct")
+    if ret is None or not (0 <= ret <= 20):
+        errors.append("Investment return must be between 0% and 20%.")
+    wr = fv("withdrawal_rate_pct")
+    if wr is None or not (0.5 <= wr <= 10):
+        errors.append("Withdrawal rate must be between 0.5% and 10%.")
+    inf = fv("japan_inflation_pct")
+    if inf is None or not (0 <= inf <= 15):
+        errors.append("Inflation rate must be between 0% and 15%.")
+    sims = form.get("monte_carlo_simulations", "1000")
+    try:
+        sims_int = int(sims)
+        if not (100 <= sims_int <= 50_000):
+            errors.append("Number of simulations must be between 100 and 50,000.")
+    except (ValueError, TypeError):
+        errors.append("Number of simulations must be a whole number.")
+    return errors
+
+
 def _assumptions_from_form(form) -> AssumptionSet:
     """Parse POST form into AssumptionSet."""
     def f(key, default):
@@ -121,10 +146,20 @@ def update(scenario_id):
         flash("Scenario not found.", "error")
         return redirect(url_for("scenarios.index"))
 
+    errors = _validate_assumptions_form(request.form)
+    if errors:
+        for e in errors:
+            flash(e, "error")
+        return render_template("scenario_form.html", scenario=scenario, profile=profile,
+                               action=url_for("scenarios.update", scenario_id=scenario_id),
+                               title=f"Edit Assumptions — {scenario.name}")
     scenario.name = request.form.get("scenario_name", scenario.name)
     scenario.description = request.form.get("description", scenario.description)
     scenario.region = request.form.get("region", scenario.region)
-    scenario.assumptions = _assumptions_from_form(request.form)
+    assumptions = _assumptions_from_form(request.form)
+    # Hard cap: prevent runaway computation
+    assumptions.monte_carlo_simulations = min(assumptions.monte_carlo_simulations, 10_000)
+    scenario.assumptions = assumptions
     store.save(profile, scenario)
     flash("Scenario updated.", "success")
     return redirect(url_for("scenarios.detail", scenario_id=scenario_id))
