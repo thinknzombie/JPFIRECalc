@@ -163,11 +163,7 @@
   <h3 class="results-card__title" data-i18n="result.sensitivity">Sensitivity Analysis
     <span class="badge badge--secondary" data-i18n="result.sensitivity_sub">Impact on Years to FIRE</span>
   </h3>
-  <div id="tornadoChart" class="chart-container" data-chart="tornado"
-    data-items='{{ result.sensitivity | map(attribute="__dict__") | list | tojson if false else
-                  result.sensitivity | map(attribute="variable") | list | tojson }}'
-  ></div>
-  {# Pass sensitivity data as a hidden JSON block #}
+  {# Data block — read by charts.js via getElementById('tornadoData') #}
   <script type="application/json" id="tornadoData">
   [
     {% for item in result.sensitivity %}
@@ -183,6 +179,7 @@
     {% endfor %}
   ]
   </script>
+  {# Render target — charts.js calls Plotly.newPlot on this element #}
   <div id="tornadoChart" class="chart-container"></div>
 </div>
 {% endif %}

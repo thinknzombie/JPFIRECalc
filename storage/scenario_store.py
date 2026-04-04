@@ -15,6 +15,7 @@ Public API:
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from models.profile import FinancialProfile
@@ -22,6 +23,19 @@ from models.scenario import Scenario
 
 # Sentinel — routes inject the real path via init_store()
 _SCENARIOS_DIR: Path | None = None
+
+# UUID4 pattern — all scenario IDs are generated with uuid.uuid4(), so any
+# ID that doesn't match is either corrupt or a path-traversal attempt.
+_UUID4_RE = re.compile(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    re.IGNORECASE,
+)
+
+
+def _validate_id(scenario_id: str) -> None:
+    """Raise ValueError if scenario_id is not a valid UUID4 string."""
+    if not isinstance(scenario_id, str) or not _UUID4_RE.match(scenario_id):
+        raise ValueError(f"Invalid scenario ID: {scenario_id!r}")
 
 
 def init_store(scenarios_dir: Path) -> None:
@@ -38,6 +52,8 @@ def _dir() -> Path:
 
 
 def _path(scenario_id: str) -> Path:
+    """Return the file path for a scenario ID, rejecting non-UUID4 values."""
+    _validate_id(scenario_id)
     return _dir() / f"{scenario_id}.json"
 
 
