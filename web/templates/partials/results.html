@@ -6,33 +6,33 @@
 {# ── Hero metrics ─────────────────────────────────────────────────────────── #}
 <div class="results-hero">
   <div class="metric-card metric-card--primary">
-    <div class="metric-label">FIRE Number</div>
+    <div class="metric-label" data-i18n="result.fire_number">FIRE Number</div>
     <div class="metric-value" id="fireNumber">
       ¥{{ "{:,}".format(result.fire_number_jpy) }}
     </div>
     <div class="metric-sub">Target portfolio at {{ result.scenario_name }}</div>
   </div>
   <div class="metric-card {% if result.years_to_fire <= 0 %}metric-card--success{% elif result.years_to_fire >= 99 %}metric-card--danger{% elif result.years_to_fire <= 10 %}metric-card--accent{% endif %}">
-    <div class="metric-label">Years to FIRE</div>
+    <div class="metric-label" data-i18n="result.years">Years to FIRE</div>
     <div class="metric-value" id="yearsToFire">
       {% if result.years_to_fire <= 0 %}
-        Already FIRE'd!
+        <span data-i18n="result.already_fired">Already FIRE'd!</span>
       {% elif result.years_to_fire >= 99 %}
-        Never reached
+        <span data-i18n="result.never">Never reached</span>
       {% else %}
         {{ "%.1f" | format(result.years_to_fire) }}
       {% endif %}
     </div>
     <div class="metric-sub">
       {% if result.years_to_fire >= 99 %}
-        Increase savings or reduce expenses
+        <span data-i18n="result.never_sub">Increase savings or reduce expenses</span>
       {% else %}
         FIRE age: {{ "%.0f" | format(result.fire_age) }}
       {% endif %}
     </div>
   </div>
   <div class="metric-card">
-    <div class="metric-label">Progress</div>
+    <div class="metric-label" data-i18n="result.progress">Progress</div>
     <div class="metric-value">{{ "%.0f" | format(result.progress_pct) }}%</div>
     <div class="progress-bar">
       <div class="progress-fill" style="width: {{ [result.progress_pct, 100] | min }}%"></div>
@@ -41,7 +41,7 @@
   </div>
   {% if result.monte_carlo %}
   <div class="metric-card {% if result.monte_carlo.success_rate_pct >= 90 %}metric-card--success{% elif result.monte_carlo.success_rate_pct >= 75 %}metric-card--accent{% else %}metric-card--danger{% endif %}">
-    <div class="metric-label">Monte Carlo Success</div>
+    <div class="metric-label" data-i18n="result.mc_success">Monte Carlo Success</div>
     <div class="metric-value">{{ result.monte_carlo.success_rate_pct }}%</div>
     <div class="metric-sub">{{ result.monte_carlo.n_simulations | int }} simulations</div>
   </div>

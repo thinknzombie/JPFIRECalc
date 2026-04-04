@@ -6,12 +6,12 @@
 <div class="page-header">
   <div class="container">
     <div class="page-header__inner">
-      <h1 class="page-title">Dashboard</h1>
+      <h1 class="page-title" data-i18n="dash.title">Dashboard</h1>
       <div class="page-header__actions">
-        <button id="compareBtn" class="btn btn--secondary btn--sm" style="display:none" onclick="launchCompare()">
+        <button id="compareBtn" class="btn btn--secondary btn--sm" style="display:none" onclick="launchCompare()" data-i18n="dash.compare">
           Compare Selected →
         </button>
-        <a href="{{ url_for('profile.new') }}" class="btn btn--primary">+ New Scenario</a>
+        <a href="{{ url_for('profile.new') }}" class="btn btn--primary" data-i18n="dash.new">+ New Scenario</a>
       </div>
     </div>
   </div>
@@ -21,11 +21,11 @@
   {% if config.ENV == 'production' or not config.DEBUG %}
   <div class="storage-notice">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
-    Scenarios are saved on the server. On the free Render plan the filesystem resets on redeploy — export important scenarios before updating.
+    <span data-i18n="dash.storage">Scenarios are saved on the server. On the free Railway plan the filesystem resets on redeploy — export important scenarios before updating.</span>
   </div>
   {% endif %}
   {% if scenarios %}
-  <p class="dashboard-hint">Select scenarios to compare side-by-side.</p>
+  <p class="dashboard-hint" data-i18n="dash.hint">Select scenarios to compare side-by-side.</p>
   <form id="compareForm" method="GET" action="{{ url_for('compare.index') }}">
     <div class="scenario-grid">
       {% for profile, scenario in scenarios %}
@@ -51,19 +51,19 @@
           </div>
           <div class="scenario-card__stats">
             <div class="scenario-stat">
-              <div class="scenario-stat__label">Return</div>
+              <div class="scenario-stat__label" data-i18n="card.return">Return</div>
               <div class="scenario-stat__val">{{ scenario.assumptions.investment_return_pct }}%</div>
             </div>
             <div class="scenario-stat">
-              <div class="scenario-stat__label">Withdrawal</div>
+              <div class="scenario-stat__label" data-i18n="card.withdrawal">Withdrawal</div>
               <div class="scenario-stat__val">{{ scenario.assumptions.withdrawal_rate_pct }}%</div>
             </div>
             <div class="scenario-stat">
-              <div class="scenario-stat__label">Inflation</div>
+              <div class="scenario-stat__label" data-i18n="card.inflation">Inflation</div>
               <div class="scenario-stat__val">{{ scenario.assumptions.japan_inflation_pct }}%</div>
             </div>
             <div class="scenario-stat">
-              <div class="scenario-stat__label">Simulations</div>
+              <div class="scenario-stat__label" data-i18n="card.sims">Simulations</div>
               <div class="scenario-stat__val">{{ "{:,}".format(scenario.assumptions.monte_carlo_simulations) }}</div>
             </div>
           </div>
@@ -71,7 +71,7 @@
             <span class="scenario-card__age">
               Age {{ profile.current_age }} → {{ profile.target_retirement_age }}
             </span>
-            <span class="scenario-card__cta">View Results →</span>
+            <span class="scenario-card__cta" data-i18n="card.view">View Results →</span>
           </div>
         </a>
       </label>
@@ -89,12 +89,12 @@
         <path d="M14 44h36" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round"/>
       </svg>
     </div>
-    <h3 class="empty-state__title">No scenarios yet</h3>
-    <p class="empty-state__body">
+    <h3 class="empty-state__title" data-i18n="dash.empty.title">No scenarios yet</h3>
+    <p class="empty-state__body" data-i18n="dash.empty.body">
       Create your first scenario to model your Japan FIRE path — including Monte Carlo simulation,
       NHI projections, and pension offset.
     </p>
-    <a href="{{ url_for('profile.new') }}" class="btn btn--primary btn--lg">
+    <a href="{{ url_for('profile.new') }}" class="btn btn--primary btn--lg" data-i18n="dash.empty.cta">
       Create First Scenario →
     </a>
   </div>

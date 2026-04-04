@@ -5,58 +5,58 @@
 {% block content %}
 <div class="hero">
   <div class="hero-inner">
-    <div class="hero-badge">Built for Japan</div>
-    <h1 class="hero-title">Your FIRE number,<br>the Japan way.</h1>
-    <p class="hero-subtitle">
+    <div class="hero-badge" data-i18n="hero.badge">Built for Japan</div>
+    <h1 class="hero-title" data-i18n="hero.title">Your FIRE number,<br>the Japan way.</h1>
+    <p class="hero-subtitle" data-i18n="hero.subtitle">
       Model iDeCo, 新NISA, nenkin, NHI premiums, residence tax, and regional cost of living —
       all the variables that generic calculators miss.
     </p>
     <div class="hero-actions">
-      <a href="#" class="btn btn--primary">Get Started</a>
-      <a href="#how-it-works" class="btn btn--ghost">How it works</a>
+      <a href="{{ url_for('profile.new') }}" class="btn btn--primary" data-i18n="hero.cta_primary">Get Started</a>
+      <a href="#how-it-works" class="btn btn--ghost" data-i18n="hero.cta_secondary">How it works</a>
     </div>
   </div>
 </div>
 
 <section class="features" id="how-it-works">
   <div class="section-inner">
-    <h2 class="section-title">What makes this different</h2>
+    <h2 class="section-title" data-i18n="features.title">What makes this different</h2>
     <div class="feature-grid">
 
       <div class="feature-card">
         <div class="feature-icon">税</div>
-        <h3>Japan Tax System</h3>
-        <p>Income tax, residence tax (including the year-1 retirement shock), and NHI premiums that vary with your withdrawal amount.</p>
+        <h3 data-i18n="features.tax.title">Japan Tax System</h3>
+        <p data-i18n="features.tax.body">Income tax, residence tax (including the year-1 retirement shock), and NHI premiums that vary with your withdrawal amount.</p>
       </div>
 
       <div class="feature-card">
         <div class="feature-icon">年</div>
-        <h3>Nenkin Integration</h3>
-        <p>Model kokumin and kosei nenkin benefits. See how deferring to 70 or 75 changes your FIRE number and break-even age.</p>
+        <h3 data-i18n="features.nenkin.title">Nenkin Integration</h3>
+        <p data-i18n="features.nenkin.body">Model kokumin and kosei nenkin benefits. See how deferring to 70 or 75 changes your FIRE number and break-even age.</p>
       </div>
 
       <div class="feature-card">
         <div class="feature-icon">積</div>
-        <h3>iDeCo &amp; 新NISA</h3>
-        <p>Track NISA lifetime caps, model the iDeCo lock-up before 60, and compare tax-advantaged vs taxable withdrawal strategies.</p>
+        <h3 data-i18n="features.nisa.title">iDeCo &amp; 新NISA</h3>
+        <p data-i18n="features.nisa.body">Track NISA lifetime caps, model the iDeCo lock-up before 60, and compare tax-advantaged vs taxable withdrawal strategies.</p>
       </div>
 
       <div class="feature-card">
         <div class="feature-icon">地</div>
-        <h3>Regional Cost of Living</h3>
-        <p>Tokyo, Osaka, Fukuoka, rural Japan — cost-of-living templates built in. Inaka FIRE is a real strategy worth modeling.</p>
+        <h3 data-i18n="features.region.title">Regional Cost of Living</h3>
+        <p data-i18n="features.region.body">Tokyo, Osaka, Fukuoka, rural Japan — cost-of-living templates built in. Inaka FIRE is a real strategy worth modeling.</p>
       </div>
 
       <div class="feature-card">
         <div class="feature-icon">&#x1F4CA;</div>
-        <h3>Monte Carlo Simulation</h3>
-        <p>10,000-path simulations with sequence-of-returns risk. See your p10/p50/p90 outcomes, not just a single projection line.</p>
+        <h3 data-i18n="features.mc.title">Monte Carlo Simulation</h3>
+        <p data-i18n="features.mc.body">10,000-path simulations with sequence-of-returns risk. See your p10/p50/p90 outcomes, not just a single projection line.</p>
       </div>
 
       <div class="feature-card">
         <div class="feature-icon">&#x1F30F;</div>
-        <h3>Foreign Residents</h3>
-        <p>Non-permanent resident tax rules, totalization agreements, USD/JPY scenario bands, and exit tax warnings for large portfolios.</p>
+        <h3 data-i18n="features.foreign.title">Foreign Residents</h3>
+        <p data-i18n="features.foreign.body">Non-permanent resident tax rules, totalization agreements, USD/JPY scenario bands, and exit tax warnings for large portfolios.</p>
       </div>
 
     </div>
@@ -65,23 +65,23 @@
 
 <section class="japan-rules">
   <div class="section-inner">
-    <h2 class="section-title">Japan FIRE — Rules of Thumb</h2>
+    <h2 class="section-title" data-i18n="rules.title">Japan FIRE — Rules of Thumb</h2>
     <div class="rules-grid">
       <div class="rule-item">
         <span class="rule-number">3–3.5%</span>
-        <span class="rule-label">Safe withdrawal rate for Japan<br><small>Lower than the US 4% rule due to Japan's lower expected equity returns and higher bond allocation norms</small></span>
+        <span class="rule-label" data-i18n="rules.swr">Safe withdrawal rate for Japan<br><small>Lower than the US 4% rule due to Japan's lower expected equity returns and higher bond allocation norms</small></span>
       </div>
       <div class="rule-item">
         <span class="rule-number">Year 1</span>
-        <span class="rule-label">Residence tax shock<br><small>You'll pay full residence tax on your last salary in year 1 of retirement. Budget for it.</small></span>
+        <span class="rule-label" data-i18n="rules.shock">Residence tax shock<br><small>You'll pay full residence tax on your last salary in year 1 of retirement. Budget for it.</small></span>
       </div>
       <div class="rule-item">
-        <span class="rule-number">Age 60</span>
-        <span class="rule-label">iDeCo unlock age<br><small>iDeCo is completely illiquid before 60. Pre-60 FIRE means NISA + taxable must cover the gap.</small></span>
+        <span class="rule-number">60歳</span>
+        <span class="rule-label" data-i18n="rules.ideco">iDeCo unlock age<br><small>iDeCo is completely illiquid before 60. Pre-60 FIRE means NISA + taxable must cover the gap.</small></span>
       </div>
       <div class="rule-item">
-        <span class="rule-number">18M ¥</span>
-        <span class="rule-label">新NISA lifetime cap<br><small>1.2M/yr tsumitate + 2.4M/yr growth frame. Tax-free growth and withdrawal, fully liquid.</small></span>
+        <span class="rule-number">1,800万円</span>
+        <span class="rule-label" data-i18n="rules.nisa">新NISA lifetime cap<br><small>1.2M/yr tsumitate + 2.4M/yr growth frame. Tax-free growth and withdrawal, fully liquid.</small></span>
       </div>
     </div>
   </div>
@@ -89,9 +89,9 @@
 
 <section class="cta-section">
   <div class="section-inner cta-inner">
-    <h2>Ready to run your numbers?</h2>
-    <p>Create a profile, build scenarios, and compare them side by side.</p>
-    <a href="#" class="btn btn--primary btn--lg">Start calculating</a>
+    <h2 data-i18n="cta.title">Ready to run your numbers?</h2>
+    <p data-i18n="cta.body">Create a profile, build scenarios, and compare them side by side.</p>
+    <a href="{{ url_for('profile.new') }}" class="btn btn--primary btn--lg" data-i18n="cta.button">Start calculating</a>
   </div>
 </section>
 {% endblock %}
