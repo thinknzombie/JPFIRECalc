@@ -23,6 +23,9 @@ const JPFIRECharts = (() => {
 
   const CONFIG = { responsive: true, displayModeBar: false };
 
+  // Scenario comparison palette (matches server-side scenario_color filter)
+  const SCENARIO_COLORS = ['#5b6af0', '#e8b84b', '#34c77b', '#e05252', '#a78bfa'];
+
   // Palette
   const C = {
     primary:  '#5b6af0',
@@ -204,6 +207,91 @@ const JPFIRECharts = (() => {
     Plotly.newPlot(chartEl, traces, layout, CONFIG);
   }
 
+  // ── Comparison: overlaid trajectory chart ────────────────────────────────
+  function renderCompareTrajectory(data) {
+    const el = document.getElementById('compareTrajectoryChart');
+    if (!el || !data || data.length === 0) return;
+
+    const traces = [];
+    data.forEach((scenario, idx) => {
+      const color = SCENARIO_COLORS[idx % SCENARIO_COLORS.length];
+      if (!scenario.trajectory || scenario.trajectory.length === 0) return;
+
+      // Split into accumulation / retirement segments
+      const accum = scenario.trajectory.filter(d => d.phase === 'accumulation');
+      const retire = scenario.trajectory.filter(d => d.phase === 'retirement');
+
+      if (accum.length > 0) {
+        traces.push({
+          x: accum.map(d => d.age), y: accum.map(d => d.value),
+          mode: 'lines', name: scenario.name + ' (accum)',
+          line: { color, width: 2.5 },
+          legendgroup: scenario.name,
+          hovertemplate: 'Age %{x}: %{text}<extra>' + scenario.name + '</extra>',
+          text: accum.map(d => formatYen(d.value)),
+        });
+      }
+      if (retire.length > 0) {
+        traces.push({
+          x: retire.map(d => d.age), y: retire.map(d => d.value),
+          mode: 'lines', name: scenario.name + ' (retire)',
+          line: { color, width: 2.5, dash: 'dash' },
+          legendgroup: scenario.name,
+          showlegend: false,
+          hovertemplate: 'Age %{x}: %{text}<extra>' + scenario.name + ' (ret)</extra>',
+          text: retire.map(d => formatYen(d.value)),
+        });
+      }
+    });
+
+    const layout = {
+      ...BASE_LAYOUT,
+      xaxis: { ...BASE_LAYOUT.xaxis, title: 'Age' },
+      yaxis: { ...BASE_LAYOUT.yaxis, title: 'Portfolio Value', tickformat: ',.0f', tickprefix: '¥' },
+    };
+    Plotly.newPlot(el, traces, layout, CONFIG);
+  }
+
+  // ── Comparison: overlaid Monte Carlo medians ──────────────────────────────
+  function renderCompareMC(data) {
+    const el = document.getElementById('compareMcChart');
+    if (!el) return;
+
+    const traces = [];
+    data.forEach((scenario, idx) => {
+      if (!scenario.mc_p50 || scenario.mc_p50.length === 0) return;
+      const color = SCENARIO_COLORS[idx % SCENARIO_COLORS.length];
+      const years = Array.from({ length: scenario.mc_p50.length }, (_, i) => i);
+      traces.push({
+        x: years, y: scenario.mc_p50,
+        mode: 'lines', name: scenario.name,
+        line: { color, width: 2.5 },
+        hovertemplate: 'Year %{x}: %{text}<extra>' + scenario.name + '</extra>',
+        text: scenario.mc_p50.map(formatYen),
+      });
+    });
+
+    if (traces.length === 0) return;
+
+    const layout = {
+      ...BASE_LAYOUT,
+      xaxis: { ...BASE_LAYOUT.xaxis, title: 'Years into Retirement' },
+      yaxis: { ...BASE_LAYOUT.yaxis, title: 'Median Portfolio (p50)', tickformat: ',.0f', tickprefix: '¥' },
+    };
+    Plotly.newPlot(el, traces, layout, CONFIG);
+  }
+
+  // ── Public: render comparison page charts ─────────────────────────────────
+  function renderComparison() {
+    if (typeof Plotly === 'undefined') return;
+    const dataEl = document.getElementById('compareData');
+    if (!dataEl) return;
+    let data;
+    try { data = JSON.parse(dataEl.textContent); } catch (e) { return; }
+    renderCompareTrajectory(data);
+    renderCompareMC(data);
+  }
+
   // ── Public: render everything present on the page ─────────────────────────
   function renderAll() {
     if (typeof Plotly === 'undefined') return;
@@ -212,5 +300,5 @@ const JPFIRECharts = (() => {
     renderTrajectory();
   }
 
-  return { renderAll, renderMonteCarlo, renderTornado, renderTrajectory };
+  return { renderAll, renderComparison, renderMonteCarlo, renderTornado, renderTrajectory };
 })();

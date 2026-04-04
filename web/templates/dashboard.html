@@ -7,55 +7,71 @@
   <div class="container">
     <div class="page-header__inner">
       <h1 class="page-title">Dashboard</h1>
-      <a href="{{ url_for('profile.new') }}" class="btn btn--primary">+ New Scenario</a>
+      <div class="page-header__actions">
+        <button id="compareBtn" class="btn btn--secondary btn--sm" style="display:none" onclick="launchCompare()">
+          Compare Selected →
+        </button>
+        <a href="{{ url_for('profile.new') }}" class="btn btn--primary">+ New Scenario</a>
+      </div>
     </div>
   </div>
 </div>
 
 <div class="container">
   {% if scenarios %}
-  <div class="scenario-grid">
-    {% for profile, scenario in scenarios %}
-    <a href="{{ url_for('scenarios.detail', scenario_id=scenario.id) }}" class="scenario-card">
-      <div class="scenario-card__header">
-        <div>
-          <h3 class="scenario-card__name">{{ scenario.name }}</h3>
-          {% if scenario.description %}
-          <p class="scenario-card__desc">{{ scenario.description }}</p>
-          {% endif %}
+  <p class="dashboard-hint">Select scenarios to compare side-by-side.</p>
+  <form id="compareForm" method="GET" action="{{ url_for('compare.index') }}">
+    <div class="scenario-grid">
+      {% for profile, scenario in scenarios %}
+      <label class="scenario-card scenario-card--selectable" for="sel_{{ scenario.id }}">
+        <div class="scenario-card__select">
+          <input type="checkbox" id="sel_{{ scenario.id }}" name="ids"
+                 value="{{ scenario.id }}" class="scenario-checkbox"
+                 onchange="updateCompareBtn()">
         </div>
-        <div class="scenario-card__badges">
-          <span class="badge badge--region">{{ scenario.region | replace("_", " ") | title }}</span>
-          <span class="badge badge--variant">{{ scenario.assumptions.fire_variant | title }}</span>
-        </div>
-      </div>
-      <div class="scenario-card__stats">
-        <div class="scenario-stat">
-          <div class="scenario-stat__label">Return</div>
-          <div class="scenario-stat__val">{{ scenario.assumptions.investment_return_pct }}%</div>
-        </div>
-        <div class="scenario-stat">
-          <div class="scenario-stat__label">Withdrawal</div>
-          <div class="scenario-stat__val">{{ scenario.assumptions.withdrawal_rate_pct }}%</div>
-        </div>
-        <div class="scenario-stat">
-          <div class="scenario-stat__label">Inflation</div>
-          <div class="scenario-stat__val">{{ scenario.assumptions.japan_inflation_pct }}%</div>
-        </div>
-        <div class="scenario-stat">
-          <div class="scenario-stat__label">Simulations</div>
-          <div class="scenario-stat__val">{{ "{:,}".format(scenario.assumptions.monte_carlo_simulations) }}</div>
-        </div>
-      </div>
-      <div class="scenario-card__footer">
-        <span class="scenario-card__age">
-          Age {{ profile.current_age }} → {{ profile.target_retirement_age }}
-        </span>
-        <span class="scenario-card__cta">View Results →</span>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
+        <a href="{{ url_for('scenarios.detail', scenario_id=scenario.id) }}"
+           class="scenario-card__link" onclick="event.stopPropagation()">
+          <div class="scenario-card__header">
+            <div>
+              <h3 class="scenario-card__name">{{ scenario.name }}</h3>
+              {% if scenario.description %}
+              <p class="scenario-card__desc">{{ scenario.description }}</p>
+              {% endif %}
+            </div>
+            <div class="scenario-card__badges">
+              <span class="badge badge--region">{{ scenario.region | replace("_", " ") | title }}</span>
+              <span class="badge badge--variant">{{ scenario.assumptions.fire_variant | title }}</span>
+            </div>
+          </div>
+          <div class="scenario-card__stats">
+            <div class="scenario-stat">
+              <div class="scenario-stat__label">Return</div>
+              <div class="scenario-stat__val">{{ scenario.assumptions.investment_return_pct }}%</div>
+            </div>
+            <div class="scenario-stat">
+              <div class="scenario-stat__label">Withdrawal</div>
+              <div class="scenario-stat__val">{{ scenario.assumptions.withdrawal_rate_pct }}%</div>
+            </div>
+            <div class="scenario-stat">
+              <div class="scenario-stat__label">Inflation</div>
+              <div class="scenario-stat__val">{{ scenario.assumptions.japan_inflation_pct }}%</div>
+            </div>
+            <div class="scenario-stat">
+              <div class="scenario-stat__label">Simulations</div>
+              <div class="scenario-stat__val">{{ "{:,}".format(scenario.assumptions.monte_carlo_simulations) }}</div>
+            </div>
+          </div>
+          <div class="scenario-card__footer">
+            <span class="scenario-card__age">
+              Age {{ profile.current_age }} → {{ profile.target_retirement_age }}
+            </span>
+            <span class="scenario-card__cta">View Results →</span>
+          </div>
+        </a>
+      </label>
+      {% endfor %}
+    </div>
+  </form>
 
   {% else %}
   <div class="empty-state">
@@ -78,4 +94,23 @@
   </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function updateCompareBtn() {
+    const checked = document.querySelectorAll('.scenario-checkbox:checked');
+    const btn = document.getElementById('compareBtn');
+    if (checked.length >= 2) {
+      btn.style.display = '';
+      btn.textContent = `Compare ${checked.length} →`;
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+
+  function launchCompare() {
+    document.getElementById('compareForm').submit();
+  }
+</script>
 {% endblock %}

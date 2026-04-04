@@ -18,10 +18,8 @@
         JPFIRECalc
       </a>
       <ul class="nav-links">
-        <li><a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">Dashboard</a></li>
-        <li><a href="#" class="nav-link">Scenarios</a></li>
-        <li><a href="#" class="nav-link">Compare</a></li>
-        <li><a href="#" class="nav-link nav-link--cta">New Scenario</a></li>
+        <li><a href="{{ url_for('scenarios.index') }}" class="nav-link {% if request.blueprint == 'scenarios' %}active{% endif %}">Dashboard</a></li>
+        <li><a href="{{ url_for('profile.new') }}" class="nav-link nav-link--cta">+ New</a></li>
       </ul>
     </div>
   </nav>

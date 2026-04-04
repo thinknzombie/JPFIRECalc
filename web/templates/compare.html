@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — JPFIRECalc{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="page-header__inner">
+      <div>
+        <h1 class="page-title">Scenario Comparison</h1>
+        <p class="page-subtitle">{{ items | length }} scenario{{ 's' if items | length != 1 }} selected</p>
+      </div>
+      <div class="page-header__actions">
+        {# Add/remove scenarios #}
+        <form method="GET" action="{{ url_for('compare.index') }}" class="compare-add-form" id="compareForm">
+          {% for sid in selected_ids %}
+          <input type="hidden" name="ids" value="{{ sid }}">
+          {% endfor %}
+          <select name="ids" class="form-select form-select--inline" onchange="this.form.submit()" id="addScenario">
+            <option value="">+ Add scenario…</option>
+            {% for _, scenario in all_scenarios %}
+            {% if scenario.id not in selected_ids %}
+            <option value="{{ scenario.id }}">{{ scenario.name }}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </form>
+        <a href="{{ url_for('scenarios.index') }}" class="btn btn--ghost btn--sm">← Dashboard</a>
+      </div>
+    </div>
+
+    {# Scenario pills with remove buttons #}
+    <div class="compare-pills">
+      {% for item in items %}
+      <div class="compare-pill" style="--pill-color: {{ loop.index | scenario_color }}">
+        <span class="compare-pill__dot"></span>
+        <span class="compare-pill__name">{{ item.scenario.name }}</span>
+        <a href="{{ url_for('compare.index', ids=selected_ids | reject('equalto', item.scenario.id) | list) }}"
+           class="compare-pill__remove" aria-label="Remove {{ item.scenario.name }}">×</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  {# ── Key Metrics Table ─────────────────────────────────────────────────── #}
+  <section class="compare-section">
+    <h2 class="compare-section__title">Key Metrics</h2>
+    <div class="compare-table-wrapper">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th class="compare-table__metric">Metric</th>
+            {% for item in items %}
+            <th class="compare-table__scenario" style="--col-color: {{ loop.index | scenario_color }}">
+              {{ item.scenario.name }}
+              <div class="compare-table__sub">{{ item.scenario.region | replace('_',' ') | title }} · {{ item.scenario.assumptions.withdrawal_rate_pct }}% WR</div>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {# FIRE Number #}
+          <tr>
+            <td class="compare-table__label">FIRE Number</td>
+            {% for item in items %}
+            <td class="compare-table__val">¥{{ "{:,}".format(item.result.fire_number_jpy) }}</td>
+            {% endfor %}
+          </tr>
+          {# Years to FIRE #}
+          <tr class="compare-table__highlight">
+            <td class="compare-table__label">Years to FIRE</td>
+            {% for item in items %}
+            {% set best = items | map(attribute='result.years_to_fire') | min %}
+            <td class="compare-table__val {% if item.result.years_to_fire == best %}compare-table__val--best{% endif %}">
+              {% if item.result.years_to_fire <= 0 %}
+                <span class="text-success">Already FIRE'd</span>
+              {% else %}
+                {{ "%.1f" | format(item.result.years_to_fire) }} yrs
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {# FIRE Age #}
+          <tr>
+            <td class="compare-table__label">FIRE Age</td>
+            {% for item in items %}
+            <td class="compare-table__val">{{ "%.0f" | format(item.result.fire_age) }}</td>
+            {% endfor %}
+          </tr>
+          {# Progress #}
+          <tr>
+            <td class="compare-table__label">Progress to FIRE</td>
+            {% for item in items %}
+            <td class="compare-table__val">
+              <div class="compare-progress">
+                <div class="compare-progress__bar">
+                  <div class="compare-progress__fill" style="width:{{ [item.result.progress_pct, 100] | min }}%; background: {{ loop.index | scenario_color }}"></div>
+                </div>
+                <span>{{ "%.0f" | format(item.result.progress_pct) }}%</span>
+              </div>
+            </td>
+            {% endfor %}
+          </tr>
+          {# Monte Carlo Success #}
+          {% if items | selectattr('result.monte_carlo') | list %}
+          <tr class="compare-table__highlight">
+            <td class="compare-table__label">MC Success Rate</td>
+            {% for item in items %}
+            <td class="compare-table__val">
+              {% if item.result.monte_carlo %}
+              {% set sr = item.result.monte_carlo.success_rate_pct %}
+              <span class="{% if sr >= 90 %}text-success{% elif sr >= 75 %}text-warning{% else %}text-danger{% endif %}">
+                {{ sr }}%
+              </span>
+              {% else %}—{% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endif %}
+          {# Separator #}
+          <tr class="compare-table__group-header">
+            <td colspan="{{ items | length + 1 }}">Retirement Cash Flow</td>
+          </tr>
+          {# Annual Expenses #}
+          <tr>
+            <td class="compare-table__label">Annual Expenses</td>
+            {% for item in items %}
+            <td class="compare-table__val">¥{{ "{:,}".format(item.result.annual_expenses_jpy) }}</td>
+            {% endfor %}
+          </tr>
+          {# Pension #}
+          <tr>
+            <td class="compare-table__label">Pension (net)</td>
+            {% for item in items %}
+            <td class="compare-table__val text-success">¥{{ "{:,}".format(item.result.annual_pension_net_jpy) }}</td>
+            {% endfor %}
+          </tr>
+          {# NHI #}
+          <tr>
+            <td class="compare-table__label">NHI Premium</td>
+            {% for item in items %}
+            <td class="compare-table__val">¥{{ "{:,}".format(item.result.annual_nhi_jpy) }}</td>
+            {% endfor %}
+          </tr>
+          {# Net Withdrawal #}
+          <tr class="compare-table__highlight">
+            <td class="compare-table__label">Net from Portfolio / yr</td>
+            {% for item in items %}
+            {% set best = items | map(attribute='result.annual_withdrawal_needed_jpy') | min %}
+            <td class="compare-table__val {% if item.result.annual_withdrawal_needed_jpy == best %}compare-table__val--best{% endif %}">
+              ¥{{ "{:,}".format(item.result.annual_withdrawal_needed_jpy) }}
+            </td>
+            {% endfor %}
+          </tr>
+          {# Separator #}
+          <tr class="compare-table__group-header">
+            <td colspan="{{ items | length + 1 }}">Balances at Retirement</td>
+          </tr>
+          {# NISA #}
+          <tr>
+            <td class="compare-table__label">新NISA</td>
+            {% for item in items %}
+            <td class="compare-table__val">¥{{ "{:,}".format(item.result.nisa_at_retirement_jpy) }}</td>
+            {% endfor %}
+          </tr>
+          {# iDeCo #}
+          <tr>
+            <td class="compare-table__label">iDeCo</td>
+            {% for item in items %}
+            <td class="compare-table__val">¥{{ "{:,}".format(item.result.ideco_at_retirement_jpy) }}</td>
+            {% endfor %}
+          </tr>
+          {# Coast FIRE #}
+          <tr class="compare-table__group-header">
+            <td colspan="{{ items | length + 1 }}">Coast FIRE</td>
+          </tr>
+          <tr>
+            <td class="compare-table__label">Coast Number</td>
+            {% for item in items %}
+            <td class="compare-table__val">¥{{ "{:,}".format(item.result.coast_fire_number_jpy) }}</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td class="compare-table__label">Coast Reached?</td>
+            {% for item in items %}
+            <td class="compare-table__val">
+              {% if item.result.coast_fire_reached %}
+              <span class="text-success">Yes ✓</span>
+              {% else %}
+              <span class="text-muted">Not yet</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {# Assumptions summary #}
+          <tr class="compare-table__group-header">
+            <td colspan="{{ items | length + 1 }}">Assumptions</td>
+          </tr>
+          <tr>
+            <td class="compare-table__label">Investment Return</td>
+            {% for item in items %}
+            <td class="compare-table__val">{{ item.scenario.assumptions.investment_return_pct }}%</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td class="compare-table__label">Withdrawal Rate</td>
+            {% for item in items %}
+            <td class="compare-table__val">{{ item.scenario.assumptions.withdrawal_rate_pct }}%</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td class="compare-table__label">Inflation</td>
+            {% for item in items %}
+            <td class="compare-table__val">{{ item.scenario.assumptions.japan_inflation_pct }}%</td>
+            {% endfor %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {# ── Overlaid Trajectory Chart ─────────────────────────────────────────── #}
+  <section class="compare-section">
+    <h2 class="compare-section__title">Net Worth Projection</h2>
+    <div class="results-card">
+      <div id="compareTrajectoryChart" class="chart-container"></div>
+    </div>
+  </section>
+
+  {# ── Overlaid Monte Carlo Medians ──────────────────────────────────────── #}
+  {% if items | selectattr('result.monte_carlo') | list %}
+  <section class="compare-section">
+    <h2 class="compare-section__title">Monte Carlo — Median Portfolio (p50)</h2>
+    <div class="results-card">
+      <div id="compareMcChart" class="chart-container"></div>
+    </div>
+  </section>
+  {% endif %}
+
+  {# ── Scenario links ────────────────────────────────────────────────────── #}
+  <section class="compare-section">
+    <div class="compare-links">
+      {% for item in items %}
+      <a href="{{ url_for('scenarios.detail', scenario_id=item.scenario.id) }}" class="btn btn--ghost btn--sm">
+        View {{ item.scenario.name }} →
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+</div>
+
+{# Embed chart data #}
+<script type="application/json" id="compareData">
+[
+  {% for item in items %}
+  {
+    "id": {{ item.scenario.id | tojson }},
+    "name": {{ item.scenario.name | tojson }},
+    "trajectory": [
+      {% for yr in item.result.trajectory %}
+      {"age": {{ yr.age }}, "phase": {{ yr.phase | tojson }}, "value": {{ yr.portfolio_value_jpy }}}{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ],
+    "mc_p50": {{ item.result.monte_carlo.p50 | tojson if item.result.monte_carlo else '[]' }}
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+]
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    JPFIRECharts.renderComparison();
+  });
+</script>
+{% endblock %}
