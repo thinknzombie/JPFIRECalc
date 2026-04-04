@@ -7,7 +7,7 @@
 <div class="page-header">
   <div class="container">
     <h1 class="page-title">{{ title }}</h1>
-    <p class="page-subtitle">Adjust market assumptions to stress-test your FIRE plan.</p>
+    <p class="page-subtitle" data-i18n="scenario_form.subtitle">Adjust market assumptions to stress-test your FIRE plan.</p>
   </div>
 </div>
 
@@ -16,7 +16,7 @@
 
     {# ── Meta ──────────────────────────────────────────────────────────────── #}
     <div class="form-card">
-      {{ section("Scenario Details") }}
+      {{ section("Scenario Details", key="section.scenario_details") }}
       <div class="form-grid form-grid--2">
         {{ field("scenario_name", "Scenario Name",
                  value=scenario.name, required=true) }}
@@ -41,7 +41,7 @@
 
     {# ── Returns ───────────────────────────────────────────────────────────── #}
     <div class="form-card">
-      {{ section("Investment Returns", "Global equity blend. Nominal, yen-denominated.") }}
+      {{ section("Investment Returns", "Global equity blend. Nominal, yen-denominated.", key="section.returns") }}
       <div class="form-grid form-grid--3">
         {{ field("investment_return_pct", "Pre-Retirement Return (%)",
                  value=scenario.assumptions.investment_return_pct,
@@ -60,7 +60,7 @@
 
     {# ── Withdrawal & Inflation ────────────────────────────────────────────── #}
     <div class="form-card">
-      {{ section("Withdrawal & Inflation") }}
+      {{ section("Withdrawal & Inflation", key="section.withdrawal") }}
       <div class="form-grid form-grid--3">
         {{ field("withdrawal_rate_pct", "Safe Withdrawal Rate (%)",
                  value=scenario.assumptions.withdrawal_rate_pct,
@@ -79,7 +79,7 @@
 
     {# ── FIRE Variant ──────────────────────────────────────────────────────── #}
     <div class="form-card">
-      {{ section("FIRE Variant") }}
+      {{ section("FIRE Variant", key="section.fire_variant") }}
       <div class="form-grid form-grid--2">
         {{ field_select("fire_variant", "FIRE Strategy",
                         options=[
@@ -105,7 +105,7 @@
 
     {# ── NHI ───────────────────────────────────────────────────────────────── #}
     <div class="form-card">
-      {{ section("NHI (National Health Insurance)", "NHI premium is a function of your withdrawal — we solve for this iteratively.") }}
+      {{ section("NHI (National Health Insurance)", "NHI premium is a function of your withdrawal — we solve for this iteratively.", key="section.nhi") }}
       <div class="form-grid form-grid--2">
         {{ field_select("nhi_municipality_key", "Municipality",
                         options=[
@@ -131,7 +131,7 @@
 
     {# ── Monte Carlo ───────────────────────────────────────────────────────── #}
     <div class="form-card">
-      {{ section("Monte Carlo Simulation") }}
+      {{ section("Monte Carlo Simulation", key="section.monte_carlo") }}
       <div class="form-grid form-grid--3">
         {{ field("monte_carlo_simulations", "Number of Simulations",
                  value=scenario.assumptions.monte_carlo_simulations,
@@ -149,7 +149,7 @@
 
     {# ── FX ────────────────────────────────────────────────────────────────── #}
     <div class="form-card">
-      {{ section("Foreign Exchange") }}
+      {{ section("Foreign Exchange", key="section.fx") }}
       <div class="form-grid form-grid--2">
         {{ field("usd_jpy_rate", "USD/JPY Rate",
                  value=scenario.assumptions.usd_jpy_rate,
@@ -159,11 +159,11 @@
 
     {# ── Actions ───────────────────────────────────────────────────────────── #}
     <div class="form-actions">
-      <a href="{{ url_for('scenarios.detail', scenario_id=scenario.id) }}" class="btn btn--ghost">Cancel</a>
-      <a href="{{ url_for('profile.edit', scenario_id=scenario.id) }}" class="btn btn--secondary">
+      <a href="{{ url_for('scenarios.detail', scenario_id=scenario.id) }}" class="btn btn--ghost" data-i18n="btn.cancel">Cancel</a>
+      <a href="{{ url_for('profile.edit', scenario_id=scenario.id) }}" class="btn btn--secondary" data-i18n="btn.edit_profile">
         ← Edit Profile
       </a>
-      <button type="submit" class="btn btn--primary btn--lg">
+      <button type="submit" class="btn btn--primary btn--lg" data-i18n="btn.save_run">
         Save & Run →
       </button>
     </div>

@@ -9,8 +9,8 @@
     <h1 class="error-page__title">{{ title }}</h1>
     <p class="error-page__body">{{ message }}</p>
     <div class="error-page__actions">
-      <a href="{{ url_for('scenarios.index') }}" class="btn btn--primary">Go to Dashboard</a>
-      <a href="{{ url_for('main.index') }}" class="btn btn--ghost">Home</a>
+      <a href="{{ url_for('scenarios.index') }}" class="btn btn--primary" data-i18n="error.back">Go to Dashboard</a>
+      <a href="{{ url_for('main.index') }}" class="btn btn--ghost" data-i18n="error.home">Home</a>
     </div>
   </div>
 </div>

@@ -65,14 +65,14 @@
 {# ── FIRE Variants ─────────────────────────────────────────────────────────── #}
 <div class="results-grid results-grid--2">
   <div class="results-card">
-    <h3 class="results-card__title">Coast FIRE</h3>
+    <h3 class="results-card__title" data-i18n="result.coast">Coast FIRE</h3>
     <div class="kv-list">
       <div class="kv-row">
-        <span class="kv-key">Coast Number (today)</span>
+        <span class="kv-key" data-i18n="result.coast_number">Coast Number (today)</span>
         <span class="kv-val">¥{{ "{:,}".format(result.coast_fire_number_jpy) }}</span>
       </div>
       <div class="kv-row">
-        <span class="kv-key">Coast FIRE Reached?</span>
+        <span class="kv-key" data-i18n="result.coast_reached">Coast FIRE Reached?</span>
         <span class="kv-val {% if result.coast_fire_reached %}text-success{% else %}text-muted{% endif %}">
           {{ "Yes ✓" if result.coast_fire_reached else "Not yet" }}
         </span>
@@ -81,27 +81,27 @@
   </div>
 
   <div class="results-card">
-    <h3 class="results-card__title">Retirement Cash Flow</h3>
+    <h3 class="results-card__title" data-i18n="result.cashflow">Retirement Cash Flow</h3>
     <div class="kv-list">
       <div class="kv-row">
-        <span class="kv-key">Annual Expenses</span>
+        <span class="kv-key" data-i18n="result.expenses">Annual Expenses</span>
         <span class="kv-val">¥{{ "{:,}".format(result.annual_expenses_jpy) }}</span>
       </div>
       <div class="kv-row">
-        <span class="kv-key">Pension Income (net)</span>
+        <span class="kv-key" data-i18n="result.pension">Pension Income (net)</span>
         <span class="kv-val text-success">−¥{{ "{:,}".format(result.annual_pension_net_jpy) }}</span>
       </div>
       <div class="kv-row">
-        <span class="kv-key">NHI Premium</span>
+        <span class="kv-key" data-i18n="result.nhi">NHI Premium</span>
         <span class="kv-val">¥{{ "{:,}".format(result.annual_nhi_jpy) }}</span>
       </div>
       <div class="kv-row kv-row--total">
-        <span class="kv-key">Net from Portfolio / yr</span>
+        <span class="kv-key" data-i18n="result.net_portfolio">Net from Portfolio / yr</span>
         <span class="kv-val">¥{{ "{:,}".format(result.annual_withdrawal_needed_jpy) }}</span>
       </div>
       {% if result.year1_residence_tax_shock_jpy > 0 %}
       <div class="kv-row kv-row--warning">
-        <span class="kv-key">Year-1 Residence Tax Shock</span>
+        <span class="kv-key" data-i18n="result.year1_shock">Year-1 Residence Tax Shock</span>
         <span class="kv-val">¥{{ "{:,}".format(result.year1_residence_tax_shock_jpy) }}</span>
       </div>
       {% endif %}
@@ -111,21 +111,21 @@
 
 {# ── Account Balances at Retirement ───────────────────────────────────────── #}
 <div class="results-card">
-  <h3 class="results-card__title">Projected Balances at Retirement</h3>
+  <h3 class="results-card__title" data-i18n="result.balances">Projected Balances at Retirement</h3>
   <div class="results-grid results-grid--3">
     <div class="balance-item">
-      <div class="balance-label">新NISA</div>
+      <div class="balance-label" data-i18n="result.nisa_label">新NISA</div>
       <div class="balance-value">¥{{ "{:,}".format(result.nisa_at_retirement_jpy) }}</div>
-      <div class="balance-note">Tax-free, fully liquid</div>
+      <div class="balance-note" data-i18n="result.nisa_note">Tax-free, fully liquid</div>
     </div>
     <div class="balance-item">
-      <div class="balance-label">iDeCo</div>
+      <div class="balance-label" data-i18n="result.ideco_label">iDeCo</div>
       <div class="balance-value">¥{{ "{:,}".format(result.ideco_at_retirement_jpy) }}</div>
       <div class="balance-note">
         {% if result.ideco_accessible_at_fire %}
-          Accessible at FIRE age
+          <span data-i18n="result.ideco_accessible">Accessible at FIRE age</span>
         {% else %}
-          Locked until 60 — bridge needed
+          <span data-i18n="result.ideco_locked">Locked until 60 — bridge needed</span>
         {% endif %}
       </div>
       {% if not result.ideco_accessible_at_fire and result.ideco_bridge_needed_jpy > 0 %}
@@ -133,9 +133,9 @@
       {% endif %}
     </div>
     <div class="balance-item">
-      <div class="balance-label">Taxable / Cash</div>
+      <div class="balance-label" data-i18n="result.taxable_label">Taxable / Cash</div>
       <div class="balance-value">¥{{ "{:,}".format(result.taxable_at_retirement_jpy) }}</div>
-      <div class="balance-note">Gains taxed at 20.315%</div>
+      <div class="balance-note" data-i18n="result.taxable_note">Gains taxed at 20.315%</div>
     </div>
   </div>
 </div>
@@ -143,7 +143,7 @@
 {# ── Monte Carlo Chart ─────────────────────────────────────────────────────── #}
 {% if result.monte_carlo %}
 <div class="results-card">
-  <h3 class="results-card__title">Portfolio Survival — Monte Carlo
+  <h3 class="results-card__title" data-i18n="result.mc_chart">Portfolio Survival — Monte Carlo
     <span class="badge">{{ result.monte_carlo.success_rate_pct }}% success</span>
   </h3>
   <div id="mcChart" class="chart-container" data-chart="montecarlo"
@@ -160,8 +160,8 @@
 {# ── Sensitivity / Tornado Chart ───────────────────────────────────────────── #}
 {% if result.sensitivity %}
 <div class="results-card">
-  <h3 class="results-card__title">Sensitivity Analysis
-    <span class="badge badge--secondary">Impact on Years to FIRE</span>
+  <h3 class="results-card__title" data-i18n="result.sensitivity">Sensitivity Analysis
+    <span class="badge badge--secondary" data-i18n="result.sensitivity_sub">Impact on Years to FIRE</span>
   </h3>
   <div id="tornadoChart" class="chart-container" data-chart="tornado"
     data-items='{{ result.sensitivity | map(attribute="__dict__") | list | tojson if false else
@@ -190,7 +190,7 @@
 {# ── Net Worth Trajectory ──────────────────────────────────────────────────── #}
 {% if result.trajectory %}
 <div class="results-card">
-  <h3 class="results-card__title">Net Worth Projection</h3>
+  <h3 class="results-card__title" data-i18n="result.trajectory">Net Worth Projection</h3>
   <script type="application/json" id="trajectoryData">
   [
     {% for yr in result.trajectory %}
@@ -209,18 +209,18 @@
 
 {# ── Current Tax Summary ───────────────────────────────────────────────────── #}
 <div class="results-card">
-  <h3 class="results-card__title">Current Tax Summary</h3>
+  <h3 class="results-card__title" data-i18n="result.tax_summary">Current Tax Summary</h3>
   <div class="kv-list">
     <div class="kv-row">
-      <span class="kv-key">Income Tax</span>
+      <span class="kv-key" data-i18n="result.income_tax">Income Tax</span>
       <span class="kv-val">¥{{ "{:,}".format(result.current_income_tax_jpy) }}</span>
     </div>
     <div class="kv-row">
-      <span class="kv-key">Residence Tax</span>
+      <span class="kv-key" data-i18n="result.residence_tax">Residence Tax</span>
       <span class="kv-val">¥{{ "{:,}".format(result.current_residence_tax_jpy) }}</span>
     </div>
     <div class="kv-row kv-row--total">
-      <span class="kv-key">Effective Tax Rate</span>
+      <span class="kv-key" data-i18n="result.effective_rate">Effective Tax Rate</span>
       <span class="kv-val">{{ "%.1f" | format(result.current_effective_tax_rate_pct) }}%</span>
     </div>
   </div>
@@ -229,19 +229,19 @@
 {# ── Foreigners Mode ───────────────────────────────────────────────────────── #}
 {% if result.foreigners_warnings or result.foreigners_notes %}
 <div class="results-card results-card--foreigners">
-  <h3 class="results-card__title">
+  <h3 class="results-card__title" data-i18n="result.foreigners">
     Foreigners Mode
     {% if result.foreigners_dta_country %}
     <span class="badge badge--secondary">{{ result.foreigners_dta_country }}</span>
     {% endif %}
     {% if result.foreigners_totalization %}
-    <span class="badge badge--wr">Totalization ✓</span>
+    <span class="badge badge--wr" data-i18n="result.totalization">Totalization ✓</span>
     {% endif %}
     {% if result.foreigners_non_pr %}
-    <span class="badge badge--accent">Non-PR Rule</span>
+    <span class="badge badge--accent" data-i18n="result.non_pr">Non-PR Rule</span>
     {% endif %}
     {% if result.foreigners_exit_tax_risk %}
-    <span class="badge badge--danger">Exit Tax Risk</span>
+    <span class="badge badge--danger" data-i18n="result.exit_tax">Exit Tax Risk</span>
     {% endif %}
   </h3>
 
@@ -251,7 +251,7 @@
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
       </svg>
-      Action Required
+      <span data-i18n="result.action_required">Action Required</span>
     </div>
     {% for w in result.foreigners_warnings %}
     <div class="foreigners-item foreigners-item--warning">{{ w }}</div>
@@ -265,7 +265,7 @@
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
       </svg>
-      Information
+      <span data-i18n="result.information">Information</span>
     </div>
     {% for n in result.foreigners_notes %}
     <div class="foreigners-item foreigners-item--note">{{ n }}</div>
@@ -273,7 +273,7 @@
   </div>
   {% endif %}
 
-  <p class="foreigners-disclaimer">
+  <p class="foreigners-disclaimer" data-i18n="result.disclaimer">
     These notes are informational only and not legal or tax advice.
     Consult a Japan-registered tax accountant (税理士) for your specific situation.
   </p>

@@ -18,16 +18,16 @@
         </div>
       </div>
       <div class="page-header__actions">
-        <a href="{{ url_for('profile.edit', scenario_id=scenario.id) }}" class="btn btn--secondary btn--sm">
+        <a href="{{ url_for('profile.edit', scenario_id=scenario.id) }}" class="btn btn--secondary btn--sm" data-i18n="detail.edit_profile">
           Edit Profile
         </a>
-        <a href="{{ url_for('scenarios.edit', scenario_id=scenario.id) }}" class="btn btn--secondary btn--sm">
+        <a href="{{ url_for('scenarios.edit', scenario_id=scenario.id) }}" class="btn btn--secondary btn--sm" data-i18n="detail.edit_assumptions">
           Edit Assumptions
         </a>
         <form method="POST" action="{{ url_for('scenarios.delete', scenario_id=scenario.id) }}"
               class="inline-form"
               onsubmit="return confirm('Delete this scenario?')">
-          <button type="submit" class="btn btn--danger btn--sm">Delete</button>
+          <button type="submit" class="btn btn--danger btn--sm" data-i18n="detail.delete">Delete</button>
         </form>
       </div>
     </div>

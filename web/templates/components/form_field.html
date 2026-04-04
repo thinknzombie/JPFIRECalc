@@ -2,18 +2,22 @@
   Reusable form field macro.
 
   Usage:
-    {% from "components/form_field.html" import field, field_yen, field_select %}
+    {% from "components/form_field.html" import field, field_yen, field_select, field_checkbox, section %}
 
     {{ field("current_age", "Current Age", value=profile.current_age, type="number", min=18, max=80) }}
     {{ field_yen("annual_gross_income_jpy", "Annual Gross Income", value=profile.annual_gross_income_jpy) }}
     {{ field_select("employment_type", "Employment Type", options=[...], selected=profile.employment_type) }}
+
+  i18n:
+    Field labels are auto-translated by JS via input name → field.{name} key.
+    Section titles use the key= param to add data-i18n to the heading.
 #}
 
 {# Generic input field #}
 {% macro field(name, label, value="", type="text", help="", required=false, min="", max="", step="", placeholder="") %}
 <div class="form-field">
   <label for="{{ name }}" class="form-label">
-    {{ label }}
+    <span>{{ label }}</span>
     {% if required %}<span class="required" aria-label="required">*</span>{% endif %}
     {% if help %}
     <span class="tooltip-trigger" data-tip="{{ help }}" aria-label="help">
@@ -43,7 +47,7 @@
 {% macro field_yen(name, label, value=0, help="", required=false, step=10000) %}
 <div class="form-field">
   <label for="{{ name }}" class="form-label">
-    {{ label }}
+    <span>{{ label }}</span>
     {% if required %}<span class="required" aria-label="required">*</span>{% endif %}
     {% if help %}
     <span class="tooltip-trigger" data-tip="{{ help }}" aria-label="help">
@@ -74,7 +78,7 @@
 {% macro field_select(name, label, options, selected="", help="") %}
 <div class="form-field">
   <label for="{{ name }}" class="form-label">
-    {{ label }}
+    <span>{{ label }}</span>
     {% if help %}
     <span class="tooltip-trigger" data-tip="{{ help }}" aria-label="help">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -116,10 +120,10 @@
 </div>
 {% endmacro %}
 
-{# Section heading inside a form #}
-{% macro section(title, subtitle="") %}
+{# Section heading inside a form — key= adds data-i18n for JS translation #}
+{% macro section(title, subtitle="", key="") %}
 <div class="form-section-header">
-  <h3 class="form-section-title">{{ title }}</h3>
-  {% if subtitle %}<p class="form-section-subtitle">{{ subtitle }}</p>{% endif %}
+  <h3 class="form-section-title" {% if key %}data-i18n="{{ key }}"{% endif %}>{{ title }}</h3>
+  {% if subtitle %}<p class="form-section-subtitle" {% if key %}data-i18n="{{ key }}.sub"{% endif %}>{{ subtitle }}</p>{% endif %}
 </div>
 {% endmacro %}
