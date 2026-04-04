@@ -1,0 +1,125 @@
+{#
+  Reusable form field macro.
+
+  Usage:
+    {% from "components/form_field.html" import field, field_yen, field_select %}
+
+    {{ field("current_age", "Current Age", value=profile.current_age, type="number", min=18, max=80) }}
+    {{ field_yen("annual_gross_income_jpy", "Annual Gross Income", value=profile.annual_gross_income_jpy) }}
+    {{ field_select("employment_type", "Employment Type", options=[...], selected=profile.employment_type) }}
+#}
+
+{# Generic input field #}
+{% macro field(name, label, value="", type="text", help="", required=false, min="", max="", step="", placeholder="") %}
+<div class="form-field">
+  <label for="{{ name }}" class="form-label">
+    {{ label }}
+    {% if required %}<span class="required" aria-label="required">*</span>{% endif %}
+    {% if help %}
+    <span class="tooltip-trigger" data-tip="{{ help }}" aria-label="help">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
+      </svg>
+    </span>
+    {% endif %}
+  </label>
+  <input
+    type="{{ type }}"
+    id="{{ name }}"
+    name="{{ name }}"
+    value="{{ value }}"
+    {% if required %}required{% endif %}
+    {% if min != "" %}min="{{ min }}"{% endif %}
+    {% if max != "" %}max="{{ max }}"{% endif %}
+    {% if step != "" %}step="{{ step }}"{% endif %}
+    {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+    class="form-input"
+  >
+  {% if help %}<p class="form-help">{{ help }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{# Yen amount field — numeric input, styled with ¥ prefix #}
+{% macro field_yen(name, label, value=0, help="", required=false, step=10000) %}
+<div class="form-field">
+  <label for="{{ name }}" class="form-label">
+    {{ label }}
+    {% if required %}<span class="required" aria-label="required">*</span>{% endif %}
+    {% if help %}
+    <span class="tooltip-trigger" data-tip="{{ help }}" aria-label="help">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
+      </svg>
+    </span>
+    {% endif %}
+  </label>
+  <div class="input-prefix-wrapper">
+    <span class="input-prefix">¥</span>
+    <input
+      type="number"
+      id="{{ name }}"
+      name="{{ name }}"
+      value="{{ value }}"
+      min="0"
+      step="{{ step }}"
+      {% if required %}required{% endif %}
+      class="form-input has-prefix"
+    >
+  </div>
+  {% if help %}<p class="form-help">{{ help }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{# Select / dropdown field #}
+{% macro field_select(name, label, options, selected="", help="") %}
+<div class="form-field">
+  <label for="{{ name }}" class="form-label">
+    {{ label }}
+    {% if help %}
+    <span class="tooltip-trigger" data-tip="{{ help }}" aria-label="help">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
+      </svg>
+    </span>
+    {% endif %}
+  </label>
+  <select id="{{ name }}" name="{{ name }}" class="form-select">
+    {% for value, display in options %}
+    <option value="{{ value }}" {% if value == selected %}selected{% endif %}>{{ display }}</option>
+    {% endfor %}
+  </select>
+  {% if help %}<p class="form-help">{{ help }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{# Checkbox field #}
+{% macro field_checkbox(name, label, checked=false, help="") %}
+<div class="form-field form-field--checkbox">
+  <label class="checkbox-label">
+    <input
+      type="checkbox"
+      id="{{ name }}"
+      name="{{ name }}"
+      {% if checked %}checked{% endif %}
+      class="form-checkbox"
+    >
+    <span class="checkbox-text">{{ label }}</span>
+    {% if help %}
+    <span class="tooltip-trigger" data-tip="{{ help }}" aria-label="help">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
+      </svg>
+    </span>
+    {% endif %}
+  </label>
+  {% if help %}<p class="form-help form-help--checkbox">{{ help }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{# Section heading inside a form #}
+{% macro section(title, subtitle="") %}
+<div class="form-section-header">
+  <h3 class="form-section-title">{{ title }}</h3>
+  {% if subtitle %}<p class="form-section-subtitle">{{ subtitle }}</p>{% endif %}
+</div>
+{% endmacro %}

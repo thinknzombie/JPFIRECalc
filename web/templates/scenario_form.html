@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% from "components/form_field.html" import field, field_yen, field_select, field_checkbox, section %}
+
+{% block title %}{{ title }} — JPFIRECalc{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1 class="page-title">{{ title }}</h1>
+    <p class="page-subtitle">Adjust market assumptions to stress-test your FIRE plan.</p>
+  </div>
+</div>
+
+<div class="container container--narrow">
+  <form method="POST" action="{{ action }}" class="fire-form" novalidate>
+
+    {# ── Meta ──────────────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Scenario Details") }}
+      <div class="form-grid form-grid--2">
+        {{ field("scenario_name", "Scenario Name",
+                 value=scenario.name, required=true) }}
+        {{ field_select("region", "Cost-of-Living Region",
+                        options=[
+                          ("tokyo",         "Tokyo (¥257,000/mo)"),
+                          ("osaka",         "Osaka (¥200,000/mo)"),
+                          ("nagoya",        "Nagoya (¥183,000/mo)"),
+                          ("fukuoka",       "Fukuoka (¥170,000/mo)"),
+                          ("sapporo",       "Sapporo (¥170,000/mo)"),
+                          ("secondary_city","Secondary City (¥155,000/mo)"),
+                          ("rural",         "Rural (¥127,000/mo)"),
+                        ],
+                        selected=scenario.region) }}
+      </div>
+      <div class="form-grid form-grid--1">
+        {{ field("description", "Description (optional)",
+                 value=scenario.description,
+                 placeholder="e.g. Pessimistic inflation, early retirement at 48") }}
+      </div>
+    </div>
+
+    {# ── Returns ───────────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Investment Returns", "Global equity blend. Nominal, yen-denominated.") }}
+      <div class="form-grid form-grid--3">
+        {{ field("investment_return_pct", "Pre-Retirement Return (%)",
+                 value=scenario.assumptions.investment_return_pct,
+                 type="number", min=0, max=15, step=0.1,
+                 help="Expected annual return during accumulation. 5–7% is typical for a global equity portfolio.") }}
+        {{ field("retirement_return_pct", "Post-Retirement Return (%)",
+                 value=scenario.assumptions.retirement_return_pct,
+                 type="number", min=0, max=12, step=0.1,
+                 help="More conservative after FIRE — usually 0.5–1% below pre-retirement return.") }}
+        {{ field("return_volatility_pct", "Annual Volatility (%)",
+                 value=scenario.assumptions.return_volatility_pct,
+                 type="number", min=1, max=40, step=0.5,
+                 help="Standard deviation of returns. 15% is typical for a global equity fund.") }}
+      </div>
+    </div>
+
+    {# ── Withdrawal & Inflation ────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Withdrawal & Inflation") }}
+      <div class="form-grid form-grid--3">
+        {{ field("withdrawal_rate_pct", "Safe Withdrawal Rate (%)",
+                 value=scenario.assumptions.withdrawal_rate_pct,
+                 type="number", min=1, max=8, step=0.1,
+                 help="Japan research suggests 3–3.5% is safer than the US 4% rule due to lower historical returns.") }}
+        {{ field("japan_inflation_pct", "Japan Inflation (%)",
+                 value=scenario.assumptions.japan_inflation_pct,
+                 type="number", min=0, max=10, step=0.1,
+                 help="Recent Japan CPI has been ~2–3%. Your expenses grow at this rate in retirement.") }}
+        {{ field("retirement_expense_growth_pct", "Retirement Expense Growth (%)",
+                 value=scenario.assumptions.retirement_expense_growth_pct,
+                 type="number", min=0, max=8, step=0.1,
+                 help="Typically below general inflation — retirees often spend less over time.") }}
+      </div>
+    </div>
+
+    {# ── FIRE Variant ──────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("FIRE Variant") }}
+      <div class="form-grid form-grid--2">
+        {{ field_select("fire_variant", "FIRE Strategy",
+                        options=[
+                          ("regular", "Regular FIRE — full portfolio withdrawal"),
+                          ("lean",    "Lean FIRE — minimal expenses"),
+                          ("fat",     "Fat FIRE — generous lifestyle"),
+                          ("coast",   "Coast FIRE — invest now, coast to retirement"),
+                          ("barista", "Barista FIRE — semi-retirement with part-time income"),
+                        ],
+                        selected=scenario.assumptions.fire_variant,
+                        help="Changes which FIRE metric is highlighted in the results.") }}
+        {{ field("coast_target_retirement_age", "Coast: Full Retirement Age",
+                 value=scenario.assumptions.coast_target_retirement_age,
+                 type="number", min=50, max=80,
+                 help="Used for Coast FIRE — the age you stop working entirely.") }}
+      </div>
+      <div class="form-grid form-grid--2" id="baristaFields">
+        {{ field_yen("barista_income_monthly_jpy", "Barista: Monthly Part-Time Income",
+                     value=scenario.assumptions.barista_income_monthly_jpy, step=10000,
+                     help="Income from part-time work during semi-retirement. Reduces required portfolio size.") }}
+      </div>
+    </div>
+
+    {# ── NHI ───────────────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("NHI (National Health Insurance)", "NHI premium is a function of your withdrawal — we solve for this iteratively.") }}
+      <div class="form-grid form-grid--2">
+        {{ field_select("nhi_municipality_key", "Municipality",
+                        options=[
+                          ("national_average", "National Average"),
+                          ("tokyo_shinjuku",   "Tokyo (Shinjuku)"),
+                          ("tokyo_setagaya",   "Tokyo (Setagaya)"),
+                          ("osaka",            "Osaka"),
+                          ("nagoya",           "Nagoya"),
+                          ("fukuoka",          "Fukuoka"),
+                          ("sapporo",          "Sapporo"),
+                          ("kyoto",            "Kyoto"),
+                          ("hiroshima",        "Hiroshima"),
+                          ("rural_average",    "Rural Average"),
+                        ],
+                        selected=scenario.assumptions.nhi_municipality_key,
+                        help="NHI rates vary significantly by municipality — up to 2× between cheapest and most expensive.") }}
+        {{ field("nhi_household_members", "Household Members on NHI",
+                 value=scenario.assumptions.nhi_household_members,
+                 type="number", min=1, max=6,
+                 help="Each additional member adds a per-head levy.") }}
+      </div>
+    </div>
+
+    {# ── Monte Carlo ───────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Monte Carlo Simulation") }}
+      <div class="form-grid form-grid--3">
+        {{ field("monte_carlo_simulations", "Number of Simulations",
+                 value=scenario.assumptions.monte_carlo_simulations,
+                 type="number", min=100, max=50000, step=100,
+                 help="1,000 is fast; 10,000 gives stable statistics. More = slower but more accurate.") }}
+        {{ field("simulation_years", "Simulation Years",
+                 value=scenario.assumptions.simulation_years,
+                 type="number", min=10, max=60,
+                 help="How many years of retirement to simulate. FIRE at 45 → model to 95 = 50 years.") }}
+        {{ field_checkbox("sequence_of_returns_risk", "Model Sequence-of-Returns Risk",
+                          checked=scenario.assumptions.sequence_of_returns_risk,
+                          help="Amplifies volatility in early retirement years — the most dangerous period for early retirees.") }}
+      </div>
+    </div>
+
+    {# ── FX ────────────────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Foreign Exchange") }}
+      <div class="form-grid form-grid--2">
+        {{ field("usd_jpy_rate", "USD/JPY Rate",
+                 value=scenario.assumptions.usd_jpy_rate,
+                 type="number", min=50, max=300, step=1) }}
+      </div>
+    </div>
+
+    {# ── Actions ───────────────────────────────────────────────────────────── #}
+    <div class="form-actions">
+      <a href="{{ url_for('scenarios.detail', scenario_id=scenario.id) }}" class="btn btn--ghost">Cancel</a>
+      <a href="{{ url_for('profile.edit', scenario_id=scenario.id) }}" class="btn btn--secondary">
+        ← Edit Profile
+      </a>
+      <button type="submit" class="btn btn--primary btn--lg">
+        Save & Run →
+      </button>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

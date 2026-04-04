@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}{{ scenario.name }} — JPFIRECalc{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="page-header__inner">
+      <div>
+        <h1 class="page-title">{{ scenario.name }}</h1>
+        {% if scenario.description %}
+        <p class="page-subtitle">{{ scenario.description }}</p>
+        {% endif %}
+        <div class="scenario-meta">
+          <span class="badge badge--region">{{ scenario.region | title }}</span>
+          <span class="badge badge--variant">{{ scenario.assumptions.fire_variant | title }} FIRE</span>
+          <span class="badge badge--wr">{{ scenario.assumptions.withdrawal_rate_pct }}% WR</span>
+        </div>
+      </div>
+      <div class="page-header__actions">
+        <a href="{{ url_for('profile.edit', scenario_id=scenario.id) }}" class="btn btn--secondary btn--sm">
+          Edit Profile
+        </a>
+        <a href="{{ url_for('scenarios.edit', scenario_id=scenario.id) }}" class="btn btn--secondary btn--sm">
+          Edit Assumptions
+        </a>
+        <form method="POST" action="{{ url_for('scenarios.delete', scenario_id=scenario.id) }}"
+              class="inline-form"
+              onsubmit="return confirm('Delete this scenario?')">
+          <button type="submit" class="btn btn--danger btn--sm">Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container" id="resultsContainer"
+     hx-get="{{ url_for('scenarios.run', scenario_id=scenario.id) }}"
+     hx-trigger="revealed"
+     hx-swap="innerHTML"
+     hx-indicator="#resultsSpinner">
+
+  {# Initial render — full results (no JS required) #}
+  {% include "partials/results.html" %}
+
+</div>
+
+<div id="resultsSpinner" class="htmx-indicator spinner-overlay" aria-label="Calculating…">
+  <div class="spinner"></div>
+  <p>Running simulations…</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+  // Re-render charts after HTMX swaps in fresh results
+  document.body.addEventListener('htmx:afterSwap', function(e) {
+    if (e.detail.target.id === 'resultsContainer') {
+      JPFIRECharts.renderAll();
+    }
+  });
+  // Initial render on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    JPFIRECharts.renderAll();
+  });
+</script>
+{% endblock %}

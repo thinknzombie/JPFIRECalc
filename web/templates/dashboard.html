@@ -4,18 +4,78 @@
 
 {% block content %}
 <div class="page-header">
-  <div class="page-header-inner">
-    <h1 class="page-title">Dashboard</h1>
-    <a href="#" class="btn btn--primary">+ New Scenario</a>
+  <div class="container">
+    <div class="page-header__inner">
+      <h1 class="page-title">Dashboard</h1>
+      <a href="{{ url_for('profile.new') }}" class="btn btn--primary">+ New Scenario</a>
+    </div>
   </div>
 </div>
 
-<div class="page-body">
-  <div class="empty-state">
-    <div class="empty-state-icon">📊</div>
-    <h3>No scenarios yet</h3>
-    <p>Create your first scenario to start modeling your Japan FIRE path.</p>
-    <a href="#" class="btn btn--primary">Create Scenario</a>
+<div class="container">
+  {% if scenarios %}
+  <div class="scenario-grid">
+    {% for profile, scenario in scenarios %}
+    <a href="{{ url_for('scenarios.detail', scenario_id=scenario.id) }}" class="scenario-card">
+      <div class="scenario-card__header">
+        <div>
+          <h3 class="scenario-card__name">{{ scenario.name }}</h3>
+          {% if scenario.description %}
+          <p class="scenario-card__desc">{{ scenario.description }}</p>
+          {% endif %}
+        </div>
+        <div class="scenario-card__badges">
+          <span class="badge badge--region">{{ scenario.region | replace("_", " ") | title }}</span>
+          <span class="badge badge--variant">{{ scenario.assumptions.fire_variant | title }}</span>
+        </div>
+      </div>
+      <div class="scenario-card__stats">
+        <div class="scenario-stat">
+          <div class="scenario-stat__label">Return</div>
+          <div class="scenario-stat__val">{{ scenario.assumptions.investment_return_pct }}%</div>
+        </div>
+        <div class="scenario-stat">
+          <div class="scenario-stat__label">Withdrawal</div>
+          <div class="scenario-stat__val">{{ scenario.assumptions.withdrawal_rate_pct }}%</div>
+        </div>
+        <div class="scenario-stat">
+          <div class="scenario-stat__label">Inflation</div>
+          <div class="scenario-stat__val">{{ scenario.assumptions.japan_inflation_pct }}%</div>
+        </div>
+        <div class="scenario-stat">
+          <div class="scenario-stat__label">Simulations</div>
+          <div class="scenario-stat__val">{{ "{:,}".format(scenario.assumptions.monte_carlo_simulations) }}</div>
+        </div>
+      </div>
+      <div class="scenario-card__footer">
+        <span class="scenario-card__age">
+          Age {{ profile.current_age }} → {{ profile.target_retirement_age }}
+        </span>
+        <span class="scenario-card__cta">View Results →</span>
+      </div>
+    </a>
+    {% endfor %}
   </div>
+
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state__icon">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <rect width="64" height="64" rx="16" fill="var(--color-primary-dim)"/>
+        <path d="M20 44V28l12-8 12 8v16H20z" stroke="var(--color-primary)" stroke-width="2" fill="none"/>
+        <path d="M28 44v-8h8v8" stroke="var(--color-primary)" stroke-width="2"/>
+        <path d="M14 44h36" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h3 class="empty-state__title">No scenarios yet</h3>
+    <p class="empty-state__body">
+      Create your first scenario to model your Japan FIRE path — including Monte Carlo simulation,
+      NHI projections, and pension offset.
+    </p>
+    <a href="{{ url_for('profile.new') }}" class="btn btn--primary btn--lg">
+      Create First Scenario →
+    </a>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

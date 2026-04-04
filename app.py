@@ -17,8 +17,20 @@ def create_app(config_name=None):
     # Ensure scenarios directory exists
     app.config["SCENARIOS_DIR"].mkdir(exist_ok=True)
 
+    # Initialise storage
+    import storage.scenario_store as store
+    store.init_store(app.config["SCENARIOS_DIR"])
+
+    # Blueprints
     from routes.main import main_bp
+    from routes.profile import profile_bp
+    from routes.scenarios import scenarios_bp
+    from routes.api import api_bp
+
     app.register_blueprint(main_bp)
+    app.register_blueprint(profile_bp)
+    app.register_blueprint(scenarios_bp)
+    app.register_blueprint(api_bp)
 
     return app
 

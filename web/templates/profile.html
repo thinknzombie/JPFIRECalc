@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% from "components/form_field.html" import field, field_yen, field_select, field_checkbox, section %}
+
+{% block title %}{{ title }} — JPFIRECalc{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1 class="page-title">{{ title }}</h1>
+    <p class="page-subtitle">Enter your financial details to run Japan-specific FIRE projections.</p>
+  </div>
+</div>
+
+<div class="container container--narrow">
+  <form method="POST" action="{{ action }}" class="fire-form" id="profileForm" novalidate>
+
+    {# ── Scenario name + region ────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Scenario", "Give this scenario a name so you can compare it later.") }}
+      <div class="form-grid form-grid--2">
+        {{ field("scenario_name", "Scenario Name",
+                 value=scenario.name if scenario else "My Scenario",
+                 required=true,
+                 placeholder="e.g. Base Case — Tokyo") }}
+        {{ field_select("region", "Cost-of-Living Region",
+                        options=[
+                          ("tokyo",         "Tokyo (¥257,000/mo)"),
+                          ("osaka",         "Osaka (¥200,000/mo)"),
+                          ("nagoya",        "Nagoya (¥183,000/mo)"),
+                          ("fukuoka",       "Fukuoka (¥170,000/mo)"),
+                          ("sapporo",       "Sapporo (¥170,000/mo)"),
+                          ("secondary_city","Secondary City (¥155,000/mo)"),
+                          ("rural",         "Rural (¥127,000/mo)"),
+                        ],
+                        selected=scenario.region if scenario else "tokyo",
+                        help="Sets your baseline retirement expense template.") }}
+      </div>
+    </div>
+
+    {# ── Personal details ──────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Personal Details") }}
+      <div class="form-grid form-grid--3">
+        {{ field("current_age", "Current Age", value=profile.current_age,
+                 type="number", min=18, max=80, required=true) }}
+        {{ field("target_retirement_age", "Target Retirement Age", value=profile.target_retirement_age,
+                 type="number", min=30, max=80, required=true,
+                 help="FIRE target. iDeCo is locked until 60 — we'll warn you if this is before 60.") }}
+        {{ field_select("employment_type", "Employment Type",
+                        options=[
+                          ("company_employee",    "Company Employee (会社員)"),
+                          ("public_servant",      "Public Servant (公務員)"),
+                          ("self_employed",       "Self-Employed (自営業)"),
+                          ("corporate_officer",   "Corporate Officer (役員)"),
+                          ("no_job",              "Not Employed / FIRE'd"),
+                        ],
+                        selected=profile.employment_type,
+                        help="Determines your iDeCo contribution limit.") }}
+      </div>
+    </div>
+
+    {# ── Income ────────────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Income", "Gross figures — we'll calculate deductions and net automatically.") }}
+      <div class="form-grid form-grid--2">
+        {{ field_yen("annual_gross_income_jpy", "Annual Gross Income",
+                     value=profile.annual_gross_income_jpy,
+                     help="Your total salary before tax and social insurance.") }}
+        {{ field_yen("social_insurance_annual_jpy", "Social Insurance Paid (Annual)",
+                     value=profile.social_insurance_annual_jpy,
+                     help="社会保険料 — approx 14% of gross for company employees. Leave 0 to use the estimate.") }}
+      </div>
+      <div class="form-grid form-grid--3">
+        {{ field_checkbox("has_spouse", "Has Spouse / Partner", checked=profile.has_spouse) }}
+        {{ field_yen("spouse_income_jpy", "Spouse Annual Income",
+                     value=profile.spouse_income_jpy,
+                     help="Used to determine dependent deduction eligibility.") }}
+        {{ field("num_dependents", "Number of Dependents",
+                 value=profile.num_dependents,
+                 type="number", min=0, max=10) }}
+      </div>
+    </div>
+
+    {# ── Current Assets ────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Current Assets", "Enter current market values for each account.") }}
+      <div class="form-grid form-grid--2">
+        {{ field_yen("nisa_balance_jpy", "新NISA Balance",
+                     value=profile.nisa_balance_jpy,
+                     help="Current market value of your 新NISA account. Fully liquid, tax-free.") }}
+        {{ field_yen("nisa_lifetime_used_jpy", "新NISA Lifetime Cap Used (Acquisition Cost)",
+                     value=profile.nisa_lifetime_used_jpy,
+                     help="Acquisition cost used of the ¥18M lifetime cap (not market value).") }}
+        {{ field_yen("ideco_balance_jpy", "iDeCo Balance",
+                     value=profile.ideco_balance_jpy,
+                     help="Current market value. iDeCo is locked until age 60.") }}
+        {{ field_yen("taxable_brokerage_jpy", "Taxable Brokerage",
+                     value=profile.taxable_brokerage_jpy,
+                     help="特定口座 or general account. Gains taxed at 20.315% on withdrawal.") }}
+        {{ field_yen("cash_savings_jpy", "Cash Savings",
+                     value=profile.cash_savings_jpy,
+                     help="Bank deposits, emergency fund.") }}
+        {{ field("foreign_assets_usd", "Foreign Assets (USD)",
+                 value=profile.foreign_assets_usd,
+                 type="number", min=0, step=1000,
+                 help="USD-denominated holdings (US ETFs, foreign bank). Converted at the USD/JPY rate below.") }}
+      </div>
+    </div>
+
+    {# ── Monthly Cash Flows ────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Monthly Cash Flows", "What you spend and invest each month.") }}
+      <div class="form-grid form-grid--2">
+        {{ field_yen("monthly_expenses_jpy", "Monthly Expenses",
+                     value=profile.monthly_expenses_jpy, step=10000,
+                     help="Current monthly spending. Retirement expenses use the regional template unless you override.") }}
+        {{ field_yen("monthly_nisa_contribution_jpy", "Monthly NISA Contribution",
+                     value=profile.monthly_nisa_contribution_jpy, step=10000,
+                     help="Tsumitate frame: up to ¥100,000/month (¥1.2M/year).") }}
+        {{ field_yen("nisa_growth_frame_annual_jpy", "NISA Growth Frame (Annual Lump Sum)",
+                     value=profile.nisa_growth_frame_annual_jpy, step=100000,
+                     help="Growth frame: up to ¥2.4M/year. Total lifetime cap ¥18M.") }}
+        {{ field_yen("ideco_monthly_contribution_jpy", "iDeCo Monthly Contribution",
+                     value=profile.ideco_monthly_contribution_jpy, step=1000,
+                     help="Max depends on employment type. Company employee with kosei nenkin: ¥23,000/mo.") }}
+      </div>
+    </div>
+
+    {# ── Japan Pension ─────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Japan Pension (年金)", "Used to calculate your pension offset on the FIRE number.") }}
+      <div class="form-grid form-grid--2">
+        {{ field("nenkin_contribution_months", "Nenkin Contribution Months",
+                 value=profile.nenkin_contribution_months,
+                 type="number", min=0, max=480,
+                 help="Total months paid into kokumin or kosei nenkin. Full kokumin nenkin = 480 months.") }}
+        {{ field("nenkin_claim_age", "Pension Claim Age",
+                 value=profile.nenkin_claim_age,
+                 type="number", min=60, max=75,
+                 help="Default 65. Deferring to 70 adds ~42% via 0.7%/month multiplier; break-even ~12 years.") }}
+        {{ field_yen("nenkin_net_kosei_annual_jpy", "Kosei Nenkin Estimate (Annual, Optional)",
+                     value=profile.nenkin_net_kosei_annual_jpy or 0,
+                     help="From your NenkinNet statement. Leave 0 to estimate from remuneration below.") }}
+        {{ field_yen("avg_standard_monthly_remuneration_jpy", "Avg Standard Monthly Remuneration (標準報酬月額)",
+                     value=profile.avg_standard_monthly_remuneration_jpy, step=10000,
+                     help="Used to estimate kosei nenkin if you don't have a NenkinNet figure.") }}
+      </div>
+      <div class="form-grid form-grid--2">
+        {{ field_yen("foreign_pension_annual_jpy", "Foreign Pension Income (Annual JPY)",
+                     value=profile.foreign_pension_annual_jpy,
+                     help="e.g. US Social Security, UK state pension. Will be added to your pension offset.") }}
+        {{ field("foreign_pension_start_age", "Foreign Pension Start Age",
+                 value=profile.foreign_pension_start_age,
+                 type="number", min=60, max=80) }}
+      </div>
+    </div>
+
+    {# ── FX ────────────────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Foreign Exchange") }}
+      <div class="form-grid form-grid--2">
+        {{ field("usd_jpy_rate", "USD/JPY Rate",
+                 value=profile.usd_jpy_rate,
+                 type="number", min=50, max=300, step=1,
+                 help="Used to convert foreign assets and run sensitivity analysis on FX risk.") }}
+      </div>
+    </div>
+
+    {# ── Real Estate ───────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Real Estate (Optional)") }}
+      <div class="form-grid form-grid--1">
+        {{ field_checkbox("owns_property", "I own property in Japan", checked=profile.owns_property) }}
+      </div>
+      <div class="form-grid form-grid--2" id="propertyFields" style="{{ 'display:none' if not profile.owns_property else '' }}">
+        {{ field_yen("property_value_jpy", "Property Value",
+                     value=profile.property_value_jpy, step=1000000) }}
+        {{ field_yen("mortgage_balance_jpy", "Mortgage Balance",
+                     value=profile.mortgage_balance_jpy, step=100000) }}
+        {{ field_yen("monthly_mortgage_payment_jpy", "Monthly Mortgage Payment",
+                     value=profile.monthly_mortgage_payment_jpy, step=10000) }}
+        {{ field_yen("rental_income_monthly_jpy", "Monthly Rental Income",
+                     value=profile.rental_income_monthly_jpy, step=10000,
+                     help="If you plan to rent out this property in retirement.") }}
+        {{ field_checkbox("property_paid_off_at_retirement", "Mortgage paid off by retirement",
+                          checked=profile.property_paid_off_at_retirement) }}
+      </div>
+    </div>
+
+    {# ── Submit ────────────────────────────────────────────────────────────── #}
+    <div class="form-actions">
+      <a href="{{ url_for('scenarios.index') }}" class="btn btn--ghost">Cancel</a>
+      <button type="submit" class="btn btn--primary btn--lg">
+        Save & Configure Assumptions →
+      </button>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Toggle property fields visibility
+  const ownsProperty = document.getElementById('owns_property');
+  const propertyFields = document.getElementById('propertyFields');
+  if (ownsProperty && propertyFields) {
+    ownsProperty.addEventListener('change', () => {
+      propertyFields.style.display = ownsProperty.checked ? '' : 'none';
+    });
+  }
+
+  // Tooltip initialisation
+  document.querySelectorAll('.tooltip-trigger').forEach(el => {
+    el.addEventListener('mouseenter', e => {
+      const tip = document.createElement('div');
+      tip.className = 'tooltip-popup';
+      tip.textContent = el.dataset.tip;
+      el.appendChild(tip);
+    });
+    el.addEventListener('mouseleave', e => {
+      el.querySelectorAll('.tooltip-popup').forEach(t => t.remove());
+    });
+  });
+</script>
+{% endblock %}
