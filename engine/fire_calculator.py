@@ -708,6 +708,24 @@ def run_fire_scenario(
     from engine.sensitivity import run_sensitivity_analysis
     sensitivity = run_sensitivity_analysis(profile, assumptions, region_key)
 
+    # --- Foreigners mode ----------------------------------------------------
+    from engine.foreigners import analyse_foreigners
+    foreigners = analyse_foreigners(
+        nationality=getattr(profile, "nationality", "JP"),
+        residency_status=getattr(profile, "residency_status", "permanent_resident"),
+        treaty_country=getattr(profile, "treaty_country", "") or None,
+        is_tax_resident=True,
+        years_in_japan=getattr(profile, "years_in_japan", 10),
+        current_age=profile.current_age,
+        target_retirement_age=profile.target_retirement_age,
+        total_financial_assets_jpy=current_portfolio,
+        projected_fire_number_jpy=fire_number,
+        foreign_pension_annual_jpy=profile.foreign_pension_annual_jpy,
+        foreign_assets_usd=profile.foreign_assets_usd,
+        usd_jpy_rate=profile.usd_jpy_rate,
+        nisa_balance_jpy=profile.nisa_balance_jpy,
+    )
+
     return ScenarioResult(
         scenario_id=scenario_id,
         scenario_name=scenario_name,
@@ -735,5 +753,11 @@ def run_fire_scenario(
         trajectory=trajectory,
         monte_carlo=mc_result,
         sensitivity=sensitivity,
+        foreigners_warnings=foreigners.warnings,
+        foreigners_notes=foreigners.notes,
+        foreigners_dta_country=getattr(profile, "treaty_country", ""),
+        foreigners_totalization=foreigners.totalization_eligible,
+        foreigners_non_pr=foreigners.non_permanent_resident,
+        foreigners_exit_tax_risk=foreigners.exit_tax_risk,
         warnings=warnings,
     )

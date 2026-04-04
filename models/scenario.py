@@ -185,6 +185,14 @@ class ScenarioResult:
     monte_carlo: MonteCarloResult | None = None
     sensitivity: list[SensitivityItem] = field(default_factory=list)
 
+    # --- Foreigners mode ----------------------------------------------------
+    foreigners_warnings: list[str] = field(default_factory=list)
+    foreigners_notes: list[str] = field(default_factory=list)
+    foreigners_dta_country: str = ""
+    foreigners_totalization: bool = False
+    foreigners_non_pr: bool = False
+    foreigners_exit_tax_risk: bool = False
+
     # --- Warnings -----------------------------------------------------------
     warnings: list[str] = field(default_factory=list)
 

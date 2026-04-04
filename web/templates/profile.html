@@ -166,6 +166,38 @@
       </div>
     </div>
 
+    {# ── Foreigners Mode ───────────────────────────────────────────────────── #}
+    <div class="form-card form-card--foreigners">
+      {{ section("Foreigners Mode",
+                 "Optional — enables DTA treaty notes, exit tax warnings, non-permanent resident analysis, and totalization checks.") }}
+      <div class="form-grid form-grid--2">
+        {{ field("nationality", "Nationality (ISO 3166-1 alpha-2)",
+                 value=profile.nationality,
+                 placeholder="JP, US, GB, AU…",
+                 help="Two-letter country code. 'JP' skips most foreigner checks.") }}
+        {{ field_select("residency_status", "Japan Residency Status",
+                        options=[
+                          ("citizen",            "Japanese Citizen"),
+                          ("permanent_resident", "Permanent Resident (永住者)"),
+                          ("long_term_resident", "Long-Term Resident (定住者)"),
+                          ("spouse_visa",        "Spouse / Child of Japanese National"),
+                          ("work_visa",          "Work Visa"),
+                          ("student_visa",       "Student Visa"),
+                          ("other",              "Other"),
+                        ],
+                        selected=profile.residency_status,
+                        help="Affects NHI eligibility, tax scope, and non-permanent resident rule.") }}
+        {{ field("treaty_country", "Home Country (for DTA notes)",
+                 value=profile.treaty_country,
+                 placeholder="e.g. United States, United Kingdom, Australia",
+                 help="Name of your home country. Must match treaty list exactly. Used for DTA provisions, pension notes, and totalization checks.") }}
+        {{ field("years_in_japan", "Years Resident in Japan",
+                 value=profile.years_in_japan,
+                 type="number", min=0, max=60,
+                 help="Approximate total years in Japan. Under 5 of past 10 years may qualify for non-permanent resident (非永住者) treatment — reduced tax on foreign income.") }}
+      </div>
+    </div>
+
     {# ── Real Estate ───────────────────────────────────────────────────────── #}
     <div class="form-card">
       {{ section("Real Estate (Optional)") }}

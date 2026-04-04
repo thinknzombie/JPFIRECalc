@@ -79,6 +79,12 @@ class FinancialProfile:
     foreign_pension_annual_jpy: int = 0
     foreign_pension_start_age: int = 67
 
+    # --- Foreigners mode ----------------------------------------------------
+    nationality: str = "JP"                       # ISO 3166-1 alpha-2 (e.g. "US", "GB", "JP")
+    residency_status: str = "permanent_resident"  # citizen | permanent_resident | long_term_resident | spouse_visa | work_visa | student_visa | other
+    treaty_country: str = ""                      # e.g. "United States" — for DTA/totalization notes
+    years_in_japan: int = 10                      # approximate years resident in Japan
+
     # --- iDeCo --------------------------------------------------------------
     ideco_start_age: int | None = None            # if None, assumed current_age
 

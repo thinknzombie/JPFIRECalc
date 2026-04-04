@@ -1052,6 +1052,75 @@ img, svg { display: block; max-width: 100%; }
 .text-muted   { color: var(--color-text-muted); }
 
 /* ============================================================
+   Foreigners Mode
+   ============================================================ */
+.results-card--foreigners {
+  border-color: rgba(167,139,250,0.35);
+  background: linear-gradient(135deg, var(--color-bg-card), rgba(167,139,250,0.04));
+}
+
+.badge--accent  { background: var(--color-accent-dim); color: var(--color-accent); border-color: rgba(232,184,75,0.3); }
+.badge--danger  { background: rgba(224,82,82,0.12); color: var(--color-danger); border-color: rgba(224,82,82,0.3); }
+
+.foreigners-block {
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.foreigners-block--warnings {
+  background: rgba(224,82,82,0.06);
+  border: 1px solid rgba(224,82,82,0.2);
+}
+.foreigners-block--notes {
+  background: rgba(91,106,240,0.05);
+  border: 1px solid rgba(91,106,240,0.15);
+}
+
+.foreigners-block__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.foreigners-block--warnings .foreigners-block__label { color: var(--color-danger); }
+.foreigners-block--notes    .foreigners-block__label { color: var(--color-primary); }
+
+.foreigners-item {
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+.foreigners-item--warning {
+  color: var(--color-text);
+  border-left: 3px solid var(--color-danger);
+  background: rgba(224,82,82,0.05);
+}
+.foreigners-item--note {
+  color: var(--color-text-muted);
+  border-left: 3px solid var(--color-primary);
+}
+
+.foreigners-disclaimer {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  margin-top: var(--space-2);
+  font-style: italic;
+}
+
+/* Profile form — foreigners card highlight */
+.form-card--foreigners {
+  border-color: rgba(167,139,250,0.3);
+  background: linear-gradient(135deg, var(--color-bg-card), rgba(167,139,250,0.04));
+}
+
+/* ============================================================
    Charts
    ============================================================ */
 .chart-container { width: 100%; min-height: 320px; }

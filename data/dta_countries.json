@@ -1,0 +1,164 @@
+{
+  "_source": "National Tax Agency (国税庁) — Japan DTA network as of 2024",
+  "_url": "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2878.htm",
+  "_notes": "Japan has DTAs (租税条約) with ~80 countries. Key provisions relevant to FIRE: dividend/interest withholding rates, pension taxation, capital gains, and tie-breaker residency rules.",
+
+  "countries": {
+    "United States": {
+      "treaty_year": 2004,
+      "dividend_wht_pct": 10,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "US Social Security taxable only in country of residence. If Japan-resident, taxed in Japan (not US). Foreign pension income deduction (公的年金等控除) applies.",
+      "totalization": true,
+      "key_notes": [
+        "US Social Security benefits are taxable only in Japan if you are a Japan tax resident.",
+        "401k/IRA withdrawals: Japan taxes as miscellaneous income. No foreign pension deduction (not a government pension).",
+        "FATCA reporting required for US persons with Japanese financial accounts.",
+        "Exit tax (国外転出時課税) applies on unrealised gains >¥100M when leaving Japan."
+      ]
+    },
+    "United Kingdom": {
+      "treaty_year": 2006,
+      "dividend_wht_pct": 10,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "UK State Pension taxable in Japan if Japan-resident. Foreign pension deduction applies.",
+      "totalization": true,
+      "key_notes": [
+        "UK State Pension taxed only in Japan if Japan tax resident.",
+        "UK private/occupational pension: taxable in Japan as miscellaneous income.",
+        "ISA gains: Japan does not recognise ISA tax-free status — gains taxed in Japan.",
+        "Exit tax applies on departure from Japan with unrealised gains >¥100M."
+      ]
+    },
+    "Australia": {
+      "treaty_year": 2008,
+      "dividend_wht_pct": 10,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "Australian Age Pension: taxable in Japan. Superannuation distributions: taxable in Japan (not covered by DTA as government pension).",
+      "totalization": true,
+      "key_notes": [
+        "Superannuation is not a government pension — distributions are taxed in Japan as miscellaneous income.",
+        "Australian dividends: 10% WHT under treaty (vs 30% default).",
+        "Super contributions made while Japan-resident are not tax-deductible in Japan."
+      ]
+    },
+    "Canada": {
+      "treaty_year": 1986,
+      "dividend_wht_pct": 15,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "CPP/OAS: taxable only in Japan if Japan-resident.",
+      "totalization": true,
+      "key_notes": [
+        "CPP and OAS benefits taxed in Japan (not Canada) if Japan tax resident.",
+        "RRSP/RRIF withdrawals: Japan taxes as miscellaneous income.",
+        "TFSA gains: Japan does not recognise TFSA tax shelter — gains taxable in Japan."
+      ]
+    },
+    "Germany": {
+      "treaty_year": 1966,
+      "dividend_wht_pct": 15,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "German statutory pension (gesetzliche Rentenversicherung): taxable in Japan.",
+      "totalization": true,
+      "key_notes": [
+        "German pension taxed in Japan if Japan-resident.",
+        "Riester/Rürup pensions: no deduction in Japan; distributions taxed as income."
+      ]
+    },
+    "France": {
+      "treaty_year": 1995,
+      "dividend_wht_pct": 10,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "French state pension (retraite de base): taxable in Japan.",
+      "totalization": true,
+      "key_notes": [
+        "French pension taxed in Japan if Japan-resident.",
+        "PEA (Plan d'Épargne en Actions): Japan does not recognise tax-free status."
+      ]
+    },
+    "South Korea": {
+      "treaty_year": 1970,
+      "dividend_wht_pct": 15,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "Korean National Pension (국민연금): taxable in Japan.",
+      "totalization": true,
+      "key_notes": [
+        "Korean National Pension taxed in Japan if Japan-resident.",
+        "ISA/tax-free accounts in Korea: Japan does not recognise exemptions."
+      ]
+    },
+    "China": {
+      "treaty_year": 1983,
+      "dividend_wht_pct": 10,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "No totalization agreement — pension contributions may be doubled.",
+      "totalization": false,
+      "key_notes": [
+        "No totalization — working in both countries may require contributions to both pension systems simultaneously.",
+        "China-sourced income: report on Japan global income tax return."
+      ]
+    },
+    "Netherlands": {
+      "treaty_year": 1970,
+      "dividend_wht_pct": 10,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "AOW (Dutch state pension): taxable in Japan.",
+      "totalization": true,
+      "key_notes": [
+        "Dutch AOW pension taxed in Japan if Japan-resident.",
+        "Box 3 wealth tax: Japan residents are not subject to Dutch Box 3 but must report worldwide assets."
+      ]
+    },
+    "Switzerland": {
+      "treaty_year": 1971,
+      "dividend_wht_pct": 10,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "Swiss AHV/AVS pension: taxable in Japan.",
+      "totalization": true,
+      "key_notes": [
+        "Swiss AHV/AVS state pension taxed in Japan.",
+        "Pillar 3a: distributions taxed in Japan as miscellaneous income."
+      ]
+    },
+    "India": {
+      "treaty_year": 1989,
+      "dividend_wht_pct": 10,
+      "interest_wht_pct": 10,
+      "capital_gains_resident_taxable_in": "Japan",
+      "pension_note": "EPS (Employees' Pension Scheme): limited treaty coverage.",
+      "totalization": true,
+      "key_notes": [
+        "India–Japan totalization entered force 2016.",
+        "NPS (National Pension System): Japan may tax distributions as income."
+      ]
+    }
+  },
+
+  "general_notes": {
+    "exit_tax": {
+      "threshold_jpy": 100000000,
+      "applies_to": "Unrealised gains on financial assets (stocks, bonds, investment trusts, not real estate) held by individuals with assets ≥¥100M who have lived in Japan ≥5 of the past 10 years.",
+      "note": "国外転出時課税 — Exit Tax. Triggered when leaving Japan permanently or temporarily (>5 years). Covered securities include NISA holdings (which lose their tax-free status on exit). Seek professional advice before emigrating with large NISA balance."
+    },
+    "nhi_eligibility": {
+      "eligible_statuses": ["permanent_resident", "long_term_resident", "spouse_visa", "work_visa", "student_visa"],
+      "ineligible_note": "Short-stay visas (<3 months) and some special statuses may not qualify for NHI. Employer-sponsored shakai hoken (社会保険) provides separate coverage.",
+      "residence_card_required": true
+    },
+    "global_income_reporting": "Japan taxes residents on worldwide income. All foreign pensions, dividends, capital gains, and interest must be reported on the Japanese tax return (確定申告) regardless of where accounts are held.",
+    "residency_status_tax_impact": {
+      "non_permanent_resident": "Non-permanent residents (非永住者) — those who have been resident in Japan for fewer than 5 of the past 10 years and do not intend to stay — are taxed only on Japan-source income and foreign-source income remitted to Japan. This can significantly reduce the Japanese tax burden on foreign investment income.",
+      "permanent_resident": "Permanent residents and those who have lived in Japan ≥5 of 10 years are taxed on worldwide income regardless of remittance."
+    }
+  }
+}
