@@ -69,7 +69,7 @@
           </div>
           <div class="scenario-card__footer">
             <span class="scenario-card__age">
-              Age {{ profile.current_age }} → {{ profile.target_retirement_age }}
+              <span data-i18n="card.age_prefix">Age</span> {{ profile.current_age }} → {{ profile.target_retirement_age }}
             </span>
             <span class="scenario-card__cta" data-i18n="card.view">View Results →</span>
           </div>
@@ -109,7 +109,7 @@
     const btn = document.getElementById('compareBtn');
     if (checked.length >= 2) {
       btn.style.display = '';
-      btn.textContent = `Compare ${checked.length} →`;
+      btn.textContent = (typeof I18n !== 'undefined' ? I18n.t('dash.compare_n') : 'Compare {n} →').replace('{n}', checked.length);
     } else {
       btn.style.display = 'none';
     }

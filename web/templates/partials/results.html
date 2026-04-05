@@ -10,7 +10,7 @@
     <div class="metric-value" id="fireNumber">
       ¥{{ "{:,}".format(result.fire_number_jpy) }}
     </div>
-    <div class="metric-sub">Target portfolio at {{ result.scenario_name }}</div>
+    <div class="metric-sub"><span data-i18n="result.fire_number_sub">Target portfolio at</span> {{ result.scenario_name }}</div>
   </div>
   <div class="metric-card {% if result.years_to_fire <= 0 %}metric-card--success{% elif result.years_to_fire >= 99 %}metric-card--danger{% elif result.years_to_fire <= 10 %}metric-card--accent{% endif %}">
     <div class="metric-label" data-i18n="result.years">Years to FIRE</div>
@@ -27,7 +27,7 @@
       {% if result.years_to_fire >= 99 %}
         <span data-i18n="result.never_sub">Increase savings or reduce expenses</span>
       {% else %}
-        FIRE age: {{ "%.0f" | format(result.fire_age) }}
+        <span data-i18n="result.fire_age_label">FIRE age:</span> {{ "%.0f" | format(result.fire_age) }}
       {% endif %}
     </div>
   </div>
@@ -43,7 +43,7 @@
   <div class="metric-card {% if result.monte_carlo.success_rate_pct >= 90 %}metric-card--success{% elif result.monte_carlo.success_rate_pct >= 75 %}metric-card--accent{% else %}metric-card--danger{% endif %}">
     <div class="metric-label" data-i18n="result.mc_success">Monte Carlo Success</div>
     <div class="metric-value">{{ result.monte_carlo.success_rate_pct }}%</div>
-    <div class="metric-sub">{{ result.monte_carlo.n_simulations | int }} simulations</div>
+    <div class="metric-sub">{{ result.monte_carlo.n_simulations | int }} <span data-i18n="result.mc_simulations">simulations</span></div>
   </div>
   {% endif %}
 </div>
@@ -73,9 +73,11 @@
       </div>
       <div class="kv-row">
         <span class="kv-key" data-i18n="result.coast_reached">Coast FIRE Reached?</span>
-        <span class="kv-val {% if result.coast_fire_reached %}text-success{% else %}text-muted{% endif %}">
-          {{ "Yes ✓" if result.coast_fire_reached else "Not yet" }}
-        </span>
+        {% if result.coast_fire_reached %}
+        <span class="kv-val text-success" data-i18n="result.coast_yes">Yes ✓</span>
+        {% else %}
+        <span class="kv-val text-muted" data-i18n="result.coast_not_yet">Not yet</span>
+        {% endif %}
       </div>
     </div>
   </div>

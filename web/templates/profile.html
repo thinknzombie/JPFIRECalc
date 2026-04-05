@@ -245,17 +245,6 @@
     });
   }
 
-  // ── Tooltip hover ─────────────────────────────────────────────────────────
-  document.querySelectorAll('.tooltip-trigger').forEach(el => {
-    el.addEventListener('mouseenter', () => {
-      const tip = document.createElement('div');
-      tip.className = 'tooltip-popup';
-      tip.textContent = el.dataset.tip;
-      el.appendChild(tip);
-    });
-    el.addEventListener('mouseleave', () => {
-      el.querySelectorAll('.tooltip-popup').forEach(t => t.remove());
-    });
-  });
+  // Tooltip hover is handled globally in main.js
 </script>
 {% endblock %}

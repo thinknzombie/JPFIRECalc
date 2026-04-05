@@ -8,7 +8,7 @@
     <div class="page-header__inner">
       <div>
         <h1 class="page-title" data-i18n="compare.title">Scenario Comparison</h1>
-        <p class="page-subtitle">{{ items | length }} scenario{{ 's' if items | length != 1 }} selected</p>
+        <p class="page-subtitle">{{ items | length }} <span data-i18n="compare.scenarios_selected">scenario{{ 's' if items | length != 1 }} selected</span></p>
       </div>
       <div class="page-header__actions">
         {# Add/remove scenarios #}

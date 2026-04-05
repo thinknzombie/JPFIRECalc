@@ -242,6 +242,48 @@ const I18n = (() => {
       "chart.tornado.info": "Each bar shows how much your <em>Years to FIRE</em> changes when one variable is adjusted by ±20%. <strong>Red bars</strong> (right) show the pessimistic scenario — more years needed. <strong>Green bars</strong> (left) show the optimistic scenario — fewer years. The longest bars are the variables with the biggest impact on your plan; focus on those first.",
       "chart.trajectory.info": "The <strong>solid line</strong> shows your projected portfolio value during the accumulation phase — while you're working and saving. The <strong>dashed line</strong> shows the drawdown phase after retirement. The projection uses a fixed annual return (not randomised like Monte Carlo) and includes contributions, pension offsets, NHI, and inflation. Hover over the chart to see exact values at each age.",
 
+      // ── Footer ────────────────────────────────────────────────────────────
+      "footer.disclaimer": "JPFIRECalc — For informational purposes only. Not financial advice.",
+
+      // ── Dashboard card ────────────────────────────────────────────────────
+      "card.age_prefix": "Age",
+      "dash.compare_n": "Compare {n} →",
+
+      // ── Scenario detail ───────────────────────────────────────────────────
+      "detail.delete_confirm": "Delete this scenario?",
+      "detail.running_simulations": "Running simulations…",
+
+      // ── Compare page ──────────────────────────────────────────────────────
+      "compare.scenarios_selected": "scenarios selected",
+
+      // ── Result labels ─────────────────────────────────────────────────────
+      "result.fire_number_sub": "Target portfolio at",
+      "result.fire_age_label": "FIRE age:",
+      "result.mc_simulations": "simulations",
+      "result.coast_yes": "Yes ✓",
+      "result.coast_not_yet": "Not yet",
+
+      // ── Form validation messages ───────────────────────────────────────────
+      "validation.age_order": "Target retirement age must be greater than current age.",
+      "validation.nisa_limit": "Monthly NISA contribution cannot exceed ¥100,000 (tsumitate frame limit).",
+      "validation.wr_range": "Withdrawal rate must be between 0.5% and 10%.",
+
+      // ── Tooltip help text ─────────────────────────────────────────────────
+      "help.investment_return_pct": "Expected annual return during accumulation. 5–7% is typical for a global equity portfolio.",
+      "help.retirement_return_pct": "More conservative after FIRE — usually 0.5–1% below pre-retirement return.",
+      "help.return_volatility_pct": "Standard deviation of returns. 15% is typical for a global equity fund.",
+      "help.withdrawal_rate_pct": "Japan research suggests 3–3.5% is safer than the US 4% rule due to lower historical returns.",
+      "help.japan_inflation_pct": "Recent Japan CPI has been ~2–3%. Your expenses grow at this rate in retirement.",
+      "help.retirement_expense_growth_pct": "Typically below general inflation — retirees often spend less over time.",
+      "help.fire_variant": "Changes which FIRE metric is highlighted in the results.",
+      "help.coast_target_retirement_age": "Used for Coast FIRE — the age you stop working entirely.",
+      "help.barista_income_monthly_jpy": "Income from part-time work during semi-retirement. Reduces required portfolio size.",
+      "help.nhi_municipality_key": "NHI rates vary significantly by municipality — up to 2× between cheapest and most expensive.",
+      "help.nhi_household_members": "Each additional member adds a per-head levy.",
+      "help.monte_carlo_simulations": "1,000 is fast; 10,000 gives stable statistics. More = slower but more accurate.",
+      "help.simulation_years": "How many years of retirement to simulate. FIRE at 45 → model to 95 = 50 years.",
+      "help.sequence_of_returns_risk": "Amplifies volatility in early retirement years — the most dangerous period for early retirees.",
+
       // ── Errors ────────────────────────────────────────────────────────────
       "error.back": "Go to Dashboard",
       "error.home": "Home",
@@ -476,6 +518,48 @@ const I18n = (() => {
       "chart.tornado.info": "各バーは、1つの変数を±20%変化させたときに<em>FIREまでの年数</em>がどれだけ変わるかを示します。<strong>赤いバー</strong>（右側）は悲観的シナリオ（年数が増える）、<strong>緑のバー</strong>（左側）は楽観的シナリオ（年数が減る）です。バーが長いほどプランへの影響が大きい変数です。まずそこに注目しましょう。",
       "chart.trajectory.info": "<strong>実線</strong>は就労・積立期間中のポートフォリオ推移を示します。<strong>破線</strong>は退職後の取り崩し期間を示します。この予測はモンテカルロと異なり固定リターンを使用し、積立・年金オフセット・国保・インフレを考慮しています。グラフにマウスを合わせると各年齢での資産額が確認できます。",
 
+      // ── Footer ────────────────────────────────────────────────────────────
+      "footer.disclaimer": "JPFIRECalc — 情報提供のみを目的としています。投資・税務アドバイスではありません。",
+
+      // ── Dashboard card ────────────────────────────────────────────────────
+      "card.age_prefix": "年齢",
+      "dash.compare_n": "{n}件を比較 →",
+
+      // ── Scenario detail ───────────────────────────────────────────────────
+      "detail.delete_confirm": "このシナリオを削除しますか？",
+      "detail.running_simulations": "シミュレーション実行中…",
+
+      // ── Compare page ──────────────────────────────────────────────────────
+      "compare.scenarios_selected": "件を選択中",
+
+      // ── Result labels ─────────────────────────────────────────────────────
+      "result.fire_number_sub": "目標ポートフォリオ：",
+      "result.fire_age_label": "FIRE達成年齢：",
+      "result.mc_simulations": "回のシミュレーション",
+      "result.coast_yes": "達成 ✓",
+      "result.coast_not_yet": "未達成",
+
+      // ── Form validation messages ───────────────────────────────────────────
+      "validation.age_order": "目標退職年齢は現在の年齢より大きく設定してください。",
+      "validation.nisa_limit": "新NISAのつみたて投資枠の月額上限は10万円です。",
+      "validation.wr_range": "取り崩し率は0.5%〜10%の間で入力してください。",
+
+      // ── Tooltip help text ─────────────────────────────────────────────────
+      "help.investment_return_pct": "積立期間中の期待年率リターン。グローバル株式ポートフォリオでは5〜7%が目安です。",
+      "help.retirement_return_pct": "FIRE後はより保守的な設定が一般的です。退職前リターンより0.5〜1%低い値が推奨されます。",
+      "help.return_volatility_pct": "リターンの標準偏差。グローバル株式インデックスファンドでは15%程度が一般的です。",
+      "help.withdrawal_rate_pct": "日本の研究では、歴史的リターンの低さから3〜3.5%が米国の4%ルールより安全とされています。",
+      "help.japan_inflation_pct": "最近の日本のCPIは約2〜3%です。退職後の支出はこの率で増加します。",
+      "help.retirement_expense_growth_pct": "一般インフレより低いのが通常です。退職者は時間とともに支出が減る傾向があります。",
+      "help.fire_variant": "結果でハイライトされるFIRE指標が変わります。",
+      "help.coast_target_retirement_age": "コーストFIREで使用します。完全に仕事をやめる年齢を入力してください。",
+      "help.barista_income_monthly_jpy": "セミリタイア中のアルバイト等の収入。必要なポートフォリオ額が減少します。",
+      "help.nhi_municipality_key": "国保の保険料は市区町村によって大きく異なります。最安値と最高値で最大2倍の差があります。",
+      "help.nhi_household_members": "加入者が増えるごとに均等割が加算されます。",
+      "help.monte_carlo_simulations": "1,000回は高速、10,000回は安定した統計が得られます。多いほど精度は上がりますが時間がかかります。",
+      "help.simulation_years": "退職後のシミュレーション期間。45歳でFIRE→95歳まで = 50年が目安です。",
+      "help.sequence_of_returns_risk": "退職初期のボラティリティを増幅します。早期リタイアにとって最も危険な期間です。",
+
       // ── Errors ────────────────────────────────────────────────────────────
       "error.back": "ダッシュボードへ戻る",
       "error.home": "ホーム",
@@ -529,6 +613,15 @@ const I18n = (() => {
       if (!text || text === key) return;
       const span = label.querySelector('.checkbox-text');
       if (span) span.textContent = text;
+    });
+
+    // 2c. Auto-translate .form-help paragraphs via data-help-key attribute.
+    //     These are the always-visible help texts below each field.
+    document.querySelectorAll('[data-help-key]').forEach(el => {
+      const key = el.dataset.helpKey;
+      const text = t(key);
+      if (!text || text === key) return;
+      el.textContent = text;
     });
 
     // 3. Update lang toggle button label (shows the OTHER language)

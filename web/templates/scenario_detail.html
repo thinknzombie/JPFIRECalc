@@ -26,7 +26,7 @@
         </a>
         <form method="POST" action="{{ url_for('scenarios.delete', scenario_id=scenario.id) }}"
               class="inline-form"
-              onsubmit="return confirm('Delete this scenario?')">
+              onsubmit="return confirm(typeof I18n !== 'undefined' ? I18n.t('detail.delete_confirm') : 'Delete this scenario?')">
           <button type="submit" class="btn btn--danger btn--sm" data-i18n="detail.delete">Delete</button>
         </form>
       </div>
@@ -41,7 +41,7 @@
 
 <div id="resultsSpinner" class="htmx-indicator spinner-overlay" aria-label="Calculating…">
   <div class="spinner"></div>
-  <p>Running simulations…</p>
+  <p data-i18n="detail.running_simulations">Running simulations…</p>
 </div>
 {% endblock %}
 
