@@ -588,6 +588,11 @@ def run_fire_scenario(
         municipality_key=municipality_key,
         age=profile.target_retirement_age,
     )
+    if not nhi_solve.get("converged", True):
+        warnings.append(
+            "NHI premium calculation did not fully converge. "
+            "The withdrawal estimate is approximate — consider adjusting municipality or household size."
+        )
 
     # --- Year-1 residence tax shock -----------------------------------------
     shock = calculate_year1_retirement_tax_shock(
@@ -696,7 +701,7 @@ def run_fire_scenario(
         net_pension_annual_jpy=net_pension,
         pension_start_year=pension_start_year,
         simulation_years=assumptions.simulation_years,
-        n_simulations=assumptions.monte_carlo_simulations,
+        n_simulations=min(assumptions.monte_carlo_simulations, 10_000),  # engine-level safety cap
         mean_return=assumptions.retirement_return_pct / 100,
         volatility=assumptions.return_volatility_pct / 100,
         inflation_rate=assumptions.japan_inflation_pct / 100,
@@ -759,5 +764,5 @@ def run_fire_scenario(
         foreigners_totalization=foreigners.totalization_eligible,
         foreigners_non_pr=foreigners.non_permanent_resident,
         foreigners_exit_tax_risk=foreigners.exit_tax_risk,
-        warnings=warnings,
+        warnings=list(dict.fromkeys(warnings)),  # deduplicate, preserve order
     )

@@ -235,7 +235,7 @@ class ScenarioResult:
     # --- Projection ---------------------------------------------------------
     trajectory: list[YearProjection] = field(default_factory=list)
 
-    # --- Simulation results (populated by Milestone 5) ---------------------
+    # --- Simulation results -------------------------------------------------
     monte_carlo: MonteCarloResult | None = None
     sensitivity: list[SensitivityItem] = field(default_factory=list)
 

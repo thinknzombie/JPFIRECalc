@@ -154,10 +154,7 @@ def run_sensitivity_analysis(
         is_profile_change=True,
     ))
 
-    # 4. Annual expenses: ±delta on the region template base
-    # We model this as adjusting monthly_expenses_jpy in the profile
-    # and switching to use_region_template=False path via the assumption
-    # Simpler: vary the expenses directly by adjusting template via profile override
+    # 4. Annual expenses: ±delta — vary monthly_expenses_jpy directly in the profile
     exp_base = profile.monthly_expenses_jpy
     items.append(_item(
         "monthly_expenses",

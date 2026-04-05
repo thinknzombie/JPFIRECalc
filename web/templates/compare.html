@@ -190,9 +190,9 @@
             {% for item in items %}
             <td class="compare-table__val">
               {% if item.result.coast_fire_reached %}
-              <span class="text-success">Yes ✓</span>
+              <span class="text-success" data-i18n="result.coast_yes">Yes ✓</span>
               {% else %}
-              <span class="text-muted">Not yet</span>
+              <span class="text-muted" data-i18n="result.coast_not_yet">Not yet</span>
               {% endif %}
             </td>
             {% endfor %}
