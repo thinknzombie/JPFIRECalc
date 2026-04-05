@@ -142,6 +142,19 @@ class FinancialProfile:
     rental_income_monthly_jpy: int = 0
     property_paid_off_at_retirement: bool = False
 
+    # --- Foreign real estate ------------------------------------------------
+    owns_foreign_property: bool = False
+    foreign_property_value_jpy: int = 0          # combined market value in JPY
+    foreign_property_mortgage_jpy: int = 0       # outstanding mortgage in JPY
+    foreign_property_rental_monthly_jpy: int = 0  # monthly net rental income in JPY
+
+    # --- Other / alternative assets -----------------------------------------
+    gold_silver_value_jpy: int = 0               # gold, silver, precious metals
+    crypto_value_jpy: int = 0                    # cryptocurrency (BTC, ETH, etc.)
+    rsu_unvested_value_jpy: int = 0              # current fair-market value of unvested RSUs
+    rsu_vesting_annual_jpy: int = 0              # expected annual vest while still employed
+    other_assets_jpy: int = 0                    # other (business equity, art, collectibles…)
+
     # --- Helpers ------------------------------------------------------------
 
     @property

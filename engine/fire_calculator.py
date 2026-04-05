@@ -123,6 +123,7 @@ def calculate_retirement_expenses(
 
     # Add rental income (reduces expenses)
     rental_monthly = profile.rental_income_monthly_jpy
+    rental_monthly += getattr(profile, 'foreign_property_rental_monthly_jpy', 0)
 
     net_monthly = base_monthly + mortgage_monthly - rental_monthly
     annual = max(0, net_monthly * 12)
@@ -210,12 +211,19 @@ def calculate_accessible_portfolio(
     foreign_jpy = int(profile.foreign_assets_usd * profile.usd_jpy_rate)
     ideco_accessible = fire_age >= 60
 
+    # Liquid / semi-liquid assets
+    gold    = getattr(profile, 'gold_silver_value_jpy', 0)
+    crypto  = getattr(profile, 'crypto_value_jpy', 0)
+    rsu     = getattr(profile, 'rsu_unvested_value_jpy', 0)
+    other   = getattr(profile, 'other_assets_jpy', 0)
+
     liquid = (
         profile.nisa_balance_jpy
         + profile.taxable_brokerage_jpy
         + profile.cash_savings_jpy
         + foreign_jpy
         + (profile.ideco_balance_jpy if ideco_accessible else 0)
+        + gold + crypto + rsu + other
     )
 
     return {
@@ -227,6 +235,10 @@ def calculate_accessible_portfolio(
         "ideco_accessible": ideco_accessible,
         "total_accessible_jpy": liquid,
         "total_including_locked_ideco_jpy": liquid + (0 if ideco_accessible else profile.ideco_balance_jpy),
+        "gold_jpy":   gold,
+        "crypto_jpy": crypto,
+        "rsu_jpy":    rsu,
+        "other_jpy":  other,
     }
 
 
@@ -466,6 +478,7 @@ def project_net_worth(
 
     annual_savings = (
         (profile.monthly_nisa_contribution_jpy + profile.ideco_monthly_contribution_jpy) * 12
+        + getattr(profile, 'rsu_vesting_annual_jpy', 0)
     )
 
     trajectory: list[YearProjection] = []
@@ -615,7 +628,7 @@ def run_fire_scenario(
     # --- Years to FIRE -------------------------------------------------------
     annual_savings = (
         profile.monthly_nisa_contribution_jpy + profile.ideco_monthly_contribution_jpy
-    ) * 12
+    ) * 12 + getattr(profile, 'rsu_vesting_annual_jpy', 0)
     years_to_fire = calculate_years_to_fire(
         current_portfolio_jpy=current_portfolio,
         annual_savings_jpy=annual_savings,
@@ -682,6 +695,24 @@ def run_fire_scenario(
         warnings.append(
             "With current savings rate and return assumptions, the FIRE number "
             "is never reached. Increase savings, reduce expenses, or adjust assumptions."
+        )
+    if getattr(profile, 'rsu_unvested_value_jpy', 0) > 0:
+        warnings.append(
+            f"Unvested RSUs (¥{profile.rsu_unvested_value_jpy:,}) are included in your accessible "
+            "portfolio, but vest only while employed — they disappear the moment you FIRE. "
+            "Consider excluding them from your FIRE number if you plan to leave before full vesting."
+        )
+    if getattr(profile, 'rsu_vesting_annual_jpy', 0) > 0:
+        warnings.append(
+            f"Annual RSU vesting (¥{profile.rsu_vesting_annual_jpy:,}) is counted as savings "
+            "during accumulation but stops entirely at retirement. "
+            "RSU income is taxed as ordinary income (総合課税) in Japan."
+        )
+    if getattr(profile, 'crypto_value_jpy', 0) > 0:
+        warnings.append(
+            "Cryptocurrency is included in your accessible portfolio at current value. "
+            "Crypto gains in Japan are taxed as miscellaneous income (雑所得) at up to 55% — "
+            "factor in the tax cost when planning liquidation."
         )
     if math.isfinite(years_to_fire) and fire_age > 75:
         warnings.append(

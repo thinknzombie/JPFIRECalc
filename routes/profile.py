@@ -61,6 +61,15 @@ _FIELD_META: dict[str, dict] = {
     "monthly_mortgage_payment_jpy":          {"label": "Monthly Mortgage Payment (JPY)",        "type": "int",   "description": "Monthly principal + interest payment",                                             "example": 0},
     "rental_income_monthly_jpy":             {"label": "Monthly Rental Income (JPY)",           "type": "int",   "description": "Monthly rental income from investment property",                                   "example": 0},
     "property_paid_off_at_retirement":       {"label": "Property Paid Off at Retirement",       "type": "bool",  "description": "true or false — whether mortgage clears before FIRE age",                        "example": False},
+    "owns_foreign_property":              {"label": "Owns Foreign Real Estate",                "type": "bool",  "description": "true or false",                                                                                    "example": False},
+    "foreign_property_value_jpy":         {"label": "Foreign Property Value (JPY)",            "type": "int",   "description": "Combined market value of all overseas property, converted to JPY",                             "example": 0},
+    "foreign_property_mortgage_jpy":      {"label": "Foreign Property Mortgage (JPY)",         "type": "int",   "description": "Outstanding mortgage balance on overseas property, in JPY",                                    "example": 0},
+    "foreign_property_rental_monthly_jpy":{"label": "Foreign Rental Income Monthly (JPY)",     "type": "int",   "description": "Combined monthly net rental income from overseas property, in JPY",                            "example": 0},
+    "gold_silver_value_jpy":              {"label": "Gold / Precious Metals (JPY)",             "type": "int",   "description": "Current market value of gold, silver, or other precious metals",                               "example": 0},
+    "crypto_value_jpy":                   {"label": "Cryptocurrency (JPY)",                    "type": "int",   "description": "Current value of cryptocurrency holdings at market price (BTC, ETH, etc.)",                   "example": 0},
+    "rsu_unvested_value_jpy":             {"label": "Unvested RSUs (JPY)",                     "type": "int",   "description": "Fair-market value of unvested RSUs at current stock price — only count if you plan to stay until vest", "example": 0},
+    "rsu_vesting_annual_jpy":             {"label": "Annual RSU Vest (JPY)",                   "type": "int",   "description": "Expected annual RSU vest value while still employed (stops at retirement)",                    "example": 0},
+    "other_assets_jpy":                   {"label": "Other Assets (JPY)",                      "type": "int",   "description": "Other assets: business equity, art, collectibles, private equity, etc.",                      "example": 0},
 }
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
@@ -153,6 +162,15 @@ def _profile_from_form(form) -> FinancialProfile:
         monthly_mortgage_payment_jpy=i("monthly_mortgage_payment_jpy"),
         rental_income_monthly_jpy=i("rental_income_monthly_jpy"),
         property_paid_off_at_retirement=b("property_paid_off_at_retirement"),
+        owns_foreign_property=b("owns_foreign_property"),
+        foreign_property_value_jpy=i("foreign_property_value_jpy"),
+        foreign_property_mortgage_jpy=i("foreign_property_mortgage_jpy"),
+        foreign_property_rental_monthly_jpy=i("foreign_property_rental_monthly_jpy"),
+        gold_silver_value_jpy=i("gold_silver_value_jpy"),
+        crypto_value_jpy=i("crypto_value_jpy"),
+        rsu_unvested_value_jpy=i("rsu_unvested_value_jpy"),
+        rsu_vesting_annual_jpy=i("rsu_vesting_annual_jpy"),
+        other_assets_jpy=i("other_assets_jpy"),
     )
 
 

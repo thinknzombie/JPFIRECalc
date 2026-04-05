@@ -1242,6 +1242,13 @@ img, svg { display: block; max-width: 100%; }
   background: linear-gradient(135deg, var(--color-bg-card), rgba(167,139,250,0.04));
 }
 
+/* Subsection divider within a form-card */
+.form-subsection-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-6) 0 var(--space-5) 0;
+}
+
 /* Collapsible section header (Foreigners Mode) */
 .collapsible-header {
   display: flex;

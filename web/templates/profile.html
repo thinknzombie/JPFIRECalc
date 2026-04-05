@@ -254,6 +254,9 @@
     {# ── Real Estate ───────────────────────────────────────────────────────── #}
     <div class="form-card">
       {{ section("Real Estate (Optional)", key="section.realestate") }}
+
+      {# Japan property #}
+      <p class="form-section-subtitle" data-i18n="section.realestate.japan">Japan Property</p>
       <div class="form-grid form-grid--1">
         {{ field_checkbox("owns_property", "I own property in Japan", checked=profile.owns_property) }}
       </div>
@@ -268,6 +271,39 @@
                      value=profile.rental_income_monthly_jpy, step=10000) }}
         {{ field_checkbox("property_paid_off_at_retirement", "Mortgage paid off by retirement",
                           checked=profile.property_paid_off_at_retirement) }}
+      </div>
+
+      {# Foreign / overseas property #}
+      {% set foreign_re_active = profile.owns_foreign_property or profile.foreign_property_value_jpy > 0 %}
+      <div class="form-subsection-divider"></div>
+      <p class="form-section-subtitle" data-i18n="section.realestate.foreign">Foreign / Overseas Property</p>
+      <div class="form-grid form-grid--1">
+        {{ field_checkbox("owns_foreign_property", "I own property outside Japan", checked=profile.owns_foreign_property) }}
+      </div>
+      <div class="form-grid form-grid--2" id="foreignPropertyFields" style="{{ 'display:none' if not foreign_re_active else '' }}">
+        {{ field_yen("foreign_property_value_jpy", "Foreign Property Value (JPY equivalent)",
+                     value=profile.foreign_property_value_jpy, step=1000000) }}
+        {{ field_yen("foreign_property_mortgage_jpy", "Foreign Property Mortgage (JPY equivalent)",
+                     value=profile.foreign_property_mortgage_jpy, step=100000) }}
+        {{ field_yen("foreign_property_rental_monthly_jpy", "Foreign Monthly Rental Income (JPY equivalent)",
+                     value=profile.foreign_property_rental_monthly_jpy, step=10000) }}
+      </div>
+    </div>
+
+    {# ── Other / Alternative Assets ────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Other Assets (Optional)", "Gold, crypto, RSUs, and other holdings that don't fit the standard account types.", key="section.otherassets") }}
+      <div class="form-grid form-grid--2">
+        {{ field_yen("gold_silver_value_jpy", "Gold / Precious Metals",
+                     value=profile.gold_silver_value_jpy, step=100000) }}
+        {{ field_yen("crypto_value_jpy", "Cryptocurrency",
+                     value=profile.crypto_value_jpy, step=100000) }}
+        {{ field_yen("rsu_unvested_value_jpy", "Unvested RSUs (current FMV)",
+                     value=profile.rsu_unvested_value_jpy, step=100000) }}
+        {{ field_yen("rsu_vesting_annual_jpy", "Annual RSU Vest (while employed)",
+                     value=profile.rsu_vesting_annual_jpy, step=100000) }}
+        {{ field_yen("other_assets_jpy", "Other Assets",
+                     value=profile.other_assets_jpy, step=100000) }}
       </div>
     </div>
 
@@ -302,6 +338,15 @@
       const expanded = foreignerToggle.getAttribute('aria-expanded') === 'true';
       foreignerToggle.setAttribute('aria-expanded', String(!expanded));
       foreignerFields.hidden = expanded;
+    });
+  }
+
+  // ── Foreign property toggle ────────────────────────────────────────────────
+  const ownsForeignProperty = document.getElementById('owns_foreign_property');
+  const foreignPropertyFields = document.getElementById('foreignPropertyFields');
+  if (ownsForeignProperty && foreignPropertyFields) {
+    ownsForeignProperty.addEventListener('change', () => {
+      foreignPropertyFields.style.display = ownsForeignProperty.checked ? '' : 'none';
     });
   }
 
