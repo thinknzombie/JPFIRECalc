@@ -1406,8 +1406,8 @@ img, svg { display: block; max-width: 100%; }
   background: var(--color-primary-dim);
   border-left: 3px solid var(--color-primary);
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   line-height: 1.6;
@@ -1415,6 +1415,66 @@ img, svg { display: block; max-width: 100%; }
 }
 .chart-info-panel strong { color: var(--color-text); }
 .chart-info-panel em     { color: var(--color-text); font-style: normal; font-weight: var(--weight-medium); }
+
+/* Intro sentence */
+.chart-info__intro { margin: 0 0 var(--space-4) 0; }
+
+/* Color-matched legend rows */
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.chart-legend__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  line-height: 1.4;
+}
+
+/* Swatches — color set inline via CSS custom property --sw */
+.chart-swatch { flex-shrink: 0; }
+.chart-swatch--line {
+  width: 22px; height: 3px;
+  background: var(--sw);
+  border-radius: 2px;
+}
+.chart-swatch--dash {
+  width: 22px; height: 3px; border-radius: 2px;
+  background: repeating-linear-gradient(
+    to right, var(--sw) 0, var(--sw) 5px, transparent 5px, transparent 9px
+  );
+}
+.chart-swatch--band {
+  width: 22px; height: 10px;
+  background: var(--sw);
+  border-radius: var(--radius-sm);
+}
+.chart-swatch--bar {
+  width: 14px; height: 14px;
+  background: var(--sw);
+  border-radius: var(--radius-sm);
+}
+.chart-swatch--zero {
+  width: 22px; height: 2px;
+  background: var(--color-border-light);
+  border-radius: 1px;
+}
+
+/* Japan-specific callout at bottom of each panel */
+.chart-info__note {
+  padding-top: var(--space-3);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.55;
+}
+.chart-info__note strong {
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+  margin-right: var(--space-1);
+}
 
 /* ============================================================
    HTMX Spinner

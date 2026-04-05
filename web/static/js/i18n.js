@@ -247,9 +247,26 @@ const I18n = (() => {
       "compare.already_fired": "Already FIRE'd",
 
       // ── Chart info panels ─────────────────────────────────────────────────
-      "chart.mc.info": "Runs hundreds of simulations with randomised annual returns to show a range of outcomes. <strong>p50</strong> is the median — half of scenarios end above this line, half below. <strong>p10</strong> is the pessimistic 10th percentile; <strong>p90</strong> is optimistic. The shaded bands show the spread. The <em>success rate</em> is the percentage of simulations where the portfolio survives the full retirement period without hitting zero.",
-      "chart.tornado.info": "Each bar shows how much your <em>Years to FIRE</em> changes when one variable is adjusted by ±20%. <strong>Red bars</strong> (right) show the pessimistic scenario — more years needed. <strong>Green bars</strong> (left) show the optimistic scenario — fewer years. The longest bars are the variables with the biggest impact on your plan; focus on those first.",
-      "chart.trajectory.info": "The <strong>solid line</strong> shows your projected portfolio value during the accumulation phase — while you're working and saving. The <strong>dashed line</strong> shows the drawdown phase after retirement. The projection uses a fixed annual return (not randomised like Monte Carlo) and includes contributions, pension offsets, NHI, and inflation. Hover over the chart to see exact values at each age.",
+      "chart.note_label": "Japan note:",
+
+      "chart.mc.intro":   "Runs 10,000 retirement scenarios with randomised annual returns — each one models a different possible future. The lines and shaded bands below show how your portfolio value spreads across all those outcomes.",
+      "chart.mc.l.p50":   "<strong>Median (p50)</strong> — your expected middle outcome; half of all simulations finish above this line",
+      "chart.mc.l.inner": "<strong>p25–p75 band</strong> — the middle 50% of outcomes; a realistic planning range",
+      "chart.mc.l.outer": "<strong>p10–p90 band</strong> — 80% of all scenarios fall inside this range",
+      "chart.mc.l.p90":   "<strong>p90 (green dotted)</strong> — optimistic ceiling: only 10% of runs end higher than this",
+      "chart.mc.l.p10":   "<strong>p10 (red dotted)</strong> — stress-test floor: only 10% of runs end lower; plan so this stays above ¥0",
+      "chart.mc.note":    "The <em>success rate</em> above is the % of simulations where the portfolio never hits ¥0. Japan research recommends targeting 90%+ success at a 3–3.5% withdrawal rate — lower than the US 4% rule, because Japanese equity returns have historically been lower and inflation has been more variable.",
+
+      "chart.tornado.intro":   "Each variable in your plan is shifted ±20% from your input value. The bar shows how many years earlier or later you would reach FIRE as a result. Bars at the top have the biggest impact — those are the levers most worth pulling.",
+      "chart.tornado.l.pess":  "<strong>Red bars (right →)</strong> — pessimistic: this variable getting 20% worse adds years to FIRE",
+      "chart.tornado.l.opt":   "<strong>Green bars (← left)</strong> — optimistic: this variable improving by 20% removes years from FIRE",
+      "chart.tornado.l.base":  "<strong>Centre line</strong> — your current base case; bars extend left and right from here",
+      "chart.tornado.note":    "In Japan, <em>monthly expenses</em> and <em>withdrawal rate</em> typically show the longest bars — they matter more than investment return assumptions. Reducing living costs or lowering your withdrawal rate often shortens your FIRE timeline more than chasing higher returns in Japan's lower-yield environment.",
+
+      "chart.traj.intro":      "A deterministic year-by-year projection using your fixed return assumptions — not randomised like Monte Carlo. Shows the single expected path: how your portfolio grows while working, and how it draws down in retirement. Hover any point to see the exact portfolio value at that age.",
+      "chart.traj.l.accum":    "<strong>Blue solid line</strong> — accumulation phase: your portfolio growing through monthly contributions and investment returns",
+      "chart.traj.l.retire":   "<strong>Amber dashed line</strong> — drawdown phase: portfolio being spent in retirement; slope flattens once pension income begins",
+      "chart.traj.note":       "The drawdown slope accounts for nenkin (年金) income starting at your claim age — offsetting withdrawals and slowing the decline. The first retirement year may show a sharper drop due to the <em>year-1 residence tax shock</em> (住民税), which is billed on the prior year's working income.",
 
       // ── Footer ────────────────────────────────────────────────────────────
       "footer.disclaimer": "JPFIRECalc — For informational purposes only. Not financial advice.",
@@ -532,9 +549,26 @@ const I18n = (() => {
       "compare.already_fired": "FIRE達成済み",
 
       // ── Chart info panels ─────────────────────────────────────────────────
-      "chart.mc.info": "ランダムな年次リターンを用いた多数のシミュレーションを実行し、結果の分布を表示します。<strong>p50</strong>は中央値（シナリオの半分がこの線より上、半分が下）。<strong>p10</strong>は悲観的な下位10%、<strong>p90</strong>は楽観的な上位10%です。シェード帯はばらつきの幅を示します。<em>成功率</em>は、退職期間全体でポートフォリオがゼロにならずに生存したシミュレーションの割合です。",
-      "chart.tornado.info": "各バーは、1つの変数を±20%変化させたときに<em>FIREまでの年数</em>がどれだけ変わるかを示します。<strong>赤いバー</strong>（右側）は悲観的シナリオ（年数が増える）、<strong>緑のバー</strong>（左側）は楽観的シナリオ（年数が減る）です。バーが長いほどプランへの影響が大きい変数です。まずそこに注目しましょう。",
-      "chart.trajectory.info": "<strong>実線</strong>は就労・積立期間中のポートフォリオ推移を示します。<strong>破線</strong>は退職後の取り崩し期間を示します。この予測はモンテカルロと異なり固定リターンを使用し、積立・年金オフセット・国保・インフレを考慮しています。グラフにマウスを合わせると各年齢での資産額が確認できます。",
+      "chart.note_label": "日本補足：",
+
+      "chart.mc.intro":   "ランダムな年次リターンを用いた1万通りの退職シミュレーション。各線とシェード帯は、すべての結果における資産額の分布を示します。",
+      "chart.mc.l.p50":   "<strong>中央値 (p50)</strong> — 期待される標準的な結果。シミュレーションの半数がこの線より上で終了",
+      "chart.mc.l.inner": "<strong>p25–p75帯</strong> — 中央50%の結果。現実的な計画の基準範囲",
+      "chart.mc.l.outer": "<strong>p10–p90帯</strong> — 全シナリオの80%がこの範囲内に収まる",
+      "chart.mc.l.p90":   "<strong>p90（緑の点線）</strong> — 楽観的上限：全体の10%のみがこれより高い結果",
+      "chart.mc.l.p10":   "<strong>p10（赤の点線）</strong> — ストレステストの下限：ここがゼロを下回らないよう計画を立てる",
+      "chart.mc.note":    "上の<em>成功率</em>は、ポートフォリオが一度も¥0にならずに生存したシミュレーションの割合です。日本では3〜3.5%の取り崩し率で成功率90%以上を目標とすることが推奨されています。これは日本株の期待リターンの低さとインフレの変動を考慮した結果、米国の4%ルールより低く設定されています。",
+
+      "chart.tornado.intro":   "プランの各変数を現在値から±20%変化させ、FIREまでの年数への影響を測定します。上位のバーが影響力の大きい変数です。まずそこに注目して最適化しましょう。",
+      "chart.tornado.l.pess":  "<strong>赤いバー（右→）</strong> — 悲観的：この変数が20%悪化すると、FIREまでの年数が増える",
+      "chart.tornado.l.opt":   "<strong>緑のバー（←左）</strong> — 楽観的：この変数が20%改善すると、FIREまでの年数が減る",
+      "chart.tornado.l.base":  "<strong>中央線</strong> — 現在のベースケース。バーはここから左右に伸びる",
+      "chart.tornado.note":    "日本では<em>月間支出</em>と<em>取り崩し率</em>が最も長いバーになることが多く、投資リターンより影響が大きい傾向があります。低利回り環境の日本では、高リターンを追うより生活費を下げるか取り崩し率を低くする方が、FIREを早める効果が高い場合があります。",
+
+      "chart.traj.intro":      "固定リターンを用いた年次シミュレーション（モンテカルロと異なり、乱数なし）。就労中の資産成長から退職後の取り崩しまで、期待される単一の軌跡を表示します。各点にマウスを合わせると、その年齢での資産額が確認できます。",
+      "chart.traj.l.accum":    "<strong>青い実線</strong> — 積立フェーズ：毎月の積立と運用益によりポートフォリオが成長",
+      "chart.traj.l.retire":   "<strong>琥珀色の破線</strong> — 取り崩しフェーズ：退職後に資産を取り崩す期間。年金受給開始後は傾きが緩やかになる",
+      "chart.traj.note":       "取り崩しフェーズの傾きは、設定した受給開始年齢から始まる年金（国民年金・厚生年金）収入を反映しており、引き出しを相殺して減少を緩やかにします。退職初年度は、前年の給与に基づく<em>住民税ショック</em>により、より急な落ち込みが生じる場合があります。",
 
       // ── Footer ────────────────────────────────────────────────────────────
       "footer.disclaimer": "JPFIRECalc — 情報提供のみを目的としています。投資・税務アドバイスではありません。",

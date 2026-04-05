@@ -149,14 +149,40 @@
     <span data-i18n="result.mc_chart">Portfolio Survival — Monte Carlo</span>
     <span class="badge">{{ result.monte_carlo.success_rate_pct }}% success</span>
     <button type="button" class="chart-info-btn" aria-label="About this chart"
-            data-chart-info="mc">
+            aria-expanded="true" data-chart-info="mc">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
       </svg>
     </button>
   </h3>
-  <div class="chart-info-panel" id="chart-info-mc" hidden>
-    <p data-i18n="chart.mc.info">Runs hundreds of simulations with randomised annual returns to show a range of outcomes. <strong>p50</strong> is the median — half of scenarios end above this line, half below. <strong>p10</strong> is the pessimistic 10th percentile; <strong>p90</strong> is optimistic. The shaded bands show the spread. The <em>success rate</em> is the percentage of simulations where the portfolio survives the full retirement period without hitting zero.</p>
+  <div class="chart-info-panel" id="chart-info-mc">
+    <p class="chart-info__intro" data-i18n="chart.mc.intro">Runs 10,000 retirement scenarios with randomised annual returns — each one models a different possible future. The lines and shaded bands below show how your portfolio value spreads across all those outcomes.</p>
+    <div class="chart-legend">
+      <div class="chart-legend__item">
+        <span class="chart-swatch chart-swatch--line" style="--sw:#5b6af0"></span>
+        <span data-i18n="chart.mc.l.p50"><strong>Median (p50)</strong> — your expected middle outcome; half of all simulations finish above this line</span>
+      </div>
+      <div class="chart-legend__item">
+        <span class="chart-swatch chart-swatch--band" style="--sw:rgba(91,106,240,0.45)"></span>
+        <span data-i18n="chart.mc.l.inner"><strong>p25–p75 band</strong> — the middle 50% of outcomes; a realistic planning range</span>
+      </div>
+      <div class="chart-legend__item">
+        <span class="chart-swatch chart-swatch--band" style="--sw:rgba(91,106,240,0.18)"></span>
+        <span data-i18n="chart.mc.l.outer"><strong>p10–p90 band</strong> — 80% of all scenarios fall inside this range</span>
+      </div>
+      <div class="chart-legend__item">
+        <span class="chart-swatch chart-swatch--dash" style="--sw:#34c77b"></span>
+        <span data-i18n="chart.mc.l.p90"><strong>p90 (green dotted)</strong> — optimistic ceiling: only 10% of runs end higher than this</span>
+      </div>
+      <div class="chart-legend__item">
+        <span class="chart-swatch chart-swatch--dash" style="--sw:#e05252"></span>
+        <span data-i18n="chart.mc.l.p10"><strong>p10 (red dotted)</strong> — stress-test floor: only 10% of runs end lower; plan so this stays above ¥0</span>
+      </div>
+    </div>
+    <div class="chart-info__note">
+      <strong data-i18n="chart.note_label">Japan note:</strong>
+      <span data-i18n="chart.mc.note">The <em>success rate</em> above is the % of simulations where the portfolio never hits ¥0. Japan research recommends targeting 90%+ success at a 3–3.5% withdrawal rate — lower than the US 4% rule, because Japanese equity returns have historically been lower and inflation has been more variable.</span>
+    </div>
   </div>
   <div id="mcChart" class="chart-container"
     data-p10='{{ result.monte_carlo.p10 | tojson }}'
@@ -176,14 +202,32 @@
     <span data-i18n="result.sensitivity">Sensitivity Analysis</span>
     <span class="badge badge--secondary" data-i18n="result.sensitivity_sub">Impact on Years to FIRE</span>
     <button type="button" class="chart-info-btn" aria-label="About this chart"
-            data-chart-info="tornado">
+            aria-expanded="true" data-chart-info="tornado">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
       </svg>
     </button>
   </h3>
-  <div class="chart-info-panel" id="chart-info-tornado" hidden>
-    <p data-i18n="chart.tornado.info">Each bar shows how much your <em>Years to FIRE</em> changes when one variable is adjusted by ±20%. <strong>Red bars</strong> (right) show the pessimistic scenario — more years needed. <strong>Green bars</strong> (left) show the optimistic scenario — fewer years. The longest bars are the variables with the biggest impact on your plan; focus on those first.</p>
+  <div class="chart-info-panel" id="chart-info-tornado">
+    <p class="chart-info__intro" data-i18n="chart.tornado.intro">Each variable in your plan is shifted ±20% from your input value. The bar shows how many years earlier or later you would reach FIRE as a result. Bars at the top have the biggest impact — those are the levers most worth pulling.</p>
+    <div class="chart-legend">
+      <div class="chart-legend__item">
+        <span class="chart-swatch chart-swatch--bar" style="--sw:#e05252"></span>
+        <span data-i18n="chart.tornado.l.pess"><strong>Red bars (right →)</strong> — pessimistic: this variable getting 20% worse adds years to FIRE</span>
+      </div>
+      <div class="chart-legend__item">
+        <span class="chart-swatch chart-swatch--bar" style="--sw:#34c77b"></span>
+        <span data-i18n="chart.tornado.l.opt"><strong>Green bars (← left)</strong> — optimistic: this variable improving by 20% removes years from FIRE</span>
+      </div>
+      <div class="chart-legend__item">
+        <span class="chart-swatch chart-swatch--zero"></span>
+        <span data-i18n="chart.tornado.l.base"><strong>Centre line</strong> — your current base case; bars extend left and right from here</span>
+      </div>
+    </div>
+    <div class="chart-info__note">
+      <strong data-i18n="chart.note_label">Japan note:</strong>
+      <span data-i18n="chart.tornado.note">In Japan, <em>monthly expenses</em> and <em>withdrawal rate</em> typically show the longest bars — they matter more than investment return assumptions. Reducing living costs or lowering your withdrawal rate often shortens your FIRE timeline more than chasing higher returns in Japan's lower-yield environment.</span>
+    </div>
   </div>
   {# Data block — read by charts.js via getElementById('tornadoData') #}
   <script type="application/json" id="tornadoData">
@@ -212,14 +256,28 @@
   <h3 class="results-card__title">
     <span data-i18n="result.trajectory">Net Worth Projection</span>
     <button type="button" class="chart-info-btn" aria-label="About this chart"
-            data-chart-info="trajectory">
+            aria-expanded="true" data-chart-info="trajectory">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
       </svg>
     </button>
   </h3>
-  <div class="chart-info-panel" id="chart-info-trajectory" hidden>
-    <p data-i18n="chart.trajectory.info">The <strong>solid line</strong> shows your projected portfolio value during the accumulation phase — while you're working and saving. The <strong>dashed line</strong> shows the drawdown phase after retirement. The projection uses a fixed annual return (not randomised like Monte Carlo) and includes contributions, pension offsets, NHI, and inflation. Hover over the chart to see exact values at each age.</p>
+  <div class="chart-info-panel" id="chart-info-trajectory">
+    <p class="chart-info__intro" data-i18n="chart.traj.intro">A deterministic year-by-year projection using your fixed return assumptions — not randomised like Monte Carlo. Shows the single expected path: how your portfolio grows while working, and how it draws down in retirement. Hover any point to see the exact portfolio value at that age.</p>
+    <div class="chart-legend">
+      <div class="chart-legend__item">
+        <span class="chart-swatch chart-swatch--line" style="--sw:#5b6af0"></span>
+        <span data-i18n="chart.traj.l.accum"><strong>Blue solid line</strong> — accumulation phase: your portfolio growing through monthly contributions and investment returns</span>
+      </div>
+      <div class="chart-legend__item">
+        <span class="chart-swatch chart-swatch--dash" style="--sw:#e8b84b"></span>
+        <span data-i18n="chart.traj.l.retire"><strong>Amber dashed line</strong> — drawdown phase: portfolio being spent in retirement; slope flattens once pension income begins</span>
+      </div>
+    </div>
+    <div class="chart-info__note">
+      <strong data-i18n="chart.note_label">Japan note:</strong>
+      <span data-i18n="chart.traj.note">The drawdown slope accounts for nenkin (年金) income starting at your claim age — offsetting withdrawals and slowing the decline. The first retirement year may show a sharper drop due to the <em>year-1 residence tax shock</em> (住民税), which is billed on the prior year's working income.</span>
+    </div>
   </div>
   <script type="application/json" id="trajectoryData">
   [
