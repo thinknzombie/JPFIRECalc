@@ -7,6 +7,46 @@ These are plain dataclasses with no Flask dependency — fully serialisable to J
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 import json
+import types
+import typing
+
+
+def _coerce_value(value, annotation):
+    """Best-effort coercion of *value* to the declared *annotation* type.
+
+    Handles the most common field types used in the dataclasses:
+      int, float, bool, str, int | None  (Python 3.10 union syntax)
+    Falls back to returning the original value on any error so callers
+    never raise — bad values surface as validation errors later.
+    """
+    if value is None:
+        return None
+    # Unwrap  X | None  (Python 3.10+ UnionType)
+    if isinstance(annotation, types.UnionType):
+        non_none = [a for a in annotation.__args__ if a is not type(None)]
+        annotation = non_none[0] if non_none else annotation
+    # Unwrap  Optional[X]  / Union[X, None]  (typing module)
+    origin = typing.get_origin(annotation)
+    if origin is typing.Union:
+        non_none = [a for a in typing.get_args(annotation) if a is not type(None)]
+        annotation = non_none[0] if non_none else annotation
+    if annotation is int:
+        try:
+            return int(float(str(value)))
+        except (ValueError, TypeError):
+            return value
+    if annotation is float:
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return value
+    if annotation is bool:
+        if isinstance(value, bool):
+            return value
+        return str(value).lower() in ("true", "1", "yes", "on")
+    if annotation is str:
+        return str(value)
+    return value
 
 
 @dataclass
@@ -130,4 +170,13 @@ class FinancialProfile:
 
     @classmethod
     def from_dict(cls, data: dict) -> "FinancialProfile":
-        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+        try:
+            hints = typing.get_type_hints(cls)
+        except Exception:
+            hints = {}
+        coerced = {
+            k: _coerce_value(v, hints[k]) if k in hints else v
+            for k, v in data.items()
+            if k in cls.__dataclass_fields__
+        }
+        return cls(**coerced)

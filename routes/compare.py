@@ -5,9 +5,12 @@ Routes:
   GET  /compare                → comparison page (query: ?ids=id1&ids=id2&...)
   GET  /api/compare            → JSON payload for all selected scenarios
 """
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify
 from engine.fire_calculator import run_fire_scenario
 import storage.scenario_store as store
+
+logger = logging.getLogger(__name__)
 
 compare_bp = Blueprint("compare", __name__, url_prefix="/compare")
 
@@ -20,13 +23,19 @@ def _load_results(scenario_ids: list[str]) -> list[dict]:
             profile, scenario = store.load(sid)
         except FileNotFoundError:
             continue
-        result = run_fire_scenario(
-            profile=profile,
-            scenario_name=scenario.name,
-            scenario_id=scenario.id,
-            assumptions=scenario.assumptions,
-            region_key=scenario.region,
-        )
+        try:
+            result = run_fire_scenario(
+                profile=profile,
+                scenario_name=scenario.name,
+                scenario_id=scenario.id,
+                assumptions=scenario.assumptions,
+                region_key=scenario.region,
+            )
+        except Exception:
+            logger.exception(
+                "Engine error in compare for scenario %s (%s)", sid, scenario.name
+            )
+            continue
         results.append({
             "scenario": scenario,
             "profile": profile,

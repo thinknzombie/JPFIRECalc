@@ -14,6 +14,14 @@ def create_app(config_name=None):
     )
     app.config.from_object(config[config_name])
 
+    # Refuse to start in production with the default dev secret key
+    _default_key = "dev-secret-change-in-production"
+    if config_name == "production" and app.config.get("SECRET_KEY") == _default_key:
+        raise RuntimeError(
+            "SECRET_KEY is set to the default development value. "
+            "Set the SECRET_KEY environment variable before deploying to production."
+        )
+
     # Ensure scenarios directory exists
     app.config["SCENARIOS_DIR"].mkdir(exist_ok=True)
 

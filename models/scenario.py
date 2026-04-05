@@ -7,7 +7,43 @@ and optional overrides. Running a scenario produces a ScenarioResult.
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Any
+import types
+import typing
 import uuid
+
+
+def _coerce_value(value, annotation):
+    """Best-effort coercion of *value* to the declared *annotation* type.
+
+    Mirrors the helper in models/profile.py — handles int, float, bool, str,
+    and union-with-None variants.  Falls back to the raw value on any error.
+    """
+    if value is None:
+        return None
+    if isinstance(annotation, types.UnionType):
+        non_none = [a for a in annotation.__args__ if a is not type(None)]
+        annotation = non_none[0] if non_none else annotation
+    origin = typing.get_origin(annotation)
+    if origin is typing.Union:
+        non_none = [a for a in typing.get_args(annotation) if a is not type(None)]
+        annotation = non_none[0] if non_none else annotation
+    if annotation is int:
+        try:
+            return int(float(str(value)))
+        except (ValueError, TypeError):
+            return value
+    if annotation is float:
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return value
+    if annotation is bool:
+        if isinstance(value, bool):
+            return value
+        return str(value).lower() in ("true", "1", "yes", "on")
+    if annotation is str:
+        return str(value)
+    return value
 
 
 @dataclass
@@ -59,7 +95,16 @@ class AssumptionSet:
 
     @classmethod
     def from_dict(cls, data: dict) -> "AssumptionSet":
-        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+        try:
+            hints = typing.get_type_hints(cls)
+        except Exception:
+            hints = {}
+        coerced = {
+            k: _coerce_value(v, hints[k]) if k in hints else v
+            for k, v in data.items()
+            if k in cls.__dataclass_fields__
+        }
+        return cls(**coerced)
 
 
 @dataclass
@@ -87,7 +132,16 @@ class Scenario:
         d = dict(data)
         if "assumptions" in d and isinstance(d["assumptions"], dict):
             d["assumptions"] = AssumptionSet.from_dict(d["assumptions"])
-        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+        try:
+            hints = typing.get_type_hints(cls)
+        except Exception:
+            hints = {}
+        coerced = {
+            k: _coerce_value(v, hints[k]) if k in hints else v
+            for k, v in d.items()
+            if k in cls.__dataclass_fields__
+        }
+        return cls(**coerced)
 
 
 @dataclass

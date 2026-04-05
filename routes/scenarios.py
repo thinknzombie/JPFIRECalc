@@ -9,10 +9,13 @@ Routes:
   POST /scenarios/<id>/delete      → delete scenario, redirect to dashboard
   GET  /scenarios/<id>/run         → HTMX partial: run calculation and return results fragment
 """
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from models.scenario import Scenario, AssumptionSet
 from engine.fire_calculator import run_fire_scenario
 import storage.scenario_store as store
+
+logger = logging.getLogger(__name__)
 
 scenarios_bp = Blueprint("scenarios", __name__, url_prefix="/scenarios")
 
@@ -82,15 +85,20 @@ def _assumptions_from_form(form) -> AssumptionSet:
 
 
 def _run_and_render_detail(profile, scenario, region_key):
-    """Run calculation engine and return template context."""
-    result = run_fire_scenario(
-        profile=profile,
-        scenario_name=scenario.name,
-        scenario_id=scenario.id,
-        assumptions=scenario.assumptions,
-        region_key=region_key,
-    )
-    return result
+    """Run calculation engine and return ScenarioResult, or raise EngineError."""
+    try:
+        return run_fire_scenario(
+            profile=profile,
+            scenario_name=scenario.name,
+            scenario_id=scenario.id,
+            assumptions=scenario.assumptions,
+            region_key=region_key,
+        )
+    except Exception:
+        logger.exception(
+            "Engine error for scenario %s (%s)", scenario.id, scenario.name
+        )
+        raise
 
 
 @scenarios_bp.route("/")
@@ -109,7 +117,15 @@ def detail(scenario_id):
         flash("Scenario not found.", "error")
         return redirect(url_for("scenarios.index"))
 
-    result = _run_and_render_detail(profile, scenario, scenario.region)
+    try:
+        result = _run_and_render_detail(profile, scenario, scenario.region)
+    except Exception:
+        flash(
+            "The calculation engine encountered an error for this scenario. "
+            "Check your inputs and try again.",
+            "error",
+        )
+        return redirect(url_for("scenarios.index"))
 
     return render_template(
         "scenario_detail.html",
@@ -182,7 +198,14 @@ def run(scenario_id):
     except FileNotFoundError:
         return "<p class='error'>Scenario not found.</p>", 404
 
-    result = _run_and_render_detail(profile, scenario, scenario.region)
+    try:
+        result = _run_and_render_detail(profile, scenario, scenario.region)
+    except Exception:
+        return (
+            "<p class='form-inline-error'>Calculation error — check your inputs and try again.</p>",
+            500,
+        )
+
     return render_template(
         "partials/results.html",
         scenario=scenario,
