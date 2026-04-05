@@ -73,6 +73,15 @@ const I18n = (() => {
       // ── Profile page ───────────────────────────────────────────────────────
       "profile.subtitle": "Enter your financial details to run Japan-specific FIRE projections.",
 
+      // ── Import / Export ────────────────────────────────────────────────────
+      "import.title":         "Import from File",
+      "import.subtitle":      "Download a template, fill it in with your numbers, then upload to pre-populate this form.",
+      "import.download_json": "JSON Template",
+      "import.download_csv":  "CSV Template",
+      "import.upload_hint":   "Drop .json or .csv here, or click to browse",
+      "import.upload_sub":    "Accepted: .json, .csv — max 256 KB",
+      "import.upload_btn":    "Upload & Pre-fill",
+
       // ── Scenario form page ─────────────────────────────────────────────────
       "scenario_form.subtitle": "Adjust market assumptions to stress-test your FIRE plan.",
 
@@ -348,6 +357,15 @@ const I18n = (() => {
 
       // ── Profile page ───────────────────────────────────────────────────────
       "profile.subtitle": "日本のFIRE試算に必要な財務情報を入力してください。",
+
+      // ── Import / Export ────────────────────────────────────────────────────
+      "import.title":         "ファイルから読み込む",
+      "import.subtitle":      "テンプレートをダウンロードして数値を入力し、アップロードするとフォームが自動で埋まります。",
+      "import.download_json": "JSONテンプレート",
+      "import.download_csv":  "CSVテンプレート",
+      "import.upload_hint":   ".jsonまたは.csvをドロップ、またはクリックして選択",
+      "import.upload_sub":    "対応形式: .json, .csv — 最大256KB",
+      "import.upload_btn":    "アップロードして入力",
 
       // ── Scenario form page ─────────────────────────────────────────────────
       "scenario_form.subtitle": "市場の前提条件を調整してFIREプランをストレステストします。",

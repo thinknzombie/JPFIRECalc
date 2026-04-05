@@ -6,11 +6,62 @@ Routes:
   POST /profile/new          → save profile, redirect to scenario form
   GET  /profile/<id>/edit    → edit existing profile (pre-filled form)
   POST /profile/<id>/edit    → update existing profile, redirect to scenario
+  GET  /profile/template.json → download annotated JSON template
+  GET  /profile/template.csv  → download CSV template
+  POST /profile/upload        → parse uploaded file, pre-populate form
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+import csv
+import io
+import json
+import logging
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, Response
 from models.profile import FinancialProfile, UserProfile
 from models.scenario import Scenario, AssumptionSet
 import storage.scenario_store as store
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Field metadata — used to annotate both JSON and CSV download templates
+# ---------------------------------------------------------------------------
+
+_FIELD_META: dict[str, dict] = {
+    "current_age":                           {"label": "Current Age",                          "type": "int",   "description": "Your current age in years",                                                        "example": 35},
+    "target_retirement_age":                 {"label": "Target Retirement Age",                "type": "int",   "description": "Age at which you plan to retire (FIRE target)",                                    "example": 50},
+    "employment_type":                       {"label": "Employment Type",                       "type": "str",   "description": "company_employee | public_servant | self_employed | corporate_officer | no_job",   "example": "company_employee"},
+    "annual_gross_income_jpy":               {"label": "Annual Gross Income (JPY)",             "type": "int",   "description": "Before-tax annual salary in yen",                                                  "example": 8_000_000},
+    "has_spouse":                            {"label": "Has Spouse / Partner",                  "type": "bool",  "description": "true or false",                                                                    "example": False},
+    "spouse_income_jpy":                     {"label": "Spouse Annual Income (JPY)",            "type": "int",   "description": "Spouse gross annual income in yen (0 if no spouse)",                               "example": 0},
+    "num_dependents":                        {"label": "Number of Dependents",                  "type": "int",   "description": "Dependent family members (children, parents)",                                     "example": 0},
+    "social_insurance_annual_jpy":           {"label": "Social Insurance Paid (Annual JPY)",    "type": "int",   "description": "Total shakaihoken premiums paid annually (~14% of gross for company employees)",   "example": 0},
+    "nisa_balance_jpy":                      {"label": "NISA Balance (JPY)",                    "type": "int",   "description": "Current 新NISA account market value",                                             "example": 0},
+    "nisa_lifetime_used_jpy":                {"label": "NISA Lifetime Cap Used (JPY)",          "type": "int",   "description": "Acquisition cost already used of the 18,000,000 yen lifetime cap",                 "example": 0},
+    "ideco_balance_jpy":                     {"label": "iDeCo Balance (JPY)",                   "type": "int",   "description": "Current iDeCo account market value (locked until age 60)",                        "example": 0},
+    "taxable_brokerage_jpy":                 {"label": "Taxable Brokerage (JPY)",               "type": "int",   "description": "Current market value of taxable accounts (特定口座)",                             "example": 0},
+    "cash_savings_jpy":                      {"label": "Cash Savings (JPY)",                    "type": "int",   "description": "Bank accounts and liquid cash reserves",                                           "example": 0},
+    "foreign_assets_usd":                    {"label": "Foreign Assets (USD)",                  "type": "float", "description": "USD-denominated assets (US ETFs, foreign bank accounts, etc.)",                   "example": 0.0},
+    "monthly_expenses_jpy":                  {"label": "Monthly Expenses (JPY)",                "type": "int",   "description": "Total monthly living expenses",                                                    "example": 250_000},
+    "monthly_nisa_contribution_jpy":         {"label": "Monthly NISA Contribution (JPY)",       "type": "int",   "description": "Tsumitate frame monthly contribution (max 100,000/month)",                        "example": 100_000},
+    "nisa_growth_frame_annual_jpy":          {"label": "NISA Growth Frame Annual (JPY)",        "type": "int",   "description": "Growth frame annual lump sum (max 2,400,000/year)",                               "example": 0},
+    "ideco_monthly_contribution_jpy":        {"label": "iDeCo Monthly Contribution (JPY)",      "type": "int",   "description": "Monthly iDeCo contribution (company employee max: 23,000)",                       "example": 23_000},
+    "nenkin_contribution_months":            {"label": "Nenkin Contribution Months",            "type": "int",   "description": "Total months paid into kokumin nenkin or kosei nenkin",                            "example": 120},
+    "nenkin_net_kosei_annual_jpy":           {"label": "Kosei Nenkin Estimate (JPY, optional)", "type": "int",   "description": "Annual kosei nenkin estimate from NenkinNet (0 = calculate from salary)",           "example": 0},
+    "avg_standard_monthly_remuneration_jpy": {"label": "Avg Standard Monthly Remuneration (JPY)", "type": "int", "description": "平均標準報酬月額 used for kosei nenkin calculation",                              "example": 0},
+    "nenkin_claim_age":                      {"label": "Pension Claim Age",                     "type": "int",   "description": "Age to start drawing nenkin (60–75; deferring to 70+ increases benefit)",         "example": 65},
+    "foreign_pension_annual_jpy":            {"label": "Foreign Pension Income (Annual JPY)",   "type": "int",   "description": "Annual foreign pension converted to yen (US Social Security, UK state pension…)",  "example": 0},
+    "foreign_pension_start_age":             {"label": "Foreign Pension Start Age",             "type": "int",   "description": "Age at which foreign pension income begins",                                       "example": 67},
+    "nationality":                           {"label": "Nationality (ISO 3166-1 alpha-2)",      "type": "str",   "description": "Two-letter country code: JP, US, GB, AU, CA, DE, FR, etc.",                       "example": "JP"},
+    "residency_status":                      {"label": "Japan Residency Status",                "type": "str",   "description": "citizen | permanent_resident | long_term_resident | spouse_visa | work_visa | other", "example": "permanent_resident"},
+    "treaty_country":                        {"label": "Home Country (for DTA notes)",          "type": "str",   "description": "Full country name for double-tax agreement lookup (e.g. United States)",           "example": ""},
+    "years_in_japan":                        {"label": "Years Resident in Japan",               "type": "int",   "description": "Approximate years living in Japan (affects non-permanent resident tax rules)",     "example": 10},
+    "usd_jpy_rate":                          {"label": "USD/JPY Rate",                          "type": "float", "description": "Exchange rate used to convert foreign USD assets to JPY",                         "example": 150.0},
+    "owns_property":                         {"label": "Owns Property in Japan",                "type": "bool",  "description": "true or false",                                                                    "example": False},
+    "property_value_jpy":                    {"label": "Property Value (JPY)",                  "type": "int",   "description": "Current market value of owned property",                                          "example": 0},
+    "mortgage_balance_jpy":                  {"label": "Mortgage Balance (JPY)",                "type": "int",   "description": "Outstanding mortgage principal",                                                   "example": 0},
+    "monthly_mortgage_payment_jpy":          {"label": "Monthly Mortgage Payment (JPY)",        "type": "int",   "description": "Monthly principal + interest payment",                                             "example": 0},
+    "rental_income_monthly_jpy":             {"label": "Monthly Rental Income (JPY)",           "type": "int",   "description": "Monthly rental income from investment property",                                   "example": 0},
+    "property_paid_off_at_retirement":       {"label": "Property Paid Off at Retirement",       "type": "bool",  "description": "true or false — whether mortgage clears before FIRE age",                        "example": False},
+}
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
@@ -175,3 +226,128 @@ def update(scenario_id):
     store.save(profile, scenario)
     flash("Profile updated.", "success")
     return redirect(url_for("scenarios.detail", scenario_id=scenario_id))
+
+
+# ---------------------------------------------------------------------------
+# Template download routes
+# ---------------------------------------------------------------------------
+
+@profile_bp.route("/template.json")
+def template_json():
+    """Download a fully-annotated JSON template pre-filled with default values."""
+    defaults = FinancialProfile().to_dict()
+    field_info = {
+        name: {
+            "label":       meta["label"],
+            "type":        meta["type"],
+            "description": meta["description"],
+        }
+        for name, meta in _FIELD_META.items()
+    }
+    payload = {
+        "_meta": {
+            "format": "JPFIRECalc profile template v1",
+            "instructions": (
+                "Fill in the values below then upload this file at the profile page. "
+                "The _meta block is ignored on upload. "
+                "Boolean fields accept: true / false. "
+                "Leave optional fields as 0 or null if not applicable."
+            ),
+            "fields": field_info,
+        }
+    }
+    # Add actual value fields after _meta so they're easy to find
+    payload.update({k: defaults.get(k, meta["example"]) for k, meta in _FIELD_META.items()})
+
+    body = json.dumps(payload, ensure_ascii=False, indent=2)
+    return Response(
+        body,
+        mimetype="application/json",
+        headers={"Content-Disposition": "attachment; filename=jpfirecalc_profile_template.json"},
+    )
+
+
+@profile_bp.route("/template.csv")
+def template_csv():
+    """Download a CSV template with field_name / value / type / description columns."""
+    defaults = FinancialProfile().to_dict()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["# JPFIRECalc Profile Template — fill in the 'value' column then upload"])
+    writer.writerow(["# Boolean fields: use true or false  |  Leave optional JPY fields as 0"])
+    writer.writerow(["field_name", "value", "type", "description"])
+    for name, meta in _FIELD_META.items():
+        writer.writerow([
+            name,
+            defaults.get(name, meta["example"]),
+            meta["type"],
+            meta["description"],
+        ])
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=jpfirecalc_profile_template.csv"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# File upload route
+# ---------------------------------------------------------------------------
+
+_MAX_UPLOAD_BYTES = 256 * 1024  # 256 KB — a profile JSON is ~3 KB
+
+
+@profile_bp.route("/upload", methods=["POST"])
+def upload():
+    """Parse an uploaded JSON or CSV profile template and pre-populate the form."""
+    if "file" not in request.files:
+        flash("No file attached to the request.", "error")
+        return redirect(url_for("profile.new"))
+
+    f = request.files["file"]
+    if not f.filename:
+        flash("No file selected.", "error")
+        return redirect(url_for("profile.new"))
+
+    filename = f.filename.lower()
+    raw = f.read(_MAX_UPLOAD_BYTES)
+
+    try:
+        if filename.endswith(".json"):
+            data = json.loads(raw.decode("utf-8"))
+            data.pop("_meta", None)  # strip annotation block
+
+        elif filename.endswith(".csv"):
+            reader = csv.DictReader(io.StringIO(raw.decode("utf-8")))
+            data = {}
+            for row in reader:
+                name = (row.get("field_name") or "").strip()
+                value = (row.get("value") or "").strip()
+                if name and not name.startswith("#"):
+                    data[name] = value
+        else:
+            flash("Unsupported file type. Please upload a .json or .csv file.", "error")
+            return redirect(url_for("profile.new"))
+
+        profile = FinancialProfile.from_dict(data)
+
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        flash(f"Could not read file — make sure it is valid UTF-8 JSON or CSV. ({exc})", "error")
+        return redirect(url_for("profile.new"))
+    except Exception as exc:
+        logger.exception("Profile upload parse error")
+        flash(f"Error loading profile from file: {exc}", "error")
+        return redirect(url_for("profile.new"))
+
+    flash(
+        "Profile loaded from file — review the values below and click "
+        "\u201CSave & Configure Assumptions\u201D when ready.",
+        "success",
+    )
+    return render_template(
+        "profile.html",
+        profile=profile,
+        scenario=None,
+        action=url_for("profile.create"),
+        title="New Profile",
+    )

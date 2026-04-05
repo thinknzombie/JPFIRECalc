@@ -12,6 +12,66 @@
 </div>
 
 <div class="container container--narrow">
+
+  {# ── Import / Export card (separate form — must be outside profileForm) ── #}
+  <div class="form-card form-card--import">
+    <div class="import-header">
+      <div class="import-header__text">
+        <h3 class="form-section-title" data-i18n="import.title">Import from File</h3>
+        <p class="form-section-subtitle" data-i18n="import.subtitle">Download a template, fill it in with your numbers, then upload to pre-populate this form.</p>
+      </div>
+    </div>
+    <div class="import-body">
+      <div class="import-downloads">
+        <a href="{{ url_for('profile.template_json') }}"
+           class="btn btn--ghost btn--sm import-dl-btn"
+           download>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+          </svg>
+          <span data-i18n="import.download_json">JSON Template</span>
+        </a>
+        <a href="{{ url_for('profile.template_csv') }}"
+           class="btn btn--ghost btn--sm import-dl-btn"
+           download>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+          </svg>
+          <span data-i18n="import.download_csv">CSV Template</span>
+        </a>
+      </div>
+
+      <form method="POST"
+            action="{{ url_for('profile.upload') }}"
+            enctype="multipart/form-data"
+            class="import-upload-form"
+            id="importForm">
+        <label class="upload-zone" for="profileFile" id="uploadZone">
+          <svg class="upload-zone__icon" width="24" height="24" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span class="upload-zone__label" id="uploadLabel" data-i18n="import.upload_hint">
+            Drop .json or .csv here, or click to browse
+          </span>
+          <span class="upload-zone__sub" data-i18n="import.upload_sub">Accepted: .json, .csv — max 256 KB</span>
+          <input type="file"
+                 id="profileFile"
+                 name="file"
+                 accept=".json,.csv"
+                 class="upload-zone__input">
+        </label>
+        <button type="submit" class="btn btn--primary btn--sm" id="uploadBtn" disabled
+                data-i18n="import.upload_btn">Upload &amp; Pre-fill</button>
+      </form>
+    </div>
+  </div>
+
   <form method="POST" action="{{ action }}" class="fire-form" id="profileForm" novalidate>
 
     {# ── Scenario name + region ────────────────────────────────────────────── #}
@@ -246,5 +306,41 @@
   }
 
   // Tooltip hover is handled globally in main.js
+
+  // ── File upload zone — enable button + show filename on selection ─────────
+  const profileFile = document.getElementById('profileFile');
+  const uploadBtn   = document.getElementById('uploadBtn');
+  const uploadLabel = document.getElementById('uploadLabel');
+  const uploadZone  = document.getElementById('uploadZone');
+
+  if (profileFile && uploadBtn) {
+    profileFile.addEventListener('change', () => {
+      const file = profileFile.files[0];
+      if (file) {
+        uploadBtn.disabled = false;
+        uploadLabel.textContent = file.name;
+        uploadZone.classList.add('upload-zone--selected');
+      } else {
+        uploadBtn.disabled = true;
+        uploadLabel.textContent = (typeof I18n !== 'undefined')
+          ? I18n.t('import.upload_hint')
+          : 'Drop .json or .csv here, or click to browse';
+        uploadZone.classList.remove('upload-zone--selected');
+      }
+    });
+
+    // Drag-and-drop
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('upload-zone--drag'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('upload-zone--drag'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadZone.classList.remove('upload-zone--drag');
+      const dt = e.dataTransfer;
+      if (dt && dt.files.length) {
+        profileFile.files = dt.files;
+        profileFile.dispatchEvent(new Event('change'));
+      }
+    });
+  }
 </script>
 {% endblock %}

@@ -1280,6 +1280,102 @@ img, svg { display: block; max-width: 100%; }
 }
 
 /* ============================================================
+   Import / Export card
+   ============================================================ */
+.form-card--import {
+  border-color: rgba(52, 199, 123, 0.25);
+  background: linear-gradient(135deg, var(--color-bg-card), rgba(52,199,123,0.04));
+}
+
+.import-header {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.import-header__text .form-section-title  { margin: 0 0 var(--space-1) 0; }
+.import-header__text .form-section-subtitle { margin: 0; }
+
+.import-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.import-downloads {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.import-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.import-upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Upload drop zone */
+.upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  border: 1.5px dashed var(--color-border-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  text-align: center;
+  position: relative;
+}
+.upload-zone:hover,
+.upload-zone--drag {
+  border-color: var(--color-success);
+  background: rgba(52, 199, 123, 0.05);
+}
+.upload-zone--selected {
+  border-color: var(--color-success);
+  border-style: solid;
+}
+.upload-zone--selected .upload-zone__label { color: var(--color-success); }
+
+.upload-zone__icon {
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+.upload-zone:hover .upload-zone__icon,
+.upload-zone--drag .upload-zone__icon { color: var(--color-success); }
+.upload-zone--selected .upload-zone__icon { color: var(--color-success); }
+
+.upload-zone__label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  transition: color var(--transition-fast);
+}
+.upload-zone__sub {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+}
+
+/* The actual <input type="file"> — invisible, fills the entire zone */
+.upload-zone__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ============================================================
    Charts
    ============================================================ */
 .chart-container { width: 100%; min-height: 320px; }
