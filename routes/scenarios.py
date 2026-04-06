@@ -237,5 +237,6 @@ def run(scenario_id):
     return render_template(
         "partials/results.html",
         scenario=scenario,
+        profile=profile,
         result=result,
     )

@@ -196,22 +196,40 @@ def calculate_income_tax(
 
 def calculate_residence_tax(
     taxable_income: int,
-    per_capita_levy: int = 5_000,
+    per_capita_levy: int | None = None,
+    residence_tax_rate_pct: float | None = None,
 ) -> dict:
     """
     Calculate residence tax (住民税).
 
-    Residence tax = 10% of taxable income (same base as income tax) + per-capita levy.
-    Billed the following year, so the taxable_income here is the *prior* year's figure.
+    Residence tax = rate × taxable income + per-capita levy.
+    Rate and levy can be overridden via app settings.
 
     Args:
-        taxable_income:   Taxable income (same base used for income tax).
-        per_capita_levy:  Annual per-capita charge 均等割 (default 5,000 yen).
+        taxable_income:         Taxable income (same base used for income tax).
+        per_capita_levy:        Annual per-capita charge 均等割 (None → use settings or 5,000).
+        residence_tax_rate_pct: Flat rate in percent (None → use settings or 10.0%).
 
     Returns:
         dict with income_based, per_capita, total.
     """
-    income_based = int(taxable_income * 0.10)
+    # Pull defaults from settings if not explicitly provided
+    if per_capita_levy is None or residence_tax_rate_pct is None:
+        try:
+            import storage.settings_store as _ss
+            s = _ss.get()
+            if per_capita_levy is None:
+                per_capita_levy = s.residence_tax_per_capita_jpy
+            if residence_tax_rate_pct is None:
+                residence_tax_rate_pct = s.residence_tax_rate_pct
+        except Exception:
+            if per_capita_levy is None:
+                per_capita_levy = 5_000
+            if residence_tax_rate_pct is None:
+                residence_tax_rate_pct = 10.0
+
+    rate = residence_tax_rate_pct / 100
+    income_based = int(taxable_income * rate)
     total = income_based + per_capita_levy
     return {
         "income_based": income_based,

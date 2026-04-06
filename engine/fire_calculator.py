@@ -203,7 +203,7 @@ def _amortise_mortgage(
     balance_jpy: int,
     monthly_payment_jpy: int,
     years: int,
-    annual_rate: float = 0.015,
+    annual_rate: float | None = None,
 ) -> int:
     """
     Estimate remaining mortgage balance after *years* of regular payments.
@@ -215,11 +215,17 @@ def _amortise_mortgage(
         balance_jpy:        Current outstanding principal.
         monthly_payment_jpy: Regular monthly payment amount.
         years:              Number of years of payments to simulate.
-        annual_rate:        Assumed annual interest rate (default 1.5% — Japan average).
+        annual_rate:        Assumed annual interest rate (None → use settings, default 1.5%).
 
     Returns:
         Estimated remaining balance (floored at 0).
     """
+    if annual_rate is None:
+        try:
+            import storage.settings_store as _ss
+            annual_rate = _ss.get().mortgage_interest_rate_pct / 100
+        except Exception:
+            annual_rate = 0.015
     if balance_jpy <= 0 or monthly_payment_jpy <= 0 or years <= 0:
         return max(0, balance_jpy)
     monthly_rate = annual_rate / 12
@@ -654,6 +660,15 @@ def project_net_worth(
             # --- Retirement phase ---
             retirement_year = age - profile.target_retirement_age
 
+            # Mortgage payoff at the start of retirement
+            if retirement_year == 0 and profile.owns_property and profile.property_paid_off_at_retirement:
+                payoff = _amortise_mortgage(
+                    balance_jpy=profile.mortgage_balance_jpy,
+                    monthly_payment_jpy=profile.monthly_mortgage_payment_jpy,
+                    years=profile.years_to_retirement,
+                )
+                portfolio = max(0, portfolio - payoff)
+
             # iDeCo unlocks at 60 (if FIRE was before 60 and we're crossing 60)
             if age == 60 and locked_ideco > 0:
                 portfolio += locked_ideco
@@ -765,6 +780,26 @@ def run_fire_scenario(
     # --- Accessible portfolio today -----------------------------------------
     portfolio_info = calculate_accessible_portfolio(profile, profile.target_retirement_age)
     current_portfolio = portfolio_info["total_accessible_jpy"]
+
+    # --- Mortgage payoff deduction -------------------------------------------
+    # If the user plans to pay off the mortgage by retirement, the remaining
+    # balance at retirement must be deducted from the accessible portfolio.
+    # The checkbox already removes the monthly payment from retirement expenses;
+    # this ensures the lump-sum cost of actually clearing the mortgage is also
+    # accounted for.
+    mortgage_payoff_jpy = 0
+    if profile.owns_property and profile.property_paid_off_at_retirement:
+        mortgage_payoff_jpy = _amortise_mortgage(
+            balance_jpy=profile.mortgage_balance_jpy,
+            monthly_payment_jpy=profile.monthly_mortgage_payment_jpy,
+            years=profile.years_to_retirement,
+        )
+        if mortgage_payoff_jpy > 0:
+            current_portfolio = max(0, current_portfolio - mortgage_payoff_jpy)
+            warnings.append(
+                f"Mortgage payoff at retirement: ¥{mortgage_payoff_jpy:,} deducted from portfolio "
+                f"(remaining balance after {profile.years_to_retirement} years of payments)."
+            )
 
     # --- FIRE number ---------------------------------------------------------
     # Include NHI in annual need (NHI is paid from portfolio in retirement)
@@ -999,7 +1034,10 @@ def run_fire_scenario(
         ideco_bridge_needed_jpy=bridge["bridge_portfolio_needed_jpy"],
         current_income_tax_jpy=tax_result["income_tax"],
         current_residence_tax_jpy=residence_tax["total"],
-        current_effective_tax_rate_pct=tax_result["effective_rate_pct"],
+        current_effective_tax_rate_pct=round(
+            (tax_result["income_tax"] + residence_tax["total"] + profile.social_insurance_annual_jpy)
+            / profile.annual_gross_income_jpy * 100, 1
+        ) if profile.annual_gross_income_jpy > 0 else 0.0,
         trajectory=trajectory,
         monte_carlo=mc_result,
         sensitivity=sensitivity,

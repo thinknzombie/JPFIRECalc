@@ -1113,9 +1113,11 @@ img, svg { display: block; max-width: 100%; }
   flex-direction: column;
   gap: var(--space-1);
 }
-.form-input:invalid,
+/* Only show red border after server-side validation or JS-driven .is-invalid class.
+   Removed :invalid pseudo-class — it fires on page load with no explanation,
+   confusing users (e.g. after JSON import). */
 .form-input.is-invalid { border-color: var(--color-danger); }
-.form-input:invalid:focus { box-shadow: 0 0 0 3px rgba(224,82,82,0.15); }
+.form-input.is-invalid:focus { box-shadow: 0 0 0 3px rgba(224,82,82,0.15); }
 
 /* ============================================================
    Language toggle + nav-right

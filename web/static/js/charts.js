@@ -39,8 +39,22 @@ const JPFIRECharts = (() => {
 
   function formatYen(v) {
     if (Math.abs(v) >= 1e8) return '¥' + (v / 1e8).toFixed(1) + '億';
-    if (Math.abs(v) >= 1e4) return '¥' + Math.round(v / 1e4) + '万';
+    if (Math.abs(v) >= 1e4) return '¥' + Math.round(v / 1e4).toLocaleString() + '万';
     return '¥' + v.toLocaleString();
+  }
+
+  /** Generate ~6 evenly-spaced tick values spanning 0 to max(data), using round numbers. */
+  function _yenTickVals(data) {
+    const maxVal = Math.max(...data.map(Math.abs), 0);
+    if (maxVal === 0) return [0];
+    // Pick a "nice" step: 1, 2, 5 × 10^n
+    const rough = maxVal / 5;
+    const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+    const nice = [1, 2, 5, 10].find(m => m * mag >= rough) * mag;
+    const ticks = [];
+    for (let v = 0; v <= maxVal * 1.05; v += nice) ticks.push(v);
+    if (ticks.length < 2) ticks.push(nice);
+    return ticks;
   }
 
   // ── Monte Carlo fan chart ─────────────────────────────────────────────────
@@ -97,12 +111,13 @@ const JPFIRECharts = (() => {
 
     const layout = {
       ...BASE_LAYOUT,
+      margin: { ...BASE_LAYOUT.margin, l: 90 },
       xaxis: { ...BASE_LAYOUT.xaxis, title: 'Years into Retirement' },
       yaxis: {
         ...BASE_LAYOUT.yaxis,
         title: 'Portfolio Value',
-        tickformat: ',.0f',
-        tickprefix: '¥',
+        tickvals: _yenTickVals(p90),
+        ticktext: _yenTickVals(p90).map(formatYen),
       },
     };
 
@@ -207,14 +222,16 @@ const JPFIRECharts = (() => {
       });
     }
 
+    const allValues = data.map(d => d.portfolio_value_jpy);
     const layout = {
       ...BASE_LAYOUT,
+      margin: { ...BASE_LAYOUT.margin, l: 90 },
       xaxis: { ...BASE_LAYOUT.xaxis, title: 'Age' },
       yaxis: {
         ...BASE_LAYOUT.yaxis,
         title: 'Portfolio Value',
-        tickformat: ',.0f',
-        tickprefix: '¥',
+        tickvals: _yenTickVals(allValues),
+        ticktext: _yenTickVals(allValues).map(formatYen),
       },
     };
 

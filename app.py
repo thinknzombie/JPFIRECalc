@@ -29,6 +29,9 @@ def create_app(config_name=None):
     import storage.scenario_store as store
     store.init_store(app.config["SCENARIOS_DIR"])
 
+    import storage.settings_store as settings_store
+    settings_store.init_settings(app.config["DATA_DIR"])
+
     # Error handlers
     from flask import render_template as _rt
 
@@ -56,12 +59,14 @@ def create_app(config_name=None):
     from routes.scenarios import scenarios_bp
     from routes.api import api_bp
     from routes.compare import compare_bp
+    from routes.settings import settings_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(scenarios_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(compare_bp)
+    app.register_blueprint(settings_bp)
 
     return app
 

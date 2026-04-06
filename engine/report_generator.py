@@ -306,24 +306,47 @@ def generate_markdown_report(
     # ── Sensitivity analysis ──────────────────────────────────────────────────
     if result.sensitivity:
         h(2, "Sensitivity Analysis")
-        p("Each variable was shifted ±20% from the base value. The table shows how many "
-          "years earlier (optimistic) or later (pessimistic) FIRE would be reached. "
-          "Variables are ranked by total impact — focus on the top rows.")
+        surplus_mode = result.sensitivity[0].surplus_mode if result.sensitivity else False
+        if surplus_mode:
+            p("Each variable was shifted ±20% from the base value. Because you have already "
+              "reached FIRE, the table shows the impact on your **FIRE surplus %** "
+              "(how far above your FIRE number your portfolio sits). "
+              "Variables are ranked by total impact — focus on the top rows.")
+        else:
+            p("Each variable was shifted ±20% from the base value. The table shows how many "
+              "years earlier (optimistic) or later (pessimistic) FIRE would be reached. "
+              "Variables are ranked by total impact — focus on the top rows.")
 
         sens_rows = []
         for item in result.sensitivity:
             direction = "↑ more impact" if (abs(item.delta_pessimistic) + abs(item.delta_optimistic)) > 4 else ""
-            sens_rows.append([
-                item.label,
-                f"{item.base_years:.1f} yrs",
-                f"+{item.delta_pessimistic:.1f} yrs",
-                f"−{item.delta_optimistic:.1f} yrs",
-                direction,
-            ])
-        table(
-            ["Variable", "Base", "Pessimistic (+yrs)", "Optimistic (−yrs)", ""],
-            sens_rows,
-        )
+            if surplus_mode:
+                sens_rows.append([
+                    item.label,
+                    f"{item.base_years:.1f}%",
+                    f"−{item.delta_pessimistic:.1f}%",
+                    f"+{item.delta_optimistic:.1f}%",
+                    direction,
+                ])
+            else:
+                sens_rows.append([
+                    item.label,
+                    f"{item.base_years:.1f} yrs",
+                    f"+{item.delta_pessimistic:.1f} yrs",
+                    f"−{item.delta_optimistic:.1f} yrs",
+                    direction,
+                ])
+
+        if surplus_mode:
+            table(
+                ["Variable", "Base surplus", "Pessimistic (−%)", "Optimistic (+%)", ""],
+                sens_rows,
+            )
+        else:
+            table(
+                ["Variable", "Base", "Pessimistic (+yrs)", "Optimistic (−yrs)", ""],
+                sens_rows,
+            )
         rule()
 
     # ── Net worth trajectory ───────────────────────────────────────────────────
@@ -366,7 +389,11 @@ def generate_markdown_report(
     h(2, "Current Tax Summary")
     kv("Income tax (所得税)", _yen(result.current_income_tax_jpy))
     kv("Residence tax (住民税)", _yen(result.current_residence_tax_jpy))
-    kv("Effective tax rate", _pct(result.current_effective_tax_rate_pct))
+    kv("Social insurance (社会保険)", _yen(profile.social_insurance_annual_jpy))
+    kv("**Total tax + social insurance**",
+       f"**{_yen(result.current_income_tax_jpy + result.current_residence_tax_jpy + profile.social_insurance_annual_jpy)}**")
+    kv("Effective rate (income tax + residence tax + social insurance ÷ gross)",
+       _pct(result.current_effective_tax_rate_pct))
     lines.append("")
     rule()
 
@@ -427,6 +454,66 @@ def generate_markdown_report(
     if profile.foreign_pension_annual_jpy > 0:
         kv("Foreign pension income", f"{_yen(profile.foreign_pension_annual_jpy)}/yr (starts age {profile.foreign_pension_start_age})")
     lines.append("")
+    rule()
+
+    # ── Methodology ──────────────────────────────────────────────────────────
+    h(2, "Methodology")
+
+    h(3, "FIRE Number")
+    p("The FIRE number is the minimum investment portfolio required to fund retirement "
+      "indefinitely. It is calculated as:")
+    p("`FIRE Number = (Annual Expenses − Net Pension Income + NHI Premium) ÷ Withdrawal Rate`")
+    p("**Annual expenses** are derived from a region-specific template (e.g. Tokyo cost of living) "
+      "plus any ongoing mortgage payments. **Net pension** is the after-tax combined kokumin nenkin "
+      "and kosei nenkin income at the chosen claim age. **NHI premium** is solved iteratively because "
+      "it depends on the withdrawal amount, which itself depends on the NHI premium — the solver "
+      "converges in 5–10 iterations. The **withdrawal rate** (default 3.5%) determines what fraction "
+      "of the portfolio is drawn down each year.")
+
+    h(3, "Years to FIRE")
+    p("Calculated analytically using the future-value annuity formula:")
+    p("`FV = PV × (1+r)^n + PMT × ((1+r)^n − 1) / r`")
+    p("where PV = current accessible portfolio, PMT = annual savings, r = pre-retirement return, "
+      "and FV = FIRE number. Solving for n gives the years remaining. If PV already exceeds the "
+      "FIRE number, years-to-FIRE is 0 (already FIRE'd).")
+
+    h(3, "Accessible Portfolio")
+    p("The accessible portfolio includes NISA, taxable brokerage, cash savings, foreign assets, "
+      "gold/crypto/RSU/other assets. **iDeCo is excluded if FIRE age < 60** (locked until age 60). "
+      "If 'Mortgage paid off by retirement' is selected, the remaining mortgage balance — amortised "
+      "to the retirement date at 1.5% annual interest — is deducted from the portfolio.")
+
+    h(3, "Monte Carlo Simulation")
+    p("Portfolio survival is tested by running N independent simulations (default 10,000). "
+      "Each year's real return is drawn from a **log-normal distribution** calibrated to the "
+      "configured mean return and volatility. Inflation erodes expenses annually at the Japan "
+      "inflation rate. When sequence-of-returns risk is enabled, volatility is amplified by 1.5× "
+      "during the first 5 years of retirement (the most vulnerable period).")
+    p("A simulation **succeeds** if the portfolio never reaches ¥0 over the configured horizon "
+      "(default 40 years). The **success rate** is the percentage of simulations that survive. "
+      "Japan-focused research recommends targeting 90%+ success at a 3–3.5% withdrawal rate — "
+      "more conservative than the US 4% rule due to historically lower Japanese equity returns.")
+
+    h(3, "Pension Estimation")
+    p("**Kokumin nenkin (国民年金):** Base amount ≈ ¥795,000/year × (contribution months ÷ 480). "
+      "**Kosei nenkin (厚生年金):** Estimated from the average standard monthly remuneration "
+      "(標準報酬月額) × multiplier × contribution years, or from a NenkinNet override if provided. "
+      "Early/late claim age adjustments: −0.4%/month before 65, +0.7%/month after 65.")
+
+    h(3, "Tax Calculations")
+    p("**Income tax (所得税):** Progressive brackets from 5% to 45%, plus 2.1% reconstruction "
+      "surtax. Standard employment income deduction applied for company employees. "
+      "**Residence tax (住民税):** Flat 10% of taxable income + per capita levy (¥5,000). "
+      "**Effective tax rate** = (income tax + residence tax + social insurance) ÷ gross income. "
+      "**Capital gains:** 20.315% flat rate (income tax 15.315% + residence tax 5%) on investment "
+      "gains in taxable accounts. NISA gains are tax-free.")
+
+    h(3, "NHI (National Health Insurance)")
+    p("Calculated per municipality schedule with income-proportional (所得割), per-capita (均等割), "
+      "and per-household (平等割) components across medical, support, and care (age 40–64) categories. "
+      "Subject to annual caps. The iterative solver accounts for the circular dependency between "
+      "withdrawal amount and NHI premium.")
+
     rule()
 
     # ── Disclaimer ────────────────────────────────────────────────────────────

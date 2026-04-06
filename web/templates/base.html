@@ -19,6 +19,7 @@
       </a>
       <ul class="nav-links" id="navMenu" data-open="false">
         <li><a href="{{ url_for('scenarios.index') }}" class="nav-link {% if request.blueprint in ('scenarios', 'compare') %}active{% endif %}" data-i18n="nav.dashboard">Dashboard</a></li>
+        <li><a href="{{ url_for('settings.index') }}" class="nav-link {% if request.blueprint == 'settings' %}active{% endif %}" data-i18n="nav.settings">Settings</a></li>
         <li><a href="{{ url_for('profile.new') }}" class="nav-link nav-link--cta" data-i18n="nav.new">+ New</a></li>
       </ul>
       <div class="nav-right">

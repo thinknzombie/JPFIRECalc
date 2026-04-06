@@ -32,6 +32,7 @@ from engine.fire_calculator import (
     calculate_retirement_expenses,
     calculate_accessible_portfolio,
     calculate_pension_at_retirement,
+    _amortise_mortgage,
 )
 from engine.nhi_calculator import solve_withdrawal_with_nhi
 from models.region_data import get_nhi_municipality_key
@@ -77,6 +78,15 @@ def _compute_for_params(
 
     portfolio_info = calculate_accessible_portfolio(profile, profile.target_retirement_age)
     current_portfolio = portfolio_info["total_accessible_jpy"]
+
+    # Mortgage payoff deduction (mirrors run_fire_scenario logic)
+    if profile.owns_property and profile.property_paid_off_at_retirement:
+        payoff = _amortise_mortgage(
+            balance_jpy=profile.mortgage_balance_jpy,
+            monthly_payment_jpy=profile.monthly_mortgage_payment_jpy,
+            years=profile.years_to_retirement,
+        )
+        current_portfolio = max(0, current_portfolio - payoff)
 
     annual_savings = (
         profile.monthly_nisa_contribution_jpy + profile.ideco_monthly_contribution_jpy

@@ -304,15 +304,21 @@
   <h3 class="results-card__title" data-i18n="result.tax_summary">Current Tax Summary</h3>
   <div class="kv-list">
     <div class="kv-row">
-      <span class="kv-key" data-i18n="result.income_tax">Income Tax</span>
+      <span class="kv-key" data-i18n="result.income_tax">Income Tax (所得税)</span>
       <span class="kv-val">¥{{ "{:,}".format(result.current_income_tax_jpy) }}</span>
     </div>
     <div class="kv-row">
-      <span class="kv-key" data-i18n="result.residence_tax">Residence Tax</span>
+      <span class="kv-key" data-i18n="result.residence_tax">Residence Tax (住民税)</span>
       <span class="kv-val">¥{{ "{:,}".format(result.current_residence_tax_jpy) }}</span>
     </div>
+    {% if profile is defined and profile.social_insurance_annual_jpy %}
+    <div class="kv-row">
+      <span class="kv-key" data-i18n="result.social_insurance">Social Insurance (社会保険)</span>
+      <span class="kv-val">¥{{ "{:,}".format(profile.social_insurance_annual_jpy) }}</span>
+    </div>
+    {% endif %}
     <div class="kv-row kv-row--total">
-      <span class="kv-key" data-i18n="result.effective_rate">Effective Tax Rate</span>
+      <span class="kv-key" data-i18n="result.effective_rate">Effective Rate (tax + SI ÷ gross)</span>
       <span class="kv-val">{{ "%.1f" | format(result.current_effective_tax_rate_pct) }}%</span>
     </div>
   </div>

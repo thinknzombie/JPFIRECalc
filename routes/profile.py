@@ -344,13 +344,20 @@ def upload():
             data.pop("_meta", None)  # strip annotation block
 
         elif filename.endswith(".csv"):
-            reader = csv.DictReader(io.StringIO(raw.decode("utf-8")))
+            text = raw.decode("utf-8")
+            # Strip comment lines (the template writes # lines before the header)
+            lines = [line for line in text.splitlines(True)
+                     if not line.lstrip().startswith("#")]
+            reader = csv.DictReader(io.StringIO("".join(lines)))
             data = {}
             for row in reader:
                 name = (row.get("field_name") or "").strip()
                 value = (row.get("value") or "").strip()
                 if name and not name.startswith("#"):
                     data[name] = value
+            if not data:
+                flash("No data found in CSV — check the file has a 'field_name' column.", "error")
+                return redirect(url_for("profile.new"))
         else:
             flash("Unsupported file type. Please upload a .json or .csv file.", "error")
             return redirect(url_for("profile.new"))

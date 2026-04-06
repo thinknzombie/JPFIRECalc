@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% from "components/form_field.html" import field, field_yen, field_select, field_checkbox, section %}
+
+{% block title %}Settings — JPFIRECalc{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Configure default assumptions and tax rates. These apply to all new scenarios.</p>
+  </div>
+</div>
+
+<div class="container container--narrow">
+  <form method="POST" action="{{ url_for('settings.save') }}" class="fire-form" novalidate>
+
+    {# ── Tax Rates ──────────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Tax Rates", "Override Japan's built-in tax rates. Changes affect all scenario calculations.") }}
+      <div class="form-grid form-grid--3">
+        {{ field("capital_gains_tax_rate_pct", "Capital Gains Tax (%)",
+                 value=settings.capital_gains_tax_rate_pct,
+                 type="number", min=0, max=50, step=0.001,
+                 help="Combined income + residence tax on investment gains. Japan default: 20.315% (15.315% income + 5% residence).") }}
+        {{ field("reconstruction_surtax_pct", "Reconstruction Surtax (%)",
+                 value=settings.reconstruction_surtax_pct,
+                 type="number", min=0, max=10, step=0.1,
+                 help="Applied on top of income tax. 2.1% until 2037 (East Japan earthquake reconstruction).") }}
+        {{ field("residence_tax_rate_pct", "Residence Tax Rate (%)",
+                 value=settings.residence_tax_rate_pct,
+                 type="number", min=0, max=20, step=0.1,
+                 help="Flat rate on taxable income. Standard: 10% (6% municipal + 4% prefectural).") }}
+      </div>
+      <div class="form-grid form-grid--2">
+        {{ field("residence_tax_per_capita_jpy", "Residence Tax Per Capita (¥)",
+                 value=settings.residence_tax_per_capita_jpy,
+                 type="number", min=0, max=20000, step=500,
+                 help="Annual fixed per-person levy. Standard: ¥5,000 (¥3,500 municipal + ¥1,500 prefectural).") }}
+        {{ field("mortgage_interest_rate_pct", "Mortgage Interest Rate (%)",
+                 value=settings.mortgage_interest_rate_pct,
+                 type="number", min=0, max=10, step=0.1,
+                 help="Assumed annual rate for mortgage amortisation calculations. Japan average: ~1.5%.") }}
+      </div>
+    </div>
+
+    {# ── Default Scenario Assumptions ──────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Default Scenario Assumptions", "These values pre-fill the assumptions form when creating a new scenario.") }}
+      <div class="form-grid form-grid--3">
+        {{ field("default_investment_return_pct", "Pre-Retirement Return (%)",
+                 value=settings.default_investment_return_pct,
+                 type="number", min=0, max=15, step=0.1,
+                 help="Expected annual return during accumulation. 5–7% typical for global equity.") }}
+        {{ field("default_retirement_return_pct", "Post-Retirement Return (%)",
+                 value=settings.default_retirement_return_pct,
+                 type="number", min=0, max=12, step=0.1,
+                 help="More conservative after FIRE — usually 0.5–1% below pre-retirement.") }}
+        {{ field("default_return_volatility_pct", "Annual Volatility (%)",
+                 value=settings.default_return_volatility_pct,
+                 type="number", min=1, max=40, step=0.5,
+                 help="Standard deviation of returns. 15% typical for global equity.") }}
+      </div>
+      <div class="form-grid form-grid--3">
+        {{ field("default_withdrawal_rate_pct", "Withdrawal Rate (%)",
+                 value=settings.default_withdrawal_rate_pct,
+                 type="number", min=1, max=8, step=0.1,
+                 help="Japan research suggests 3–3.5% is safer than the US 4% rule.") }}
+        {{ field("default_japan_inflation_pct", "Japan Inflation (%)",
+                 value=settings.default_japan_inflation_pct,
+                 type="number", min=0, max=10, step=0.1,
+                 help="Recent Japan CPI has been ~2–3%.") }}
+        {{ field("default_retirement_expense_growth_pct", "Retirement Expense Growth (%)",
+                 value=settings.default_retirement_expense_growth_pct,
+                 type="number", min=0, max=8, step=0.1,
+                 help="Typically below general inflation — retirees often spend less over time.") }}
+      </div>
+    </div>
+
+    {# ── Default Region & NHI ──────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Default Region & NHI") }}
+      <div class="form-grid form-grid--2">
+        {{ field_select("default_region", "Cost-of-Living Region",
+                        options=[
+                          ("tokyo",         "Tokyo (¥257,000/mo)"),
+                          ("osaka",         "Osaka (¥200,000/mo)"),
+                          ("nagoya",        "Nagoya (¥183,000/mo)"),
+                          ("fukuoka",       "Fukuoka (¥170,000/mo)"),
+                          ("sapporo",       "Sapporo (¥170,000/mo)"),
+                          ("secondary_city","Secondary City (¥155,000/mo)"),
+                          ("rural",         "Rural (¥127,000/mo)"),
+                        ],
+                        selected=settings.default_region) }}
+        {{ field_select("default_nhi_municipality_key", "NHI Municipality",
+                        options=[
+                          ("national_average", "National Average"),
+                          ("tokyo_shinjuku",   "Tokyo (Shinjuku)"),
+                          ("tokyo_setagaya",   "Tokyo (Setagaya)"),
+                          ("osaka",            "Osaka"),
+                          ("nagoya",           "Nagoya"),
+                          ("fukuoka",          "Fukuoka"),
+                          ("sapporo",          "Sapporo"),
+                          ("kyoto",            "Kyoto"),
+                          ("hiroshima",        "Hiroshima"),
+                          ("rural_average",    "Rural Average"),
+                        ],
+                        selected=settings.default_nhi_municipality_key) }}
+      </div>
+      <div class="form-grid form-grid--2">
+        {{ field("default_nhi_household_members", "NHI Household Members",
+                 value=settings.default_nhi_household_members,
+                 type="number", min=1, max=6) }}
+        {{ field("default_usd_jpy_rate", "USD/JPY Rate",
+                 value=settings.default_usd_jpy_rate,
+                 type="number", min=50, max=300, step=1) }}
+      </div>
+    </div>
+
+    {# ── Simulation ────────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Monte Carlo Defaults") }}
+      <div class="form-grid form-grid--3">
+        {{ field("default_monte_carlo_simulations", "Number of Simulations",
+                 value=settings.default_monte_carlo_simulations,
+                 type="number", min=100, max=50000, step=100,
+                 help="1,000 is fast; 10,000 gives stable statistics.") }}
+        {{ field("default_simulation_years", "Simulation Years",
+                 value=settings.default_simulation_years,
+                 type="number", min=10, max=60,
+                 help="How many years of retirement to simulate.") }}
+        {{ field_checkbox("default_sequence_of_returns_risk", "Sequence-of-Returns Risk",
+                          checked=settings.default_sequence_of_returns_risk,
+                          help="Amplifies volatility in early retirement years.") }}
+      </div>
+    </div>
+
+    {# ── FIRE Variant ──────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("FIRE Variant Default") }}
+      <div class="form-grid form-grid--2">
+        {{ field_select("default_fire_variant", "Default FIRE Strategy",
+                        options=[
+                          ("regular", "Regular FIRE"),
+                          ("lean",    "Lean FIRE"),
+                          ("fat",     "Fat FIRE"),
+                          ("coast",   "Coast FIRE"),
+                          ("barista", "Barista FIRE"),
+                        ],
+                        selected=settings.default_fire_variant) }}
+      </div>
+    </div>
+
+    {# ── Display ──────────────────────────────────────────────────────────── #}
+    <div class="form-card">
+      {{ section("Display Preferences") }}
+      <div class="form-grid form-grid--2">
+        {{ field_select("currency_display", "Currency Format",
+                        options=[
+                          ("compact", "Compact (¥1.5億, ¥200万)"),
+                          ("full",    "Full (¥150,000,000)"),
+                        ],
+                        selected=settings.currency_display,
+                        help="How yen values are displayed in charts.") }}
+        {{ field_select("default_language", "Default Language",
+                        options=[
+                          ("en", "English"),
+                          ("ja", "日本語"),
+                        ],
+                        selected=settings.default_language) }}
+      </div>
+    </div>
+
+    {# ── Actions ──────────────────────────────────────────────────────────── #}
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary btn--lg">Save Settings</button>
+    </div>
+
+  </form>
+
+  <form method="POST" action="{{ url_for('settings.reset') }}" class="inline-form"
+        style="text-align: center; margin-top: var(--space-4);"
+        onsubmit="return confirm('Reset all settings to defaults?')">
+    <button type="submit" class="btn btn--ghost">Reset All to Defaults</button>
+  </form>
+</div>
+{% endblock %}
