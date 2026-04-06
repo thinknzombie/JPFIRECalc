@@ -141,12 +141,16 @@ class FinancialProfile:
     monthly_mortgage_payment_jpy: int = 0
     rental_income_monthly_jpy: int = 0
     property_paid_off_at_retirement: bool = False
+    property_planned_sale_age: int | None = None  # age to sell Japan property (None = keep)
+    property_appreciation_pct: float = 0.0        # expected annual appreciation % (e.g. 1.0 = 1%)
 
     # --- Foreign real estate ------------------------------------------------
     owns_foreign_property: bool = False
     foreign_property_value_jpy: int = 0          # combined market value in JPY
     foreign_property_mortgage_jpy: int = 0       # outstanding mortgage in JPY
     foreign_property_rental_monthly_jpy: int = 0  # monthly net rental income in JPY
+    foreign_property_planned_sale_age: int | None = None  # age to sell overseas property
+    foreign_property_appreciation_pct: float = 0.0        # expected annual appreciation %
 
     # --- Other / alternative assets -----------------------------------------
     gold_silver_value_jpy: int = 0               # gold, silver, precious metals

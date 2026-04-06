@@ -103,6 +103,10 @@ const I18n = (() => {
       "section.realestate": "Real Estate (Optional)",
       "section.realestate.japan":   "Japan Property",
       "section.realestate.foreign": "Foreign / Overseas Property",
+      "field.property_planned_sale_age":    "Planned Sale Age (blank = keep forever)",
+      "field.property_appreciation_pct":    "Expected Annual Appreciation (%)",
+      "field.fp_planned_sale_age":          "Planned Sale Age (blank = keep forever)",
+      "field.fp_appreciation_pct":          "Expected Annual Appreciation (%)",
       "section.otherassets":        "Other Assets (Optional)",
       "section.otherassets.sub":    "Gold, crypto, RSUs, and other holdings that don't fit the standard account types.",
       "section.scenario_details": "Scenario Details",
@@ -290,6 +294,7 @@ const I18n = (() => {
 
       // ── Scenario detail ───────────────────────────────────────────────────
       "detail.delete_confirm": "Delete this scenario?",
+      "detail.download_report": "Download Report",
       "detail.running_simulations": "Running simulations…",
 
       // ── Compare page ──────────────────────────────────────────────────────
@@ -418,6 +423,10 @@ const I18n = (() => {
       "section.realestate": "不動産（任意）",
       "section.realestate.japan":   "日本の不動産",
       "section.realestate.foreign": "海外不動産",
+      "field.property_planned_sale_age":    "売却予定年齢（空白＝保有継続）",
+      "field.property_appreciation_pct":    "年間予想値上がり率（%）",
+      "field.fp_planned_sale_age":          "売却予定年齢（空白＝保有継続）",
+      "field.fp_appreciation_pct":          "年間予想値上がり率（%）",
       "section.otherassets":        "その他の資産（任意）",
       "section.otherassets.sub":    "通常の口座区分に該当しない金・暗号資産・RSUなどの保有資産",
       "section.scenario_details": "シナリオ詳細",
@@ -605,6 +614,7 @@ const I18n = (() => {
 
       // ── Scenario detail ───────────────────────────────────────────────────
       "detail.delete_confirm": "このシナリオを削除しますか？",
+      "detail.download_report": "レポートをダウンロード",
       "detail.running_simulations": "シミュレーション実行中…",
 
       // ── Compare page ──────────────────────────────────────────────────────

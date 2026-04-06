@@ -176,7 +176,15 @@ class MonteCarloResult:
 
 @dataclass
 class SensitivityItem:
-    """Single variable result from sensitivity analysis."""
+    """Single variable result from sensitivity analysis.
+
+    Two modes controlled by ``surplus_mode``:
+      - **years mode** (default): base/pess/opt are years-to-FIRE.
+        Higher = worse, so delta_pessimistic is positive when pess > base.
+      - **surplus mode**: base/pess/opt are FIRE surplus %.
+        Higher = better, so delta_pessimistic is positive when pess < base
+        (surplus dropped).
+    """
     variable: str
     label: str
     base_years: float
@@ -184,10 +192,19 @@ class SensitivityItem:
     optimistic_years: float
     delta_pessimistic: float = 0.0
     delta_optimistic: float = 0.0
+    surplus_mode: bool = False
 
     def __post_init__(self):
-        self.delta_pessimistic = self.pessimistic_years - self.base_years
-        self.delta_optimistic = self.base_years - self.optimistic_years
+        if self.surplus_mode:
+            # Surplus %: higher = better.
+            # Pessimistic delta = how much surplus DROPS (positive = bad).
+            self.delta_pessimistic = self.base_years - self.pessimistic_years
+            # Optimistic delta = how much surplus RISES (positive = good).
+            self.delta_optimistic = self.optimistic_years - self.base_years
+        else:
+            # Years: higher = worse.
+            self.delta_pessimistic = self.pessimistic_years - self.base_years
+            self.delta_optimistic = self.base_years - self.optimistic_years
 
 
 @dataclass

@@ -10,9 +10,10 @@ Routes:
   GET  /scenarios/<id>/run         → HTMX partial: run calculation and return results fragment
 """
 import logging
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, Response
 from models.scenario import Scenario, AssumptionSet
 from engine.fire_calculator import run_fire_scenario
+from engine.report_generator import generate_markdown_report
 import storage.scenario_store as store
 
 logger = logging.getLogger(__name__)
@@ -187,6 +188,33 @@ def delete(scenario_id):
     store.delete(scenario_id)
     flash("Scenario deleted.", "success")
     return redirect(url_for("scenarios.index"))
+
+
+@scenarios_bp.route("/<scenario_id>/report.md")
+def report_md(scenario_id):
+    """Download a full Markdown report for this scenario."""
+    store.init_store(current_app.config["SCENARIOS_DIR"])
+    try:
+        profile, scenario = store.load(scenario_id)
+    except FileNotFoundError:
+        flash("Scenario not found.", "error")
+        return redirect(url_for("scenarios.index"))
+
+    try:
+        result = _run_and_render_detail(profile, scenario, scenario.region)
+    except Exception:
+        flash("Could not generate report — calculation error.", "error")
+        return redirect(url_for("scenarios.detail", scenario_id=scenario_id))
+
+    md = generate_markdown_report(profile, scenario, result)
+    safe_name = "".join(c if c.isalnum() or c in "-_ " else "_" for c in scenario.name).strip()
+    filename = f"jpfirecalc_{safe_name}.md".replace(" ", "_")
+
+    return Response(
+        md.encode("utf-8"),
+        mimetype="text/markdown",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @scenarios_bp.route("/<scenario_id>/run")

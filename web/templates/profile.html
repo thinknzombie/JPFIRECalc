@@ -271,6 +271,12 @@
                      value=profile.rental_income_monthly_jpy, step=10000) }}
         {{ field_checkbox("property_paid_off_at_retirement", "Mortgage paid off by retirement",
                           checked=profile.property_paid_off_at_retirement) }}
+        {{ field("property_planned_sale_age", "Planned Sale Age (blank = keep forever)",
+                 value=profile.property_planned_sale_age or "",
+                 type="number", min=profile.current_age, max=100) }}
+        {{ field("property_appreciation_pct", "Expected Annual Appreciation (%)",
+                 value=profile.property_appreciation_pct,
+                 type="number", min="-5", max=20, step="0.5") }}
       </div>
 
       {# Foreign / overseas property #}
@@ -287,6 +293,12 @@
                      value=profile.foreign_property_mortgage_jpy, step=100000) }}
         {{ field_yen("foreign_property_rental_monthly_jpy", "Foreign Monthly Rental Income (JPY equivalent)",
                      value=profile.foreign_property_rental_monthly_jpy, step=10000) }}
+        {{ field("foreign_property_planned_sale_age", "Planned Sale Age (blank = keep forever)",
+                 value=profile.foreign_property_planned_sale_age or "",
+                 type="number", min=profile.current_age, max=100) }}
+        {{ field("foreign_property_appreciation_pct", "Expected Annual Appreciation (%)",
+                 value=profile.foreign_property_appreciation_pct,
+                 type="number", min="-5", max=20, step="0.5") }}
       </div>
     </div>
 

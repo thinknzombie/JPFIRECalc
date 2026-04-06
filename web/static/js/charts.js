@@ -115,8 +115,10 @@ const JPFIRECharts = (() => {
     const chartEl = document.getElementById('tornadoChart');
     if (!dataEl || !chartEl) return;
 
-    let items;
-    try { items = JSON.parse(dataEl.textContent); } catch (e) { return; }
+    let parsed;
+    try { parsed = JSON.parse(dataEl.textContent); } catch (e) { return; }
+    const items = parsed.items || parsed;  // support new {surplus_mode, items} and legacy array
+    const surplusMode = parsed.surplus_mode || false;
     if (!items || items.length === 0) return;
 
     // Sort largest swing at top (already sorted server-side, but ensure)
@@ -126,32 +128,44 @@ const JPFIRECharts = (() => {
     );
 
     const labels = items.map(d => d.label);
-    // Pessimistic bars go right (positive delta = more years = bad)
+    // Pessimistic bars go right (positive delta = bad)
     const pessValues = items.map(d => Math.max(0, d.delta_pessimistic));
-    // Optimistic bars go left (negative delta = fewer years = good)
+    // Optimistic bars go left (positive delta = good, shown as negative)
     const optValues  = items.map(d => -Math.max(0, d.delta_optimistic));
+
+    const unit = surplusMode ? '%' : ' years';
+    const pessName = surplusMode ? 'Pessimistic (−surplus)' : 'Pessimistic (+yrs)';
+    const optName  = surplusMode ? 'Optimistic (+surplus)'  : 'Optimistic (−yrs)';
+    const xTitle   = surplusMode ? 'Change in FIRE Surplus %' : 'Change in Years to FIRE';
+    const pessHover = surplusMode
+      ? '-%{x:.1f}% surplus<extra>Pessimistic</extra>'
+      : '+%{x:.1f} years<extra>Pessimistic</extra>';
+    const optHover = surplusMode
+      ? '+%{customdata:.1f}% surplus<extra>Optimistic</extra>'
+      : '%{x:.1f} years<extra>Optimistic</extra>';
 
     const traces = [
       {
         type: 'bar', orientation: 'h',
         y: labels, x: pessValues,
-        name: 'Pessimistic (+yrs)',
+        name: pessName,
         marker: { color: C.danger },
-        hovertemplate: '+%{x:.1f} years<extra>Pessimistic</extra>',
+        hovertemplate: pessHover,
       },
       {
         type: 'bar', orientation: 'h',
         y: labels, x: optValues,
-        name: 'Optimistic (−yrs)',
+        customdata: items.map(d => Math.max(0, d.delta_optimistic)),
+        name: optName,
         marker: { color: C.success },
-        hovertemplate: '%{x:.1f} years<extra>Optimistic</extra>',
+        hovertemplate: optHover,
       },
     ];
 
     const layout = {
       ...BASE_LAYOUT,
       barmode: 'overlay',
-      xaxis: { ...BASE_LAYOUT.xaxis, title: 'Change in Years to FIRE', zeroline: true, zerolinewidth: 2, zerolinecolor: '#353b55' },
+      xaxis: { ...BASE_LAYOUT.xaxis, title: xTitle, zeroline: true, zerolinewidth: 2, zerolinecolor: '#353b55' },
       yaxis: { ...BASE_LAYOUT.yaxis, automargin: true },
       margin: { ...BASE_LAYOUT.margin, l: 180 },
       legend: { ...BASE_LAYOUT.legend, orientation: 'h', y: -0.15 },

@@ -51,6 +51,8 @@ def run_simulation(
     sor_amplifier: float = 1.5,
     sor_years: int = 5,
     seed: int | None = None,
+    lump_sums: list[tuple[int, int]] | None = None,
+    withdrawal_reductions: list[tuple[int, int]] | None = None,
 ) -> dict:
     """
     Run N Monte Carlo simulations of portfolio drawdown over retirement.
@@ -70,6 +72,12 @@ def run_simulation(
         sor_amplifier:          Volatility multiplier for SOR years (default 1.5×).
         sor_years:              Number of early retirement years with amplified vol.
         seed:                   Random seed for reproducibility (None = random).
+        lump_sums:              Optional list of (year_into_retirement, amount_jpy) tuples.
+                                At the specified year, amount_jpy is added to ALL paths
+                                (e.g. net proceeds from a planned property sale).
+        withdrawal_reductions:  Optional list of (start_year, annual_reduction_jpy) tuples.
+                                From start_year onward, net_withdrawal is reduced by
+                                annual_reduction_jpy (e.g. mortgage payment stops after sale).
 
     Returns:
         dict with:
@@ -110,6 +118,19 @@ def run_simulation(
 
     net_withdrawal = expense_schedule - pension_schedule  # net from portfolio each year
 
+    # Apply withdrawal reductions (e.g. mortgage stops after property sale)
+    if withdrawal_reductions:
+        for start_year, annual_reduction in withdrawal_reductions:
+            if 0 < start_year <= simulation_years:
+                net_withdrawal[start_year:] -= annual_reduction
+
+    # Build lump-sum lookup: year_index → total_amount
+    lump_sum_map: dict[int, int] = {}
+    if lump_sums:
+        for yr_idx, amount in lump_sums:
+            if 0 < yr_idx <= simulation_years:  # must be within the simulated window
+                lump_sum_map[yr_idx] = lump_sum_map.get(yr_idx, 0) + int(amount)
+
     # Simulate portfolios: vectorised over all paths simultaneously
     # portfolios[i, 0] = initial value; portfolios[i, t+1] after year t
     portfolios = np.zeros((n_simulations, simulation_years + 1))
@@ -118,6 +139,9 @@ def run_simulation(
     for yr in range(simulation_years):
         # Grow, then withdraw (withdraw at end of year)
         portfolios[:, yr + 1] = portfolios[:, yr] * gross_returns[:, yr] - net_withdrawal[yr]
+        # Inject property-sale lump sum (same amount on all paths — deterministic event)
+        if yr + 1 in lump_sum_map:
+            portfolios[:, yr + 1] += lump_sum_map[yr + 1]
         # Floor at zero — portfolio cannot go negative (ruin state)
         portfolios[:, yr + 1] = np.maximum(portfolios[:, yr + 1], 0)
 
@@ -172,6 +196,8 @@ def run_monte_carlo(
     inflation_rate: float = 0.02,
     sequence_of_returns_risk: bool = True,
     seed: int | None = None,
+    lump_sums: list[tuple[int, int]] | None = None,
+    withdrawal_reductions: list[tuple[int, int]] | None = None,
 ) -> MonteCarloResult:
     """
     Run Monte Carlo and return a MonteCarloResult ready for the ScenarioResult.
@@ -198,6 +224,8 @@ def run_monte_carlo(
         inflation_rate=inflation_rate,
         sequence_of_returns_risk=sequence_of_returns_risk,
         seed=seed,
+        lump_sums=lump_sums,
+        withdrawal_reductions=withdrawal_reductions,
     )
 
     return MonteCarloResult(

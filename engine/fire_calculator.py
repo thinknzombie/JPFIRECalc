@@ -196,6 +196,112 @@ def calculate_pension_at_retirement(
 
 
 # ---------------------------------------------------------------------------
+# Property sale proceeds
+# ---------------------------------------------------------------------------
+
+def _amortise_mortgage(
+    balance_jpy: int,
+    monthly_payment_jpy: int,
+    years: int,
+    annual_rate: float = 0.015,
+) -> int:
+    """
+    Estimate remaining mortgage balance after *years* of regular payments.
+
+    Uses a standard amortisation schedule at the given annual interest rate.
+    Falls back to the original balance if inputs are zero/implausible.
+
+    Args:
+        balance_jpy:        Current outstanding principal.
+        monthly_payment_jpy: Regular monthly payment amount.
+        years:              Number of years of payments to simulate.
+        annual_rate:        Assumed annual interest rate (default 1.5% — Japan average).
+
+    Returns:
+        Estimated remaining balance (floored at 0).
+    """
+    if balance_jpy <= 0 or monthly_payment_jpy <= 0 or years <= 0:
+        return max(0, balance_jpy)
+    monthly_rate = annual_rate / 12
+    balance = float(balance_jpy)
+    for _ in range(years * 12):
+        interest = balance * monthly_rate
+        principal = monthly_payment_jpy - interest
+        if principal <= 0:
+            break  # payment doesn't cover interest — balance stays (unusual edge case)
+        balance = max(0.0, balance - principal)
+    return int(balance)
+
+
+def calculate_property_sale_proceeds(
+    current_value_jpy: int,
+    mortgage_balance_jpy: int,
+    years_until_sale: int,
+    appreciation_pct: float,
+    monthly_mortgage_payment_jpy: int = 0,
+    transaction_cost_pct: float = 4.0,
+    held_long_term: bool = True,
+) -> dict:
+    """
+    Estimate net cash proceeds from a planned property sale.
+
+    Appreciation is compounded annually from the current market value.
+    Capital gains tax applies to the appreciation portion only (using the
+    current value as a proxy for acquisition cost — conservative if the
+    property was bought higher, optimistic if bought lower).
+
+    The mortgage balance is amortised over years_until_sale using a standard
+    schedule at an assumed 1.5 % annual rate (Japan average). Pass
+    monthly_mortgage_payment_jpy=0 to skip amortisation and use the raw balance.
+
+    Japan CGT rates:
+      - Long-term (> 5 years held): 20.315%  (所得税15.315% + 住民税5%)
+      - Short-term (≤ 5 years):    39.63%   (所得税30.63% + 住民税9%)
+
+    The 3,000万円 primary-residence special deduction is NOT modelled here
+    (it requires knowing whether the property is a primary residence and how
+    long the owner lived there). Users should factor this in manually.
+
+    Args:
+        current_value_jpy:          Current market value.
+        mortgage_balance_jpy:       Current outstanding mortgage principal.
+        years_until_sale:           Years between now and the planned sale.
+        appreciation_pct:           Expected annual appreciation (e.g. 1.0 = 1 %).
+        monthly_mortgage_payment_jpy: Monthly payment; used to amortise balance.
+                                    0 = use balance as-is (no amortisation).
+        transaction_cost_pct:       Agent/stamp/misc costs as % of sale price (default 4 %).
+        held_long_term:             True → 20.315 % rate; False → 39.63 % rate.
+
+    Returns:
+        dict with sale_value_jpy, capital_gain_jpy, capital_gains_tax_jpy,
+        transaction_costs_jpy, mortgage_cleared_jpy, net_proceeds_jpy, tax_rate_pct.
+    """
+    sale_value = int(current_value_jpy * (1 + appreciation_pct / 100) ** years_until_sale)
+    capital_gain = max(0, sale_value - current_value_jpy)
+    cg_rate = 0.20315 if held_long_term else 0.39630
+    cg_tax = int(capital_gain * cg_rate)
+    tx_costs = int(sale_value * transaction_cost_pct / 100)
+
+    # Amortise mortgage to sale date
+    remaining_mortgage = _amortise_mortgage(
+        balance_jpy=mortgage_balance_jpy,
+        monthly_payment_jpy=monthly_mortgage_payment_jpy,
+        years=years_until_sale,
+    ) if monthly_mortgage_payment_jpy > 0 else mortgage_balance_jpy
+
+    net = max(0, sale_value - remaining_mortgage - cg_tax - tx_costs)
+    return {
+        "sale_value_jpy": sale_value,
+        "capital_gain_jpy": capital_gain,
+        "capital_gains_tax_jpy": cg_tax,
+        "transaction_costs_jpy": tx_costs,
+        "mortgage_cleared_jpy": remaining_mortgage,
+        "net_proceeds_jpy": net,
+        "tax_rate_pct": round(cg_rate * 100, 3),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Accessible portfolio today
 # ---------------------------------------------------------------------------
 
@@ -478,8 +584,41 @@ def project_net_worth(
 
     annual_savings = (
         (profile.monthly_nisa_contribution_jpy + profile.ideco_monthly_contribution_jpy) * 12
+        + profile.nisa_growth_frame_annual_jpy
         + getattr(profile, 'rsu_vesting_annual_jpy', 0)
     )
+
+    # Build property-sale lump sum map: age → net_proceeds_jpy
+    _prop_sale_by_age: dict[int, int] = {}
+    for (prop_value, prop_mortgage, prop_monthly_pmt2, sale_age_attr, appr_attr) in [
+        (
+            profile.property_value_jpy,
+            profile.mortgage_balance_jpy,
+            profile.monthly_mortgage_payment_jpy,
+            getattr(profile, "property_planned_sale_age", None),
+            getattr(profile, "property_appreciation_pct", 0.0),
+        ),
+        (
+            getattr(profile, "foreign_property_value_jpy", 0),
+            getattr(profile, "foreign_property_mortgage_jpy", 0),
+            0,
+            getattr(profile, "foreign_property_planned_sale_age", None),
+            getattr(profile, "foreign_property_appreciation_pct", 0.0),
+        ),
+    ]:
+        if prop_value and sale_age_attr:
+            yrs = sale_age_attr - profile.current_age
+            if yrs >= 0:
+                proc = calculate_property_sale_proceeds(
+                    current_value_jpy=prop_value,
+                    mortgage_balance_jpy=prop_mortgage,
+                    years_until_sale=yrs,
+                    appreciation_pct=appr_attr,
+                    monthly_mortgage_payment_jpy=prop_monthly_pmt2,
+                )
+                _prop_sale_by_age[sale_age_attr] = (
+                    _prop_sale_by_age.get(sale_age_attr, 0) + proc["net_proceeds_jpy"]
+                )
 
     trajectory: list[YearProjection] = []
 
@@ -492,6 +631,10 @@ def project_net_worth(
             # --- Accumulation phase ---
             gain = int(portfolio * r_accum)
             portfolio = int(portfolio * (1 + r_accum)) + annual_savings
+
+            # Property sale proceeds injected at sale age
+            if age in _prop_sale_by_age:
+                portfolio += _prop_sale_by_age[age]
 
             # iDeCo unlocks at 60 during accumulation (edge case: FIRE > 60 but age hits 60)
             if age == 60 and not ideco_accessible_at_fire and locked_ideco > 0:
@@ -529,6 +672,10 @@ def project_net_worth(
             # Year-1 residence tax shock
             shock_this_year = year1_shock if retirement_year == 0 else 0
             net_from_portfolio += shock_this_year
+
+            # Property sale proceeds injected at sale age (retirement phase)
+            if age in _prop_sale_by_age:
+                portfolio += _prop_sale_by_age[age]
 
             # Grow then withdraw
             gain = int(portfolio * r_retire)
@@ -628,7 +775,7 @@ def run_fire_scenario(
     # --- Years to FIRE -------------------------------------------------------
     annual_savings = (
         profile.monthly_nisa_contribution_jpy + profile.ideco_monthly_contribution_jpy
-    ) * 12 + getattr(profile, 'rsu_vesting_annual_jpy', 0)
+    ) * 12 + profile.nisa_growth_frame_annual_jpy + getattr(profile, 'rsu_vesting_annual_jpy', 0)
     years_to_fire = calculate_years_to_fire(
         current_portfolio_jpy=current_portfolio,
         annual_savings_jpy=annual_savings,
@@ -723,11 +870,76 @@ def run_fire_scenario(
     # --- Net worth trajectory -----------------------------------------------
     trajectory = project_net_worth(profile, assumptions, region_key, projection_years=50)
 
+    # --- Property sale lump sums (pre-retirement: boost portfolio; post: MC inject) ---
+    property_lump_sums: list[tuple[int, int]] = []      # (year_into_retirement, net_proceeds)
+    mc_withdrawal_reductions: list[tuple[int, int]] = []  # (start_year, annual_reduction)
+
+    def _property_sale(value, mortgage, monthly_payment, sale_age, appreciation_pct):
+        """Return (sale_age, net_proceeds_jpy), handling pre/post-retirement timing."""
+        if not value or not sale_age:
+            return None
+        years_until_sale = sale_age - profile.current_age
+        if years_until_sale < 0:
+            return None  # already sold
+        proceeds = calculate_property_sale_proceeds(
+            current_value_jpy=value,
+            mortgage_balance_jpy=mortgage,
+            years_until_sale=years_until_sale,
+            appreciation_pct=appreciation_pct,
+            monthly_mortgage_payment_jpy=monthly_payment,
+        )
+        return sale_age, proceeds["net_proceeds_jpy"]
+
+    for (prop_value, prop_mortgage, prop_monthly_pmt, sale_age_field, appr_field) in [
+        (
+            profile.property_value_jpy,
+            profile.mortgage_balance_jpy,
+            profile.monthly_mortgage_payment_jpy,
+            getattr(profile, "property_planned_sale_age", None),
+            getattr(profile, "property_appreciation_pct", 0.0),
+        ),
+        (
+            getattr(profile, "foreign_property_value_jpy", 0),
+            getattr(profile, "foreign_property_mortgage_jpy", 0),
+            0,  # no monthly payment field for foreign property — no amortisation
+            getattr(profile, "foreign_property_planned_sale_age", None),
+            getattr(profile, "foreign_property_appreciation_pct", 0.0),
+        ),
+    ]:
+        result = _property_sale(prop_value, prop_mortgage, prop_monthly_pmt, sale_age_field, appr_field)
+        if result is None:
+            continue
+        sale_age_val, net_proceeds = result
+        if sale_age_val <= profile.target_retirement_age:
+            # Pre-retirement sale: the proceeds are invested and compound to FIRE date
+            years_to_reinvest = profile.target_retirement_age - sale_age_val
+            future_proceeds = int(net_proceeds * (1 + r_accum) ** years_to_reinvest)
+            current_portfolio += future_proceeds
+            warnings.append(
+                f"Property sale (age {sale_age_val}): estimated net proceeds ¥{net_proceeds:,} "
+                f"added to portfolio and grown to ¥{future_proceeds:,} by retirement."
+            )
+        else:
+            # Post-retirement sale: inject as lump sum into Monte Carlo
+            year_into_retirement = sale_age_val - profile.target_retirement_age
+            property_lump_sums.append((year_into_retirement, net_proceeds))
+            # Also reduce ongoing withdrawal if property had a mortgage payment
+            if prop_monthly_pmt > 0:
+                annual_mortgage = prop_monthly_pmt * 12
+                mc_withdrawal_reductions.append((year_into_retirement, annual_mortgage))
+            warnings.append(
+                f"Property sale (age {sale_age_val}): estimated net proceeds ¥{net_proceeds:,} "
+                f"injected into portfolio in Monte Carlo at retirement year {year_into_retirement}."
+            )
+
+    # Recalculate progress after any pre-retirement sale boosts
+    progress_pct = (current_portfolio / fire_number * 100) if fire_number > 0 else 100.0
+
     # --- Monte Carlo simulation ---------------------------------------------
     from engine.monte_carlo import run_monte_carlo
     pension_start_year = max(0, profile.nenkin_claim_age - profile.target_retirement_age)
     mc_result = run_monte_carlo(
-        initial_portfolio_jpy=fire_number,
+        initial_portfolio_jpy=current_portfolio,
         annual_expenses_jpy=fire_info["net_annual_need_jpy"] + nhi_solve["nhi_premium"],
         net_pension_annual_jpy=net_pension,
         pension_start_year=pension_start_year,
@@ -737,7 +949,9 @@ def run_fire_scenario(
         volatility=assumptions.return_volatility_pct / 100,
         inflation_rate=assumptions.japan_inflation_pct / 100,
         sequence_of_returns_risk=assumptions.sequence_of_returns_risk,
-        seed=42,
+        lump_sums=property_lump_sums or None,
+        withdrawal_reductions=mc_withdrawal_reductions or None,
+        seed=None,
     )
 
     # --- Sensitivity analysis -----------------------------------------------

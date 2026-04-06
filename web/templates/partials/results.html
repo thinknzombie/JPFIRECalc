@@ -200,7 +200,8 @@
 <div class="results-card">
   <h3 class="results-card__title">
     <span data-i18n="result.sensitivity">Sensitivity Analysis</span>
-    <span class="badge badge--secondary" data-i18n="result.sensitivity_sub">Impact on Years to FIRE</span>
+    {% set _surplus_mode = result.sensitivity[0].surplus_mode if result.sensitivity else false %}
+    <span class="badge badge--secondary" data-i18n="result.sensitivity_sub">{% if _surplus_mode %}Impact on FIRE Surplus %{% else %}Impact on Years to FIRE{% endif %}</span>
     <button type="button" class="chart-info-btn" aria-label="About this chart"
             aria-expanded="true" data-chart-info="tornado">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -231,19 +232,22 @@
   </div>
   {# Data block — read by charts.js via getElementById('tornadoData') #}
   <script type="application/json" id="tornadoData">
-  [
-    {% for item in result.sensitivity %}
-    {
-      "variable": {{ item.variable | tojson }},
-      "label": {{ item.label | tojson }},
-      "base_years": {{ item.base_years }},
-      "pessimistic_years": {{ item.pessimistic_years }},
-      "optimistic_years": {{ item.optimistic_years }},
-      "delta_pessimistic": {{ item.delta_pessimistic }},
-      "delta_optimistic": {{ item.delta_optimistic }}
-    }{% if not loop.last %},{% endif %}
-    {% endfor %}
-  ]
+  {
+    "surplus_mode": {{ 'true' if _surplus_mode else 'false' }},
+    "items": [
+      {% for item in result.sensitivity %}
+      {
+        "variable": {{ item.variable | tojson }},
+        "label": {{ item.label | tojson }},
+        "base_years": {{ item.base_years }},
+        "pessimistic_years": {{ item.pessimistic_years }},
+        "optimistic_years": {{ item.optimistic_years }},
+        "delta_pessimistic": {{ item.delta_pessimistic }},
+        "delta_optimistic": {{ item.delta_optimistic }}
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ]
+  }
   </script>
   {# Render target — charts.js calls Plotly.newPlot on this element #}
   <div id="tornadoChart" class="chart-container"></div>
