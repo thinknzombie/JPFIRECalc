@@ -212,7 +212,8 @@
           <br><span class="text-muted" style="font-size: var(--text-xs);">
             spend ¥{{ "{:,}".format(result.annual_expenses_jpy // 12) }}/mo
             · +¥{{ "{:,}".format(result.barista_income_annual_jpy // 12) }}/mo work income
-            · withdraw ¥{{ "{:,}".format((result.annual_withdrawal_needed_jpy - result.barista_income_annual_jpy) // 12) }}/mo from portfolio
+            {% set barista_portfolio_wd = [result.annual_withdrawal_needed_jpy - result.barista_income_annual_jpy, 0] | max %}
+            · withdraw ¥{{ "{:,}".format(barista_portfolio_wd // 12) }}/mo from portfolio
           </span>
         </span>
       </span>

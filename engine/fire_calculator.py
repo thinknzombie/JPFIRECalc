@@ -807,32 +807,35 @@ def run_fire_scenario(
     fire_number = int(annual_need_with_nhi / withdrawal_rate)
     progress_pct = (current_portfolio / fire_number * 100) if fire_number > 0 else 100.0
 
-    # --- Years to FIRE -------------------------------------------------------
+    # --- Annual savings (used in years-to-fire below) -----------------------
     annual_savings = (
         profile.monthly_nisa_contribution_jpy + profile.ideco_monthly_contribution_jpy
     ) * 12 + profile.nisa_growth_frame_annual_jpy + getattr(profile, 'rsu_vesting_annual_jpy', 0)
-    years_to_fire = calculate_years_to_fire(
-        current_portfolio_jpy=current_portfolio,
-        annual_savings_jpy=annual_savings,
-        fire_number_jpy=fire_number,
-        annual_return_rate=r_accum,
-    )
-    fire_age = profile.current_age + years_to_fire
 
     # --- Coast FIRE ---------------------------------------------------------
+    # Coast FIRE uses the configurable coast_target_retirement_age, NOT the
+    # regular target_retirement_age.  Coast = "how much do I need today so
+    # that it grows to the full FIRE number by age Y with no contributions."
+    coast_years = max(0, assumptions.coast_target_retirement_age - profile.current_age)
     coast = calculate_coast_fire_number(
         fire_number_jpy=fire_number,
-        years_until_retirement=profile.years_to_retirement,
+        years_until_retirement=coast_years,
         annual_return_rate=r_accum,
     )
 
-    # --- Barista FIRE -------------------------------------------------------
-    barista = calculate_barista_fire_number(
-        annual_expenses_jpy=annual_expenses,
-        withdrawal_rate=withdrawal_rate,
-        net_pension_annual_jpy=net_pension,
-        barista_income_annual_jpy=assumptions.barista_income_monthly_jpy * 12,
+    # --- Barista FIRE (NHI-inclusive) ----------------------------------------
+    # Barista FIRE = (expenses - pension - barista_income + NHI) / WR.
+    # NHI is solved iteratively at the barista withdrawal level.
+    barista_income_annual = assumptions.barista_income_monthly_jpy * 12
+    barista_net_need = max(0, annual_expenses - net_pension - barista_income_annual)
+    barista_nhi_solve = solve_withdrawal_with_nhi(
+        target_net_expenses=barista_net_need,
+        num_members=assumptions.nhi_household_members,
+        municipality_key=municipality_key,
+        age=profile.target_retirement_age,
     )
+    barista_annual_need_with_nhi = barista_net_need + barista_nhi_solve["nhi_premium"]
+    barista_fire_number = int(barista_annual_need_with_nhi / withdrawal_rate) if withdrawal_rate > 0 else 0
 
     # --- Lean / Fat FIRE numbers --------------------------------------------
     # Use the same NHI-inclusive methodology as the regular FIRE number:
@@ -867,6 +870,40 @@ def run_fire_scenario(
     fat_annual = max(0, (fat_monthly + expense_result["mortgage_monthly_jpy"]
                          - expense_result["rental_income_monthly_jpy"]) * 12)
     fat_fire_number, fat_withdrawal, fat_nhi = _variant_fire_number(fat_annual)
+
+    # --- Active variant for years-to-fire & Monte Carlo ---------------------
+    # The chosen FIRE variant determines which FIRE number drives the
+    # "years to FIRE" metric and which expense level the MC simulates.
+    # MC receives FULL annual costs (not pension-subtracted) because the
+    # MC engine handles pension timing internally via pension_start_year.
+    variant = assumptions.fire_variant
+    if variant == 'lean':
+        active_fire_number = lean_fire_number
+        active_mc_expenses = lean_annual + lean_nhi
+    elif variant == 'fat':
+        active_fire_number = fat_fire_number
+        active_mc_expenses = fat_annual + fat_nhi
+    elif variant == 'barista':
+        active_fire_number = barista_fire_number
+        # Barista income supplements portfolio — reduces required withdrawal
+        active_mc_expenses = max(0, annual_expenses + barista_nhi_solve["nhi_premium"] - barista_income_annual)
+    elif variant == 'coast':
+        # Coast "years to fire" = time to reach the coast number (stop saving)
+        active_fire_number = coast["coast_fire_number_jpy"]
+        active_mc_expenses = annual_expenses + nhi_solve["nhi_premium"]
+    else:  # regular
+        active_fire_number = fire_number
+        active_mc_expenses = annual_expenses + nhi_solve["nhi_premium"]
+
+    # --- Years to FIRE (variant-aware) --------------------------------------
+    years_to_fire = calculate_years_to_fire(
+        current_portfolio_jpy=current_portfolio,
+        annual_savings_jpy=annual_savings,
+        fire_number_jpy=active_fire_number,
+        annual_return_rate=r_accum,
+    )
+    fire_age = profile.current_age + years_to_fire
+    progress_pct = (current_portfolio / active_fire_number * 100) if active_fire_number > 0 else 100.0
 
     # --- iDeCo projections --------------------------------------------------
     ideco_accum = calculate_ideco_accumulation(
@@ -1001,15 +1038,22 @@ def run_fire_scenario(
                 f"injected into portfolio in Monte Carlo at retirement year {year_into_retirement}."
             )
 
-    # Recalculate progress after any pre-retirement sale boosts
-    progress_pct = (current_portfolio / fire_number * 100) if fire_number > 0 else 100.0
+    # Recalculate progress and years-to-fire after any pre-retirement sale boosts
+    progress_pct = (current_portfolio / active_fire_number * 100) if active_fire_number > 0 else 100.0
+    years_to_fire = calculate_years_to_fire(
+        current_portfolio_jpy=current_portfolio,
+        annual_savings_jpy=annual_savings,
+        fire_number_jpy=active_fire_number,
+        annual_return_rate=r_accum,
+    )
+    fire_age = profile.current_age + years_to_fire
 
     # --- Monte Carlo simulation ---------------------------------------------
     from engine.monte_carlo import run_monte_carlo
     pension_start_year = max(0, profile.nenkin_claim_age - profile.target_retirement_age)
     mc_result = run_monte_carlo(
         initial_portfolio_jpy=current_portfolio,
-        annual_expenses_jpy=fire_info["net_annual_need_jpy"] + nhi_solve["nhi_premium"],
+        annual_expenses_jpy=active_mc_expenses,
         net_pension_annual_jpy=net_pension,
         pension_start_year=pension_start_year,
         simulation_years=assumptions.simulation_years,
@@ -1056,8 +1100,8 @@ def run_fire_scenario(
         fire_age=round(fire_age, 1) if math.isfinite(years_to_fire) else 999.0,
         coast_fire_number_jpy=coast["coast_fire_number_jpy"],
         coast_fire_reached=current_portfolio >= coast["coast_fire_number_jpy"],
-        barista_fire_number_jpy=barista["barista_fire_number_jpy"],
-        barista_income_annual_jpy=assumptions.barista_income_monthly_jpy * 12,
+        barista_fire_number_jpy=barista_fire_number,
+        barista_income_annual_jpy=barista_income_annual,
         lean_fire_number_jpy=lean_fire_number,
         lean_annual_expenses_jpy=lean_annual,
         lean_annual_withdrawal_jpy=lean_withdrawal,
