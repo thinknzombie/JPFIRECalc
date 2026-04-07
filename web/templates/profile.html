@@ -252,8 +252,12 @@
     </div>
 
     {# ── Real Estate ───────────────────────────────────────────────────────── #}
-    <div class="form-card">
-      {{ section("Real Estate (Optional)", key="section.realestate") }}
+    <details class="form-card form-card--collapsible">
+      <summary>
+        <div>
+          <h3 class="form-section-title" data-i18n="section.realestate">Real Estate (Optional)</h3>
+        </div>
+      </summary>
 
       {# Japan property #}
       <p class="form-section-subtitle" data-i18n="section.realestate.japan">Japan Property</p>
@@ -300,11 +304,16 @@
                  value=profile.foreign_property_appreciation_pct,
                  type="number", min="-5", max=20, step="0.5") }}
       </div>
-    </div>
+    </details>
 
     {# ── Other / Alternative Assets ────────────────────────────────────────── #}
-    <div class="form-card">
-      {{ section("Other Assets (Optional)", "Gold, crypto, RSUs, and other holdings that don't fit the standard account types.", key="section.otherassets") }}
+    <details class="form-card form-card--collapsible">
+      <summary>
+        <div>
+          <h3 class="form-section-title" data-i18n="section.otherassets">Other Assets (Optional)</h3>
+          <p class="form-section-subtitle">Gold, crypto, RSUs, and other holdings that don't fit the standard account types.</p>
+        </div>
+      </summary>
       <div class="form-grid form-grid--2">
         {{ field_yen("gold_silver_value_jpy", "Gold / Precious Metals",
                      value=profile.gold_silver_value_jpy, step=100000) }}
@@ -317,7 +326,7 @@
         {{ field_yen("other_assets_jpy", "Other Assets",
                      value=profile.other_assets_jpy, step=100000) }}
       </div>
-    </div>
+    </details>
 
     {# ── Submit ────────────────────────────────────────────────────────────── #}
     <div class="form-actions">

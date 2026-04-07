@@ -51,20 +51,20 @@
           </div>
           <div class="scenario-card__stats">
             <div class="scenario-stat">
+              <div class="scenario-stat__label" data-i18n="card.variant">Strategy</div>
+              <div class="scenario-stat__val">{{ scenario.assumptions.fire_variant | title }}</div>
+            </div>
+            <div class="scenario-stat">
+              <div class="scenario-stat__label" data-i18n="card.withdrawal">WR</div>
+              <div class="scenario-stat__val">{{ scenario.assumptions.withdrawal_rate_pct }}%</div>
+            </div>
+            <div class="scenario-stat">
               <div class="scenario-stat__label" data-i18n="card.return">Return</div>
               <div class="scenario-stat__val">{{ scenario.assumptions.investment_return_pct }}%</div>
             </div>
             <div class="scenario-stat">
-              <div class="scenario-stat__label" data-i18n="card.withdrawal">Withdrawal</div>
-              <div class="scenario-stat__val">{{ scenario.assumptions.withdrawal_rate_pct }}%</div>
-            </div>
-            <div class="scenario-stat">
-              <div class="scenario-stat__label" data-i18n="card.inflation">Inflation</div>
-              <div class="scenario-stat__val">{{ scenario.assumptions.japan_inflation_pct }}%</div>
-            </div>
-            <div class="scenario-stat">
-              <div class="scenario-stat__label" data-i18n="card.sims">Simulations</div>
-              <div class="scenario-stat__val">{{ "{:,}".format(scenario.assumptions.monte_carlo_simulations) }}</div>
+              <div class="scenario-stat__label" data-i18n="card.target_age">Target Age</div>
+              <div class="scenario-stat__val">{{ profile.target_retirement_age }}</div>
             </div>
           </div>
           <div class="scenario-card__footer">

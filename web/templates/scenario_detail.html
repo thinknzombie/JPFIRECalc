@@ -5,6 +5,11 @@
 {% block content %}
 <div class="page-header">
   <div class="container">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="{{ url_for('scenarios.index') }}" data-i18n="nav.dashboard">Dashboard</a>
+      <span class="breadcrumb__sep">&rsaquo;</span>
+      <span class="breadcrumb__current">{{ scenario.name }}</span>
+    </nav>
     <div class="page-header__inner">
       <div>
         <h1 class="page-title">{{ scenario.name }}</h1>
@@ -34,6 +39,12 @@
           </svg>
           Download Report
         </a>
+        <form method="POST" action="{{ url_for('scenarios.clone', scenario_id=scenario.id) }}"
+              class="inline-form">
+          <button type="submit" class="btn btn--ghost btn--sm" data-i18n="detail.clone">
+            Clone
+          </button>
+        </form>
         <form method="POST" action="{{ url_for('scenarios.delete', scenario_id=scenario.id) }}"
               class="inline-form"
               onsubmit="return confirm(typeof I18n !== 'undefined' ? I18n.t('detail.delete_confirm') : 'Delete this scenario?')">

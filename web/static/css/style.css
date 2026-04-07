@@ -968,7 +968,14 @@ img, svg { display: block; max-width: 100%; }
   border-radius: var(--radius-lg);
   padding: var(--space-5);
 }
-.metric-card--primary { border-color: rgba(91,106,240,0.4); background: linear-gradient(135deg, var(--color-bg-card), rgba(91,106,240,0.06)); }
+.metric-card--primary {
+  grid-column: span 1;
+  border-color: var(--color-primary);
+  background: linear-gradient(135deg, rgba(91,106,240,0.08), rgba(91,106,240,0.02));
+}
+.metric-card--primary .metric-value {
+  font-size: var(--text-4xl);
+}
 .metric-card--success { border-color: rgba(52,199,123,0.4); }
 .metric-card--accent  { border-color: rgba(232,184,75,0.4); }
 .metric-card--danger  { border-color: rgba(224,82,82,0.4); }
@@ -1524,6 +1531,68 @@ img, svg { display: block; max-width: 100%; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ============================================================
+   Breadcrumbs
+   ============================================================ */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+}
+.breadcrumb a {
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+.breadcrumb a:hover { color: var(--color-primary); }
+.breadcrumb__sep { color: var(--color-text-faint); }
+.breadcrumb__current { color: var(--color-text); font-weight: var(--weight-medium); }
+
+/* ============================================================
+   Variant Description
+   ============================================================ */
+.variant-desc {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary-dim);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-primary);
+}
+.variant-desc__text {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: var(--leading-relaxed);
+  margin: 0;
+}
+.variant-desc__text strong {
+  color: var(--color-text);
+}
+
+/* ============================================================
+   Collapsible form sections
+   ============================================================ */
+details.form-card--collapsible {
+  cursor: default;
+}
+details.form-card--collapsible > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+details.form-card--collapsible > summary::-webkit-details-marker { display: none; }
+details.form-card--collapsible > summary::after {
+  content: '\25B8';
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+  transition: transform var(--transition-fast);
+}
+details.form-card--collapsible[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+/* ============================================================
    Responsive
    ============================================================ */
 @media (max-width: 768px) {
@@ -1560,7 +1629,7 @@ img, svg { display: block; max-width: 100%; }
   .scenario-grid { grid-template-columns: 1fr; }
 
   .page-header__inner { flex-direction: column; align-items: flex-start; }
-  .page-header__actions { width: 100%; justify-content: flex-start; }
+  .page-header__actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: var(--space-2); }
 
   .form-actions { justify-content: flex-start; }
 }

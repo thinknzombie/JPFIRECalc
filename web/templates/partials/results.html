@@ -120,18 +120,18 @@
 
 <div class="results-card">
   <h3 class="results-card__title">
-    FIRE Variants Comparison
+    <span data-i18n="result.variants_title">FIRE Variants Comparison</span>
     <label class="toggle-label" style="margin-left: auto; font-size: var(--text-xs); font-weight: var(--weight-normal);">
-      <input type="checkbox" id="showMonthlyBudget" class="form-checkbox">
-      <span>Show monthly budget</span>
+      <input type="checkbox" id="showMonthlyBudget" class="form-checkbox" checked>
+      <span data-i18n="result.show_budget">Show monthly budget</span>
     </label>
   </h3>
 
   {# Current portfolio sustainable budget #}
-  <div class="monthly-budget-panel" id="monthlyBudgetPanel" style="display:none;">
+  <div class="monthly-budget-panel" id="monthlyBudgetPanel" style="display:block;">
     <div class="kv-list">
       <div class="kv-row" style="background: rgba(52,199,123,0.08); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);">
-        <span class="kv-key">💰 Your max monthly spend (before pension)</span>
+        <span class="kv-key" data-i18n="result.max_spend_before">💰 Max monthly spend (before pension)</span>
         <span class="kv-val text-success">¥{{ "{:,}".format(max_monthly_before_pension) }}/mo</span>
       </div>
       {% if result.annual_pension_net_jpy > 0 %}
@@ -156,7 +156,7 @@
       <span class="kv-val">
         ¥{{ "{:,}".format(result.lean_fire_number_jpy) }}
         {% if result.current_portfolio_jpy >= result.lean_fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
-        <span class="monthly-budget-col" style="display:none;">
+        <span class="monthly-budget-col" style="display:inline;">
           <br><span class="text-muted" style="font-size: var(--text-xs);">
             spend ¥{{ "{:,}".format(result.lean_annual_expenses_jpy // 12) }}/mo
             · withdraw ¥{{ "{:,}".format(result.lean_annual_withdrawal_jpy // 12) }}/mo from portfolio
@@ -169,7 +169,7 @@
       <span class="kv-val">
         ¥{{ "{:,}".format(result.fire_number_jpy) }}
         {% if result.current_portfolio_jpy >= result.fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
-        <span class="monthly-budget-col" style="display:none;">
+        <span class="monthly-budget-col" style="display:inline;">
           <br><span class="text-muted" style="font-size: var(--text-xs);">
             spend ¥{{ "{:,}".format(result.annual_expenses_jpy // 12) }}/mo
             · withdraw ¥{{ "{:,}".format(result.annual_withdrawal_needed_jpy // 12) }}/mo from portfolio
@@ -182,7 +182,7 @@
       <span class="kv-val">
         ¥{{ "{:,}".format(result.fat_fire_number_jpy) }}
         {% if result.current_portfolio_jpy >= result.fat_fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
-        <span class="monthly-budget-col" style="display:none;">
+        <span class="monthly-budget-col" style="display:inline;">
           <br><span class="text-muted" style="font-size: var(--text-xs);">
             spend ¥{{ "{:,}".format(result.fat_annual_expenses_jpy // 12) }}/mo
             · withdraw ¥{{ "{:,}".format(result.fat_annual_withdrawal_jpy // 12) }}/mo from portfolio
@@ -195,7 +195,7 @@
       <span class="kv-val">
         ¥{{ "{:,}".format(result.coast_fire_number_jpy) }}
         {% if result.coast_fire_reached %}<span class="text-success">✓</span>{% endif %}
-        <span class="monthly-budget-col" style="display:none;">
+        <span class="monthly-budget-col" style="display:inline;">
           <br><span class="text-muted" style="font-size: var(--text-xs);">
             spend ¥{{ "{:,}".format(result.annual_expenses_jpy // 12) }}/mo (same as regular)
           </span>
@@ -208,7 +208,7 @@
       <span class="kv-val">
         ¥{{ "{:,}".format(result.barista_fire_number_jpy) }}
         {% if result.current_portfolio_jpy >= result.barista_fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
-        <span class="monthly-budget-col" style="display:none;">
+        <span class="monthly-budget-col" style="display:inline;">
           <br><span class="text-muted" style="font-size: var(--text-xs);">
             spend ¥{{ "{:,}".format(result.annual_expenses_jpy // 12) }}/mo
             · +¥{{ "{:,}".format(result.barista_income_annual_jpy // 12) }}/mo work income
@@ -301,13 +301,13 @@
     <span data-i18n="result.mc_chart">Portfolio Survival — Monte Carlo</span>
     <span class="badge">{{ result.monte_carlo.success_rate_pct }}% success</span>
     <button type="button" class="chart-info-btn" aria-label="About this chart"
-            aria-expanded="true" data-chart-info="mc">
+            aria-expanded="false" data-chart-info="mc">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
       </svg>
     </button>
   </h3>
-  <div class="chart-info-panel" id="chart-info-mc">
+  <div class="chart-info-panel" id="chart-info-mc" hidden
     <p class="chart-info__intro" data-i18n="chart.mc.intro">Runs 10,000 retirement scenarios with randomised annual returns — each one models a different possible future. The lines and shaded bands below show how your portfolio value spreads across all those outcomes.</p>
     <div class="chart-legend">
       <div class="chart-legend__item">
@@ -355,13 +355,13 @@
     {% set _surplus_mode = result.sensitivity[0].surplus_mode if result.sensitivity else false %}
     <span class="badge badge--secondary" data-i18n="result.sensitivity_sub">{% if _surplus_mode %}Impact on FIRE Surplus %{% else %}Impact on Years to FIRE{% endif %}</span>
     <button type="button" class="chart-info-btn" aria-label="About this chart"
-            aria-expanded="true" data-chart-info="tornado">
+            aria-expanded="false" data-chart-info="tornado">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
       </svg>
     </button>
   </h3>
-  <div class="chart-info-panel" id="chart-info-tornado">
+  <div class="chart-info-panel" id="chart-info-tornado" hidden
     <p class="chart-info__intro" data-i18n="chart.tornado.intro">Each variable in your plan is shifted ±20% from your input value. The bar shows how many years earlier or later you would reach FIRE as a result. Bars at the top have the biggest impact — those are the levers most worth pulling.</p>
     <div class="chart-legend">
       <div class="chart-legend__item">
@@ -412,13 +412,13 @@
   <h3 class="results-card__title">
     <span data-i18n="result.trajectory">Net Worth Projection</span>
     <button type="button" class="chart-info-btn" aria-label="About this chart"
-            aria-expanded="true" data-chart-info="trajectory">
+            aria-expanded="false" data-chart-info="trajectory">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 11.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3.75a.75.75 0 0 1-1.5 0V6.5a.75.75 0 0 1 1.5 0v2.25z"/>
       </svg>
     </button>
   </h3>
-  <div class="chart-info-panel" id="chart-info-trajectory">
+  <div class="chart-info-panel" id="chart-info-trajectory" hidden
     <p class="chart-info__intro" data-i18n="chart.traj.intro">A deterministic year-by-year projection using your fixed return assumptions — not randomised like Monte Carlo. Shows the single expected path: how your portfolio grows while working, and how it draws down in retirement. Hover any point to see the exact portfolio value at that age.</p>
     <div class="chart-legend">
       <div class="chart-legend__item">

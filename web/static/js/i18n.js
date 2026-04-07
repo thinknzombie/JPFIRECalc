@@ -232,6 +232,15 @@ const I18n = (() => {
       "result.action_required": "Action Required",
       "result.information": "Information",
       "result.disclaimer": "These notes are informational only and not legal or tax advice. Consult a Japan-registered tax accountant (税理士) for your specific situation.",
+      "result.variants_title": "FIRE Variants Comparison",
+      "result.show_budget": "Show monthly budget",
+      "result.max_spend_before": "💰 Max monthly spend (before pension)",
+      "result.social_insurance": "Social Insurance (社会保険)",
+      "nav.settings": "Settings",
+      "nav.edit_assumptions": "Edit Assumptions",
+      "detail.clone": "Clone",
+      "card.variant": "Strategy",
+      "card.target_age": "Target Age",
 
       // ── Scenario comparison ────────────────────────────────────────────────
       "compare.title": "Scenario Comparison",
@@ -552,6 +561,15 @@ const I18n = (() => {
       "result.action_required": "要対応",
       "result.information": "参考情報",
       "result.disclaimer": "これらの情報は参考目的のみであり、法的・税務的なアドバイスではありません。個別の状況については、日本の税理士にご相談ください。",
+      "result.variants_title": "FIRE戦略の比較",
+      "result.show_budget": "月額予算を表示",
+      "result.max_spend_before": "💰 月額上限（年金前）",
+      "result.social_insurance": "社会保険",
+      "nav.settings": "Settings",
+      "nav.edit_assumptions": "前提条件を編集",
+      "detail.clone": "複製",
+      "card.variant": "戦略",
+      "card.target_age": "目標年齢",
 
       // ── Scenario comparison ────────────────────────────────────────────────
       "compare.title": "シナリオ比較",

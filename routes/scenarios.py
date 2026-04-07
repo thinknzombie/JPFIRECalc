@@ -192,6 +192,24 @@ def delete(scenario_id):
     return redirect(url_for("scenarios.index"))
 
 
+@scenarios_bp.route("/<scenario_id>/clone", methods=["POST"])
+def clone(scenario_id):
+    store.init_store(current_app.config["SCENARIOS_DIR"])
+    try:
+        profile, scenario = store.load(scenario_id)
+    except FileNotFoundError:
+        flash("Scenario not found.", "error")
+        return redirect(url_for("scenarios.index"))
+
+    import uuid
+    new_scenario = Scenario.from_dict(scenario.to_dict())
+    new_scenario.id = str(uuid.uuid4())
+    new_scenario.name = f"{scenario.name} (copy)"
+    store.save(profile, new_scenario)
+    flash(f"Cloned scenario as '{new_scenario.name}'.", "success")
+    return redirect(url_for("scenarios.detail", scenario_id=new_scenario.id))
+
+
 @scenarios_bp.route("/<scenario_id>/report.md")
 def report_md(scenario_id):
     """Download a full Markdown report for this scenario."""

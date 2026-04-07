@@ -6,6 +6,13 @@
 {% block content %}
 <div class="page-header">
   <div class="container">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="{{ url_for('scenarios.index') }}" data-i18n="nav.dashboard">Dashboard</a>
+      <span class="breadcrumb__sep">&rsaquo;</span>
+      <a href="{{ url_for('scenarios.detail', scenario_id=scenario.id) }}">{{ scenario.name }}</a>
+      <span class="breadcrumb__sep">&rsaquo;</span>
+      <span class="breadcrumb__current" data-i18n="nav.edit_assumptions">Edit Assumptions</span>
+    </nav>
     <h1 class="page-title">{{ title }}</h1>
     <p class="page-subtitle" data-i18n="scenario_form.subtitle">Adjust market assumptions to stress-test your FIRE plan.</p>
   </div>
@@ -91,6 +98,24 @@
                         ],
                         selected=scenario.assumptions.fire_variant,
                         help="Highlights the selected variant's FIRE number in the results hero. All variants are always computed for comparison.") }}
+      </div>
+
+      <div id="variantDescription" class="variant-desc">
+        <p class="variant-desc__text" data-variant-desc="regular">
+          <strong>Regular FIRE:</strong> Retire when your portfolio covers standard living expenses via the safe withdrawal rate. The baseline approach.
+        </p>
+        <p class="variant-desc__text" data-variant-desc="lean" style="display:none">
+          <strong>Lean FIRE:</strong> Retire sooner on a lean budget (default 70% of regional expenses). Lower target, tighter spending.
+        </p>
+        <p class="variant-desc__text" data-variant-desc="fat" style="display:none">
+          <strong>Fat FIRE:</strong> Retire with a generous lifestyle budget (default 150% of regional expenses). Higher target, more comfort.
+        </p>
+        <p class="variant-desc__text" data-variant-desc="coast" style="display:none">
+          <strong>Coast FIRE:</strong> Save enough now so that compound growth alone reaches your FIRE number by a target age — then stop saving and just cover expenses.
+        </p>
+        <p class="variant-desc__text" data-variant-desc="barista" style="display:none">
+          <strong>Barista FIRE:</strong> Retire with a smaller portfolio by supplementing with part-time income. Work part-time doing something you enjoy.
+        </p>
       </div>
 
       {# Lean FIRE budget #}
@@ -194,7 +219,7 @@
 
 {% block scripts %}
 <script>
-  // Show/hide variant-specific fields based on dropdown selection
+  // Show/hide variant-specific fields and description based on dropdown
   (function() {
     const select = document.getElementById('fire_variant');
     if (!select) return;
@@ -204,10 +229,13 @@
       document.querySelectorAll('.variant-fields').forEach(el => {
         el.style.display = el.dataset.variant === variant ? '' : 'none';
       });
+      document.querySelectorAll('[data-variant-desc]').forEach(el => {
+        el.style.display = el.dataset.variantDesc === variant ? '' : 'none';
+      });
     }
 
     select.addEventListener('change', update);
-    update(); // run on page load
+    update();
   })();
 </script>
 {% endblock %}
