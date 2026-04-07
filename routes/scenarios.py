@@ -43,6 +43,17 @@ def _validate_assumptions_form(form) -> list[str]:
             errors.append("Number of simulations must be between 100 and 50,000.")
     except (ValueError, TypeError):
         errors.append("Number of simulations must be a whole number.")
+
+    # Coast FIRE target age must be > current age (loaded from profile)
+    coast_age_raw = form.get("coast_target_retirement_age")
+    if coast_age_raw:
+        try:
+            coast_age = int(coast_age_raw)
+            if coast_age <= 0:
+                errors.append("Coast FIRE target retirement age must be a positive number.")
+        except (ValueError, TypeError):
+            pass  # will fall back to default in _assumptions_from_form
+
     return errors
 
 
@@ -76,7 +87,7 @@ def _assumptions_from_form(form) -> AssumptionSet:
         simulation_years=i("simulation_years", 40),
         return_volatility_pct=f("return_volatility_pct", 15.0),
         sequence_of_returns_risk=b("sequence_of_returns_risk"),
-        nhi_municipality_key=form.get("nhi_municipality_key", "national_average"),
+        nhi_municipality_key=form.get("nhi_municipality_key", "tokyo_shinjuku"),
         nhi_household_members=i("nhi_household_members", 1),
         fire_variant=form.get("fire_variant", "regular"),
         lean_monthly_expenses_jpy=i("lean_monthly_expenses_jpy", 0),
@@ -84,6 +95,7 @@ def _assumptions_from_form(form) -> AssumptionSet:
         barista_income_monthly_jpy=i("barista_income_monthly_jpy", 0),
         coast_target_retirement_age=i("coast_target_retirement_age", 65),
         retirement_expense_growth_pct=f("retirement_expense_growth_pct", 1.5),
+        foreign_inflation_pct=f("foreign_inflation_pct", 2.5),
     )
 
 

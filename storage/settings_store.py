@@ -35,6 +35,7 @@ class AppSettings:
     default_simulation_years: int = 40
     default_sequence_of_returns_risk: bool = True
     default_retirement_expense_growth_pct: float = 1.5
+    default_foreign_inflation_pct: float = 2.5
     default_fire_variant: str = "regular"
     default_region: str = "tokyo"
     default_nhi_municipality_key: str = "tokyo_shinjuku"

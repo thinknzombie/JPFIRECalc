@@ -53,6 +53,9 @@ def run_simulation(
     seed: int | None = None,
     lump_sums: list[tuple[int, int]] | None = None,
     withdrawal_reductions: list[tuple[int, int]] | None = None,
+    foreign_pension_annual_jpy: int = 0,
+    foreign_pension_start_year: int | None = None,
+    foreign_pension_growth_rate: float | None = None,
 ) -> dict:
     """
     Run N Monte Carlo simulations of portfolio drawdown over retirement.
@@ -60,14 +63,15 @@ def run_simulation(
     Args:
         initial_portfolio_jpy:  Starting portfolio value at retirement.
         annual_withdrawal_jpy:  Base annual withdrawal (expenses - pension at start).
-        annual_pension_jpy:     Annual pension income (net of tax).
-        pension_start_year:     Year within simulation when pension begins (0-indexed).
+        annual_pension_jpy:     Annual pension income (net of tax, Japan pensions only
+                                if foreign pension is provided separately).
+        pension_start_year:     Year within simulation when Japan pension begins (0-indexed).
         simulation_years:       Number of years to simulate.
         n_simulations:          Number of random paths to generate.
         mean_return:            Expected annual return (decimal, e.g. 0.05).
         volatility:             Annual return std dev (decimal, e.g. 0.15).
         inflation_rate:         Annual expense inflation (decimal).
-        pension_growth_rate:    Annual growth in pension benefit (decimal).
+        pension_growth_rate:    Annual growth in Japan pension benefit (decimal).
         sequence_of_returns_risk: If True, amplify volatility in early retirement.
         sor_amplifier:          Volatility multiplier for SOR years (default 1.5×).
         sor_years:              Number of early retirement years with amplified vol.
@@ -78,6 +82,13 @@ def run_simulation(
         withdrawal_reductions:  Optional list of (start_year, annual_reduction_jpy) tuples.
                                 From start_year onward, net_withdrawal is reduced by
                                 annual_reduction_jpy (e.g. mortgage payment stops after sale).
+        foreign_pension_annual_jpy: Annual foreign pension income (e.g. US Social Security).
+                                Tracked separately from Japan pension to allow a different
+                                inflation/growth rate.
+        foreign_pension_start_year: Year within simulation when foreign pension begins.
+                                If None, same as pension_start_year.
+        foreign_pension_growth_rate: Annual growth rate for foreign pension (decimal).
+                                If None, uses pension_growth_rate.
 
     Returns:
         dict with:
@@ -88,9 +99,9 @@ def run_simulation(
     """
     rng = np.random.default_rng(seed)
 
-    # Log-normal parameters
+    # Log-normal parameters (exact conversion from arithmetic mean to log-space)
     # If R ~ LogNormal then: mu_log = ln(1+r) - 0.5*sigma_log^2
-    sigma_log = np.log(1 + volatility)  # approximate conversion
+    sigma_log = np.log(1 + volatility)
     mu_log = np.log(1 + mean_return) - 0.5 * sigma_log ** 2
 
     # Generate return matrix: shape (n_simulations, simulation_years)
@@ -106,15 +117,25 @@ def run_simulation(
     gross_returns = np.exp(log_returns)  # 1 + r each year
 
     # Build expense schedule: grows with inflation each year
-    # Pension offsets withdrawal from pension_start_year onwards
+    # Pension offsets withdrawal from pension_start_year onwards.
+    # Foreign pension (if any) may start at a different year and grow at a
+    # different rate (tracking home-country CPI rather than Japan CPI).
+    fp_start = foreign_pension_start_year if foreign_pension_start_year is not None else pension_start_year
+    fp_growth = foreign_pension_growth_rate if foreign_pension_growth_rate is not None else pension_growth_rate
+
     expense_schedule = np.zeros(simulation_years)
     pension_schedule = np.zeros(simulation_years)
     for yr in range(simulation_years):
         inflation_factor = (1 + inflation_rate) ** yr
         expense_schedule[yr] = annual_withdrawal_jpy * inflation_factor
+        # Japan pension
         if yr >= pension_start_year:
-            pension_factor = (1 + pension_growth_rate) ** (yr - pension_start_year)
-            pension_schedule[yr] = annual_pension_jpy * pension_factor
+            jp_factor = (1 + pension_growth_rate) ** (yr - pension_start_year)
+            pension_schedule[yr] += annual_pension_jpy * jp_factor
+        # Foreign pension (separate start year and growth rate)
+        if foreign_pension_annual_jpy > 0 and yr >= fp_start:
+            fp_factor = (1 + fp_growth) ** (yr - fp_start)
+            pension_schedule[yr] += foreign_pension_annual_jpy * fp_factor
 
     net_withdrawal = expense_schedule - pension_schedule  # net from portfolio each year
 
@@ -198,6 +219,9 @@ def run_monte_carlo(
     seed: int | None = None,
     lump_sums: list[tuple[int, int]] | None = None,
     withdrawal_reductions: list[tuple[int, int]] | None = None,
+    foreign_pension_annual_jpy: int = 0,
+    foreign_pension_start_year: int | None = None,
+    foreign_pension_growth_rate: float | None = None,
 ) -> MonteCarloResult:
     """
     Run Monte Carlo and return a MonteCarloResult ready for the ScenarioResult.
@@ -226,6 +250,9 @@ def run_monte_carlo(
         seed=seed,
         lump_sums=lump_sums,
         withdrawal_reductions=withdrawal_reductions,
+        foreign_pension_annual_jpy=foreign_pension_annual_jpy,
+        foreign_pension_start_year=foreign_pension_start_year,
+        foreign_pension_growth_rate=foreign_pension_growth_rate,
     )
 
     return MonteCarloResult(

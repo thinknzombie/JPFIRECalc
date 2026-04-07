@@ -94,6 +94,11 @@ class AssumptionSet:
     # Expense growth in retirement
     retirement_expense_growth_pct: float = 1.5   # typically below general inflation
 
+    # Foreign pension inflation (for non-JPY pensions like US Social Security)
+    # Separate from japan_inflation_pct because foreign pensions track their
+    # home-country CPI, not Japanese CPI.
+    foreign_inflation_pct: float = 2.5           # US CPI ~2.5%; UK ~2.0%
+
     def to_dict(self) -> dict:
         return asdict(self)
 

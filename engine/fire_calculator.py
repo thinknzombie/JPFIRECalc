@@ -122,8 +122,9 @@ def calculate_retirement_expenses(
         mortgage_monthly = profile.monthly_mortgage_payment_jpy
 
     # Add rental income (reduces expenses)
-    rental_monthly = profile.rental_income_monthly_jpy
-    rental_monthly += getattr(profile, 'foreign_property_rental_monthly_jpy', 0)
+    japan_rental_monthly = profile.rental_income_monthly_jpy
+    foreign_rental_monthly = getattr(profile, 'foreign_property_rental_monthly_jpy', 0)
+    rental_monthly = japan_rental_monthly + foreign_rental_monthly
 
     net_monthly = base_monthly + mortgage_monthly - rental_monthly
     annual = max(0, net_monthly * 12)
@@ -134,6 +135,8 @@ def calculate_retirement_expenses(
         "base_monthly_jpy": base_monthly,
         "mortgage_monthly_jpy": mortgage_monthly,
         "rental_income_monthly_jpy": rental_monthly,
+        "japan_rental_monthly_jpy": japan_rental_monthly,
+        "foreign_rental_monthly_jpy": foreign_rental_monthly,
         "region_key": region_key,
     }
 
@@ -589,15 +592,20 @@ def project_net_worth(
     )
     year1_shock = shock_result["year1_residence_tax"]
 
-    # Starting portfolio (accessible only)
+    # Starting portfolio (accessible only, including alternative assets)
     ideco_accessible_at_fire = profile.target_retirement_age >= 60
     foreign_jpy = int(profile.foreign_assets_usd * profile.usd_jpy_rate)
+    gold = getattr(profile, 'gold_silver_value_jpy', 0)
+    crypto = getattr(profile, 'crypto_value_jpy', 0)
+    rsu = getattr(profile, 'rsu_unvested_value_jpy', 0)
+    other = getattr(profile, 'other_assets_jpy', 0)
     portfolio = (
         profile.nisa_balance_jpy
         + profile.taxable_brokerage_jpy
         + profile.cash_savings_jpy
         + foreign_jpy
         + (profile.ideco_balance_jpy if ideco_accessible_at_fire else 0)
+        + gold + crypto + rsu + other
     )
     locked_ideco = 0 if ideco_accessible_at_fire else profile.ideco_balance_jpy
 
@@ -639,6 +647,22 @@ def project_net_worth(
                     _prop_sale_by_age.get(sale_age_attr, 0) + proc["net_proceeds_jpy"]
                 )
 
+    # Track rental income cessation at property sale ages (#1).
+    # When a rented property is sold, that rental income stream ends,
+    # so effective retirement expenses increase by the rental amount.
+    _rental_cessation_by_age: dict[int, int] = {}  # age → annual rental that stops
+    jp_sale_age = getattr(profile, "property_planned_sale_age", None)
+    jp_rental = profile.rental_income_monthly_jpy
+    if jp_sale_age and jp_rental > 0:
+        _rental_cessation_by_age[jp_sale_age] = jp_rental * 12
+    fp_sale_age = getattr(profile, "foreign_property_planned_sale_age", None)
+    fp_rental = getattr(profile, "foreign_property_rental_monthly_jpy", 0)
+    if fp_sale_age and fp_rental > 0:
+        _rental_cessation_by_age[fp_sale_age] = (
+            _rental_cessation_by_age.get(fp_sale_age, 0) + fp_rental * 12
+        )
+
+    rental_adjustment = 0  # cumulative expense increase from rental income ceasing
     trajectory: list[YearProjection] = []
 
     for i in range(projection_years):
@@ -705,8 +729,12 @@ def project_net_worth(
             # for most scenarios (<¥50k/yr difference).
             nhi_this_year = nhi_at_fire if portfolio > 0 else 0
 
-            # Gross from portfolio = expenses - pension + NHI
-            net_need_this_year = max(0, annual_expenses - pension_this_year)
+            # Rental cessation: when a rented property is sold, expenses increase
+            if age in _rental_cessation_by_age:
+                rental_adjustment += _rental_cessation_by_age[age]
+
+            # Gross from portfolio = expenses + rental_adjustment - pension + NHI
+            net_need_this_year = max(0, (annual_expenses + rental_adjustment) - pension_this_year)
             net_from_portfolio = net_need_this_year + nhi_this_year
 
             # Year-1 residence tax shock
@@ -842,6 +870,12 @@ def run_fire_scenario(
     # regular target_retirement_age.  Coast = "how much do I need today so
     # that it grows to the full FIRE number by age Y with no contributions."
     coast_years = max(0, assumptions.coast_target_retirement_age - profile.current_age)
+    if coast_years == 0 and assumptions.fire_variant == 'coast':
+        warnings.append(
+            f"Coast FIRE target age ({assumptions.coast_target_retirement_age}) is at or below "
+            f"your current age ({profile.current_age}). Coast FIRE number equals the full FIRE "
+            "number — there's no time for compound growth. Consider setting a higher target age."
+        )
     coast = calculate_coast_fire_number(
         fire_number_jpy=fire_number,
         years_until_retirement=coast_years,
@@ -851,6 +885,11 @@ def run_fire_scenario(
     # --- Barista FIRE (NHI-inclusive) ----------------------------------------
     # Barista FIRE = (expenses - pension - barista_income + NHI) / WR.
     # NHI is solved iteratively at the barista withdrawal level.
+    # NOTE: Barista income is modelled as continuing indefinitely throughout
+    # retirement. In reality, part-time work may cease at some point (e.g.
+    # at pension age or due to health). Users should treat Barista FIRE as
+    # a best-case scenario and consider transitioning to Regular FIRE
+    # assumptions at a later age.
     barista_income_annual = assumptions.barista_income_monthly_jpy * 12
     barista_net_need = max(0, annual_expenses - net_pension - barista_income_annual)
     barista_nhi_solve = solve_withdrawal_with_nhi(
@@ -931,9 +970,19 @@ def run_fire_scenario(
     progress_pct = (current_portfolio / active_fire_number * 100) if active_fire_number > 0 else 100.0
 
     # --- iDeCo projections --------------------------------------------------
+    # iDeCo contributions can only be made between the start age and 65
+    # (raised from 60 in 2022).  If ideco_start_age is in the future,
+    # contributions don't begin until that age.
+    ideco_contribution_start = max(
+        profile.current_age,
+        profile.ideco_start_age if profile.ideco_start_age is not None else profile.current_age,
+    )
+    ideco_contribution_end = min(65, profile.target_retirement_age)
+    ideco_contribution_years = max(0, ideco_contribution_end - ideco_contribution_start)
+
     ideco_accum = calculate_ideco_accumulation(
         monthly_contribution_jpy=profile.ideco_monthly_contribution_jpy,
-        years=profile.years_to_retirement,
+        years=ideco_contribution_years,
         annual_return_rate=r_accum,
         existing_balance_jpy=profile.ideco_balance_jpy,
     )
@@ -1021,13 +1070,14 @@ def run_fire_scenario(
         )
         return sale_age, proceeds["net_proceeds_jpy"]
 
-    for (prop_value, prop_mortgage, prop_monthly_pmt, sale_age_field, appr_field) in [
+    for (prop_value, prop_mortgage, prop_monthly_pmt, sale_age_field, appr_field, rental_monthly) in [
         (
             profile.property_value_jpy,
             profile.mortgage_balance_jpy,
             profile.monthly_mortgage_payment_jpy,
             getattr(profile, "property_planned_sale_age", None),
             getattr(profile, "property_appreciation_pct", 0.0),
+            profile.rental_income_monthly_jpy,
         ),
         (
             getattr(profile, "foreign_property_value_jpy", 0),
@@ -1035,6 +1085,7 @@ def run_fire_scenario(
             0,  # no monthly payment field for foreign property — no amortisation
             getattr(profile, "foreign_property_planned_sale_age", None),
             getattr(profile, "foreign_property_appreciation_pct", 0.0),
+            getattr(profile, "foreign_property_rental_monthly_jpy", 0),
         ),
     ]:
         result = _property_sale(prop_value, prop_mortgage, prop_monthly_pmt, sale_age_field, appr_field)
@@ -1054,10 +1105,16 @@ def run_fire_scenario(
             # Post-retirement sale: inject as lump sum into Monte Carlo
             year_into_retirement = sale_age_val - profile.target_retirement_age
             property_lump_sums.append((year_into_retirement, net_proceeds))
-            # Also reduce ongoing withdrawal if property had a mortgage payment
+            # Mortgage payment stops after sale — reduces withdrawal
             if prop_monthly_pmt > 0:
                 annual_mortgage = prop_monthly_pmt * 12
                 mc_withdrawal_reductions.append((year_into_retirement, annual_mortgage))
+            # Rental income stops after sale — INCREASES withdrawal (negative reduction)
+            if rental_monthly > 0:
+                mc_withdrawal_reductions.append((year_into_retirement, -(rental_monthly * 12)))
+                warnings.append(
+                    f"Rental income (¥{rental_monthly:,}/mo) ceases at property sale age {sale_age_val}."
+                )
             warnings.append(
                 f"Property sale (age {sale_age_val}): estimated net proceeds ¥{net_proceeds:,} "
                 f"injected into portfolio in Monte Carlo at retirement year {year_into_retirement}."
@@ -1076,10 +1133,17 @@ def run_fire_scenario(
     # --- Monte Carlo simulation ---------------------------------------------
     from engine.monte_carlo import run_monte_carlo
     pension_start_year = max(0, profile.nenkin_claim_age - profile.target_retirement_age)
+
+    # Split pension into Japan-only and foreign for MC so they can have
+    # different start years and inflation rates.
+    foreign_pension_annual = pension_info.get("foreign_pension_annual_jpy", 0)
+    japan_pension_for_mc = net_pension - foreign_pension_annual
+    foreign_pension_start_yr = max(0, profile.foreign_pension_start_age - profile.target_retirement_age)
+
     mc_result = run_monte_carlo(
         initial_portfolio_jpy=current_portfolio,
         annual_expenses_jpy=active_mc_expenses,
-        net_pension_annual_jpy=net_pension,
+        net_pension_annual_jpy=japan_pension_for_mc,
         pension_start_year=pension_start_year,
         simulation_years=assumptions.simulation_years,
         n_simulations=min(assumptions.monte_carlo_simulations, 10_000),  # engine-level safety cap
@@ -1090,6 +1154,9 @@ def run_fire_scenario(
         lump_sums=property_lump_sums or None,
         withdrawal_reductions=mc_withdrawal_reductions or None,
         seed=None,
+        foreign_pension_annual_jpy=foreign_pension_annual,
+        foreign_pension_start_year=foreign_pension_start_yr,
+        foreign_pension_growth_rate=assumptions.foreign_inflation_pct / 100,
     )
 
     # --- Sensitivity analysis -----------------------------------------------

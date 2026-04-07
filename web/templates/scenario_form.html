@@ -81,6 +81,10 @@
                  value=scenario.assumptions.retirement_expense_growth_pct,
                  type="number", min=0, max=8, step=0.1,
                  help="Typically below general inflation — retirees often spend less over time.") }}
+        {{ field("foreign_inflation_pct", "Foreign Pension Inflation (%)",
+                 value=scenario.assumptions.foreign_inflation_pct,
+                 type="number", min=0, max=10, step=0.1,
+                 help="Growth rate for foreign pensions (US Social Security, UK state pension). Tracks home-country CPI, not Japan's. US ~2.5%, UK ~2.0%.") }}
       </div>
     </div>
 
@@ -144,7 +148,7 @@
       <div class="form-grid form-grid--2 variant-fields" data-variant="barista">
         {{ field_yen("barista_income_monthly_jpy", "Barista: Monthly Part-Time Income",
                      value=scenario.assumptions.barista_income_monthly_jpy, step=10000,
-                     help="Income from part-time work during semi-retirement. Reduces required portfolio size.") }}
+                     help="Income from part-time work during semi-retirement. Reduces required portfolio size. Note: this income is modelled as continuing indefinitely — consider switching to Regular FIRE assumptions if you plan to stop working at a later age.") }}
       </div>
     </div>
 

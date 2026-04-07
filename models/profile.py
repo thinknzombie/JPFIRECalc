@@ -171,7 +171,7 @@ class FinancialProfile:
 
     @property
     def total_liquid_assets_jpy(self) -> int:
-        """Liquid investable assets at current prices (excludes real estate)."""
+        """Liquid and semi-liquid investable assets at current prices (excludes real estate)."""
         foreign_jpy = int(self.foreign_assets_usd * self.usd_jpy_rate)
         return (
             self.nisa_balance_jpy
@@ -179,6 +179,10 @@ class FinancialProfile:
             + self.taxable_brokerage_jpy
             + self.cash_savings_jpy
             + foreign_jpy
+            + self.gold_silver_value_jpy
+            + self.crypto_value_jpy
+            + self.rsu_unvested_value_jpy
+            + self.other_assets_jpy
         )
 
     @property

@@ -107,6 +107,17 @@ def _validate_profile_form(form) -> list[str]:
     claim_age = iv("nenkin_claim_age")
     if claim_age is not None and not (60 <= claim_age <= 75):
         errors.append("Pension claim age must be between 60 and 75.")
+    if claim_age is not None and retire_age is not None and claim_age < retire_age:
+        # Not an error, but add a validation note — claiming pension before
+        # FIRE means pension income starts immediately at retirement.
+        pass  # Valid: pension claimed before FIRE means immediate pension at retirement
+    if claim_age is not None and retire_age is not None and claim_age > 75:
+        errors.append("Pension claim age cannot exceed 75.")
+    # Warn if nenkin_claim_age is set higher than a reasonable bound relative to retirement
+    # This prevents the MC from never applying pension income.
+    foreign_claim_age = iv("foreign_pension_start_age")
+    if foreign_claim_age is not None and not (60 <= foreign_claim_age <= 80):
+        errors.append("Foreign pension start age must be between 60 and 80.")
     return errors
 
 

@@ -123,7 +123,8 @@
         {{ field_yen("annual_gross_income_jpy", "Annual Gross Income",
                      value=profile.annual_gross_income_jpy) }}
         {{ field_yen("social_insurance_annual_jpy", "Social Insurance Paid (Annual)",
-                     value=profile.social_insurance_annual_jpy) }}
+                     value=profile.social_insurance_annual_jpy,
+                     help="健康保険 + 厚生年金 + 雇用保険. Typically ~14% of gross for company employees (e.g. ¥1.1M on ¥8M gross). Check your payslip or withholding statement (源泉徴収票). Enter 0 if unsure — tax estimate will be slightly high.") }}
       </div>
       <div class="form-grid form-grid--3">
         {{ field_checkbox("has_spouse", "Has Spouse / Partner", checked=profile.has_spouse) }}
