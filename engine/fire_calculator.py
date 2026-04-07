@@ -835,14 +835,30 @@ def run_fire_scenario(
     )
 
     # --- Lean / Fat FIRE numbers --------------------------------------------
+    # Use the same NHI-inclusive methodology as the regular FIRE number:
+    # FIRE = (expenses - pension + NHI) / WR
+    # NHI is re-solved for each variant since it depends on withdrawal amount.
+
+    def _variant_fire_number(variant_annual_expenses: int) -> tuple[int, int, int]:
+        """Compute (fire_number, annual_withdrawal, nhi) for a given expense level."""
+        v_fire_info = calculate_fire_number(variant_annual_expenses, withdrawal_rate, net_pension)
+        v_nhi_solve = solve_withdrawal_with_nhi(
+            target_net_expenses=v_fire_info["net_annual_need_jpy"],
+            num_members=assumptions.nhi_household_members,
+            municipality_key=municipality_key,
+            age=profile.target_retirement_age,
+        )
+        v_annual_need = v_fire_info["net_annual_need_jpy"] + v_nhi_solve["nhi_premium"]
+        v_fire_number = int(v_annual_need / withdrawal_rate) if withdrawal_rate > 0 else 0
+        return v_fire_number, v_nhi_solve["gross_withdrawal"], v_nhi_solve["nhi_premium"]
+
     # Lean: user-specified lean budget, or 70% of region template base
     lean_monthly = assumptions.lean_monthly_expenses_jpy
     if lean_monthly <= 0:
         lean_monthly = int(expense_result["base_monthly_jpy"] * 0.70)
     lean_annual = max(0, (lean_monthly + expense_result["mortgage_monthly_jpy"]
                           - expense_result["rental_income_monthly_jpy"]) * 12)
-    lean_fire_info = calculate_fire_number(lean_annual, withdrawal_rate, net_pension)
-    lean_fire_number = int(max(0, lean_fire_info["net_annual_need_jpy"]) / withdrawal_rate)
+    lean_fire_number, lean_withdrawal, lean_nhi = _variant_fire_number(lean_annual)
 
     # Fat: user-specified fat budget, or 150% of region template base
     fat_monthly = assumptions.fat_monthly_expenses_jpy
@@ -850,8 +866,7 @@ def run_fire_scenario(
         fat_monthly = int(expense_result["base_monthly_jpy"] * 1.50)
     fat_annual = max(0, (fat_monthly + expense_result["mortgage_monthly_jpy"]
                          - expense_result["rental_income_monthly_jpy"]) * 12)
-    fat_fire_info = calculate_fire_number(fat_annual, withdrawal_rate, net_pension)
-    fat_fire_number = int(max(0, fat_fire_info["net_annual_need_jpy"]) / withdrawal_rate)
+    fat_fire_number, fat_withdrawal, fat_nhi = _variant_fire_number(fat_annual)
 
     # --- iDeCo projections --------------------------------------------------
     ideco_accum = calculate_ideco_accumulation(
@@ -1045,8 +1060,10 @@ def run_fire_scenario(
         barista_income_annual_jpy=assumptions.barista_income_monthly_jpy * 12,
         lean_fire_number_jpy=lean_fire_number,
         lean_annual_expenses_jpy=lean_annual,
+        lean_annual_withdrawal_jpy=lean_withdrawal,
         fat_fire_number_jpy=fat_fire_number,
         fat_annual_expenses_jpy=fat_annual,
+        fat_annual_withdrawal_jpy=fat_withdrawal,
         annual_expenses_jpy=annual_expenses,
         annual_pension_net_jpy=net_pension,
         annual_nhi_jpy=nhi_solve["nhi_premium"],

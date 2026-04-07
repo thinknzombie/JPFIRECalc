@@ -109,8 +109,14 @@
 
 {# ── All FIRE Variants Comparison ──────────────────────────────────────────── #}
 {% set wr = scenario.assumptions.withdrawal_rate_pct / 100 %}
-{# Max monthly budget from current portfolio: (portfolio × WR + pension − NHI) / 12 #}
-{% set max_monthly_budget = ((result.current_portfolio_jpy * wr + result.annual_pension_net_jpy - result.annual_nhi_jpy) / 12) | int %}
+
+{# Max sustainable monthly budget from CURRENT portfolio.
+   Before pension: only portfolio withdrawals fund expenses (minus NHI).
+   After pension: pension income supplements portfolio withdrawals.
+   We show both so users retiring before pension age see the real picture. #}
+{% set portfolio_only_annual = (result.current_portfolio_jpy * wr) | int %}
+{% set max_monthly_before_pension = ((portfolio_only_annual - result.annual_nhi_jpy) / 12) | int %}
+{% set max_monthly_after_pension = ((portfolio_only_annual + result.annual_pension_net_jpy - result.annual_nhi_jpy) / 12) | int %}
 
 <div class="results-card">
   <h3 class="results-card__title">
@@ -124,26 +130,38 @@
   {# Current portfolio sustainable budget #}
   <div class="monthly-budget-panel" id="monthlyBudgetPanel" style="display:none;">
     <div class="kv-list">
-      <div class="kv-row kv-row--total" style="background: rgba(52,199,123,0.08); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);">
-        <span class="kv-key">💰 Your current max monthly budget</span>
-        <span class="kv-val text-success">¥{{ "{:,}".format(max_monthly_budget) }}/mo</span>
+      <div class="kv-row" style="background: rgba(52,199,123,0.08); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);">
+        <span class="kv-key">💰 Your max monthly spend (before pension)</span>
+        <span class="kv-val text-success">¥{{ "{:,}".format(max_monthly_before_pension) }}/mo</span>
       </div>
+      {% if result.annual_pension_net_jpy > 0 %}
+      <div class="kv-row" style="background: rgba(52,199,123,0.05); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);">
+        <span class="kv-key">💰 Your max monthly spend (after pension at {{ scenario.assumptions.coast_target_retirement_age if scenario.assumptions.fire_variant == 'coast' else profile.nenkin_claim_age if profile is defined else '65' }})</span>
+        <span class="kv-val text-success">¥{{ "{:,}".format(max_monthly_after_pension) }}/mo</span>
+      </div>
+      {% endif %}
       <p class="form-help" style="margin: var(--space-2) 0 var(--space-3);">
-        Based on your current portfolio of ¥{{ "{:,}".format(result.current_portfolio_jpy) }}
-        at {{ scenario.assumptions.withdrawal_rate_pct }}% withdrawal rate,
-        plus pension income of ¥{{ "{:,}".format(result.annual_pension_net_jpy // 12) }}/mo,
-        minus NHI of ¥{{ "{:,}".format(result.annual_nhi_jpy // 12) }}/mo.
+        Portfolio ¥{{ "{:,}".format(result.current_portfolio_jpy) }}
+        × {{ scenario.assumptions.withdrawal_rate_pct }}% WR
+        = ¥{{ "{:,}".format(portfolio_only_annual // 12) }}/mo from portfolio,
+        minus NHI ¥{{ "{:,}".format(result.annual_nhi_jpy // 12) }}/mo{% if result.annual_pension_net_jpy > 0 %},
+        plus pension ¥{{ "{:,}".format(result.annual_pension_net_jpy // 12) }}/mo (when it starts){% endif %}.
       </p>
     </div>
   </div>
 
-  <div class="kv-list">
+  <div class="kv-list" id="variantsList">
     <div class="kv-row {% if v == 'lean' %}kv-row--highlight{% endif %}">
       <span class="kv-key">🌿 Lean FIRE</span>
       <span class="kv-val">
         ¥{{ "{:,}".format(result.lean_fire_number_jpy) }}
         {% if result.current_portfolio_jpy >= result.lean_fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
-        <span class="monthly-budget-col" style="display:none;"> — <span class="text-muted">¥{{ "{:,}".format(result.lean_annual_expenses_jpy // 12) }}/mo</span></span>
+        <span class="monthly-budget-col" style="display:none;">
+          <br><span class="text-muted" style="font-size: var(--text-xs);">
+            spend ¥{{ "{:,}".format(result.lean_annual_expenses_jpy // 12) }}/mo
+            · withdraw ¥{{ "{:,}".format(result.lean_annual_withdrawal_jpy // 12) }}/mo from portfolio
+          </span>
+        </span>
       </span>
     </div>
     <div class="kv-row {% if v == 'regular' %}kv-row--highlight{% endif %}">
@@ -151,7 +169,12 @@
       <span class="kv-val">
         ¥{{ "{:,}".format(result.fire_number_jpy) }}
         {% if result.current_portfolio_jpy >= result.fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
-        <span class="monthly-budget-col" style="display:none;"> — <span class="text-muted">¥{{ "{:,}".format(result.annual_expenses_jpy // 12) }}/mo</span></span>
+        <span class="monthly-budget-col" style="display:none;">
+          <br><span class="text-muted" style="font-size: var(--text-xs);">
+            spend ¥{{ "{:,}".format(result.annual_expenses_jpy // 12) }}/mo
+            · withdraw ¥{{ "{:,}".format(result.annual_withdrawal_needed_jpy // 12) }}/mo from portfolio
+          </span>
+        </span>
       </span>
     </div>
     <div class="kv-row {% if v == 'fat' %}kv-row--highlight{% endif %}">
@@ -159,7 +182,12 @@
       <span class="kv-val">
         ¥{{ "{:,}".format(result.fat_fire_number_jpy) }}
         {% if result.current_portfolio_jpy >= result.fat_fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
-        <span class="monthly-budget-col" style="display:none;"> — <span class="text-muted">¥{{ "{:,}".format(result.fat_annual_expenses_jpy // 12) }}/mo</span></span>
+        <span class="monthly-budget-col" style="display:none;">
+          <br><span class="text-muted" style="font-size: var(--text-xs);">
+            spend ¥{{ "{:,}".format(result.fat_annual_expenses_jpy // 12) }}/mo
+            · withdraw ¥{{ "{:,}".format(result.fat_annual_withdrawal_jpy // 12) }}/mo from portfolio
+          </span>
+        </span>
       </span>
     </div>
     <div class="kv-row {% if v == 'coast' %}kv-row--highlight{% endif %}">
@@ -167,17 +195,26 @@
       <span class="kv-val">
         ¥{{ "{:,}".format(result.coast_fire_number_jpy) }}
         {% if result.coast_fire_reached %}<span class="text-success">✓</span>{% endif %}
-        <span class="monthly-budget-col" style="display:none;"> — <span class="text-muted">¥{{ "{:,}".format(result.annual_expenses_jpy // 12) }}/mo</span></span>
+        <span class="monthly-budget-col" style="display:none;">
+          <br><span class="text-muted" style="font-size: var(--text-xs);">
+            spend ¥{{ "{:,}".format(result.annual_expenses_jpy // 12) }}/mo (same as regular)
+          </span>
+        </span>
       </span>
     </div>
-    {% if result.barista_fire_number_jpy > 0 %}
+    {% if result.barista_fire_number_jpy > 0 or result.barista_income_annual_jpy > 0 %}
     <div class="kv-row {% if v == 'barista' %}kv-row--highlight{% endif %}">
-      <span class="kv-key">☕ Barista FIRE (+¥{{ "{:,}".format(result.barista_income_annual_jpy // 12) }}/mo work)</span>
+      <span class="kv-key">☕ Barista FIRE</span>
       <span class="kv-val">
         ¥{{ "{:,}".format(result.barista_fire_number_jpy) }}
         {% if result.current_portfolio_jpy >= result.barista_fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
-        {# Barista monthly budget = regular expenses but partly funded by work income #}
-        <span class="monthly-budget-col" style="display:none;"> — <span class="text-muted">¥{{ "{:,}".format((result.annual_expenses_jpy - result.barista_income_annual_jpy) // 12) }}/mo from portfolio</span></span>
+        <span class="monthly-budget-col" style="display:none;">
+          <br><span class="text-muted" style="font-size: var(--text-xs);">
+            spend ¥{{ "{:,}".format(result.annual_expenses_jpy // 12) }}/mo
+            · +¥{{ "{:,}".format(result.barista_income_annual_jpy // 12) }}/mo work income
+            · withdraw ¥{{ "{:,}".format((result.annual_withdrawal_needed_jpy - result.barista_income_annual_jpy) // 12) }}/mo from portfolio
+          </span>
+        </span>
       </span>
     </div>
     {% endif %}
@@ -190,7 +227,7 @@
     const show = this.checked;
     document.getElementById('monthlyBudgetPanel').style.display = show ? '' : 'none';
     document.querySelectorAll('.monthly-budget-col').forEach(el => {
-      el.style.display = show ? 'inline' : 'none';
+      el.style.display = show ? '' : 'none';
     });
   });
 </script>

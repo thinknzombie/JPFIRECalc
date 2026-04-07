@@ -238,8 +238,10 @@ class ScenarioResult:
     barista_income_annual_jpy: int = 0            # part-time income used in barista calc
     lean_fire_number_jpy: int = 0                 # FIRE number at lean budget
     lean_annual_expenses_jpy: int = 0
+    lean_annual_withdrawal_jpy: int = 0           # portfolio withdrawal (expenses - pension + NHI)
     fat_fire_number_jpy: int = 0                  # FIRE number at fat budget
     fat_annual_expenses_jpy: int = 0
+    fat_annual_withdrawal_jpy: int = 0            # portfolio withdrawal (expenses - pension + NHI)
 
     # --- Retirement cash flow breakdown ------------------------------------
     annual_expenses_jpy: int = 0
