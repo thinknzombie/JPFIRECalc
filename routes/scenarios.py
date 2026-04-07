@@ -79,6 +79,8 @@ def _assumptions_from_form(form) -> AssumptionSet:
         nhi_municipality_key=form.get("nhi_municipality_key", "national_average"),
         nhi_household_members=i("nhi_household_members", 1),
         fire_variant=form.get("fire_variant", "regular"),
+        lean_monthly_expenses_jpy=i("lean_monthly_expenses_jpy", 0),
+        fat_monthly_expenses_jpy=i("fat_monthly_expenses_jpy", 0),
         barista_income_monthly_jpy=i("barista_income_monthly_jpy", 0),
         coast_target_retirement_age=i("coast_target_retirement_age", 65),
         retirement_expense_growth_pct=f("retirement_expense_growth_pct", 1.5),

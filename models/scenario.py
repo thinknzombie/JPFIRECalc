@@ -81,6 +81,10 @@ class AssumptionSet:
     # FIRE variant
     fire_variant: str = "regular"                 # lean | regular | fat | coast | barista
 
+    # Lean / Fat FIRE expense overrides (monthly)
+    lean_monthly_expenses_jpy: int = 0            # leaner budget — if 0, uses 70% of region template
+    fat_monthly_expenses_jpy: int = 0             # generous budget — if 0, uses 150% of region template
+
     # Barista FIRE
     barista_income_monthly_jpy: int = 0           # part-time income during semi-retirement
 
@@ -224,10 +228,18 @@ class ScenarioResult:
     years_to_fire: float = 0.0
     fire_age: float = 0.0
 
-    # --- Coast / Barista variants -------------------------------------------
+    # --- FIRE variant -------------------------------------------------------
+    fire_variant: str = "regular"                 # which mode drives the hero display
+
+    # --- Coast / Barista / Lean / Fat variants ------------------------------
     coast_fire_number_jpy: int = 0                # needed today to coast to retirement
     coast_fire_reached: bool = False
     barista_fire_number_jpy: int = 0
+    barista_income_annual_jpy: int = 0            # part-time income used in barista calc
+    lean_fire_number_jpy: int = 0                 # FIRE number at lean budget
+    lean_annual_expenses_jpy: int = 0
+    fat_fire_number_jpy: int = 0                  # FIRE number at fat budget
+    fat_annual_expenses_jpy: int = 0
 
     # --- Retirement cash flow breakdown ------------------------------------
     annual_expenses_jpy: int = 0

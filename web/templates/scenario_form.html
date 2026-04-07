@@ -79,24 +79,44 @@
 
     {# ── FIRE Variant ──────────────────────────────────────────────────────── #}
     <div class="form-card">
-      {{ section("FIRE Variant", key="section.fire_variant") }}
+      {{ section("FIRE Variant", "Selects which FIRE target is highlighted in results. All variants are always calculated.", key="section.fire_variant") }}
       <div class="form-grid form-grid--2">
         {{ field_select("fire_variant", "FIRE Strategy",
                         options=[
-                          ("regular", "Regular FIRE — full portfolio withdrawal"),
+                          ("regular", "Regular FIRE — standard budget"),
                           ("lean",    "Lean FIRE — minimal expenses"),
                           ("fat",     "Fat FIRE — generous lifestyle"),
-                          ("coast",   "Coast FIRE — invest now, coast to retirement"),
-                          ("barista", "Barista FIRE — semi-retirement with part-time income"),
+                          ("coast",   "Coast FIRE — stop saving, let investments grow"),
+                          ("barista", "Barista FIRE — supplement with part-time income"),
                         ],
                         selected=scenario.assumptions.fire_variant,
-                        help="Changes which FIRE metric is highlighted in the results.") }}
+                        help="Highlights the selected variant's FIRE number in the results hero. All variants are always computed for comparison.") }}
+      </div>
+
+      {# Lean FIRE budget #}
+      <div class="form-grid form-grid--2 variant-fields" data-variant="lean">
+        {{ field_yen("lean_monthly_expenses_jpy", "Lean: Monthly Budget",
+                     value=scenario.assumptions.lean_monthly_expenses_jpy, step=10000,
+                     help="Your lean monthly living expenses. Leave at 0 to use 70% of the region template as default.") }}
+      </div>
+
+      {# Fat FIRE budget #}
+      <div class="form-grid form-grid--2 variant-fields" data-variant="fat">
+        {{ field_yen("fat_monthly_expenses_jpy", "Fat: Monthly Budget",
+                     value=scenario.assumptions.fat_monthly_expenses_jpy, step=10000,
+                     help="Your generous monthly lifestyle budget. Leave at 0 to use 150% of the region template as default.") }}
+      </div>
+
+      {# Coast FIRE target age #}
+      <div class="form-grid form-grid--2 variant-fields" data-variant="coast">
         {{ field("coast_target_retirement_age", "Coast: Full Retirement Age",
                  value=scenario.assumptions.coast_target_retirement_age,
                  type="number", min=50, max=80,
-                 help="Used for Coast FIRE — the age you stop working entirely.") }}
+                 help="The age you stop working entirely — your investments must reach the FIRE number by then.") }}
       </div>
-      <div class="form-grid form-grid--2" id="baristaFields">
+
+      {# Barista FIRE income #}
+      <div class="form-grid form-grid--2 variant-fields" data-variant="barista">
         {{ field_yen("barista_income_monthly_jpy", "Barista: Monthly Part-Time Income",
                      value=scenario.assumptions.barista_income_monthly_jpy, step=10000,
                      help="Income from part-time work during semi-retirement. Reduces required portfolio size.") }}
@@ -170,4 +190,24 @@
 
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Show/hide variant-specific fields based on dropdown selection
+  (function() {
+    const select = document.getElementById('fire_variant');
+    if (!select) return;
+
+    function update() {
+      const variant = select.value;
+      document.querySelectorAll('.variant-fields').forEach(el => {
+        el.style.display = el.dataset.variant === variant ? '' : 'none';
+      });
+    }
+
+    select.addEventListener('change', update);
+    update(); // run on page load
+  })();
+</script>
 {% endblock %}

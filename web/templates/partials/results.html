@@ -3,16 +3,60 @@
   and the /scenarios/<id>/run HTMX endpoint (fragment swap).
 #}
 
-{# ── Hero metrics ─────────────────────────────────────────────────────────── #}
+{# ── Variant-aware hero metrics ───────────────────────────────────────────── #}
+{% set v = result.fire_variant | default('regular') %}
+
+{# Compute the "active" FIRE number based on variant #}
+{% if v == 'lean' and result.lean_fire_number_jpy %}
+  {% set hero_fire = result.lean_fire_number_jpy %}
+  {% set hero_label = "Lean FIRE Number" %}
+  {% set hero_sub = "¥%s/mo lean budget" | format("{:,}".format(result.lean_annual_expenses_jpy // 12)) %}
+{% elif v == 'fat' and result.fat_fire_number_jpy %}
+  {% set hero_fire = result.fat_fire_number_jpy %}
+  {% set hero_label = "Fat FIRE Number" %}
+  {% set hero_sub = "¥%s/mo generous budget" | format("{:,}".format(result.fat_annual_expenses_jpy // 12)) %}
+{% elif v == 'coast' %}
+  {% set hero_fire = result.coast_fire_number_jpy %}
+  {% set hero_label = "Coast FIRE Number" %}
+  {% set hero_sub = "Need today to coast to retirement" %}
+{% elif v == 'barista' and result.barista_fire_number_jpy %}
+  {% set hero_fire = result.barista_fire_number_jpy %}
+  {% set hero_label = "Barista FIRE Number" %}
+  {% set hero_sub = "With ¥%s/mo part-time income" | format("{:,}".format(result.barista_income_annual_jpy // 12)) %}
+{% else %}
+  {% set hero_fire = result.fire_number_jpy %}
+  {% set hero_label = "FIRE Number" %}
+  {% set hero_sub = "Target portfolio at %s" | format(result.scenario_name) %}
+{% endif %}
+
+{% set hero_progress = (result.current_portfolio_jpy / hero_fire * 100) if hero_fire > 0 else 100.0 %}
+
 <div class="results-hero">
   <div class="metric-card metric-card--primary">
-    <div class="metric-label" data-i18n="result.fire_number">FIRE Number</div>
+    <div class="metric-label" data-i18n="result.fire_number">{{ hero_label }}</div>
     <div class="metric-value" id="fireNumber">
-      ¥{{ "{:,}".format(result.fire_number_jpy) }}
+      ¥{{ "{:,}".format(hero_fire) }}
     </div>
-    <div class="metric-sub"><span data-i18n="result.fire_number_sub">Target portfolio at</span> {{ result.scenario_name }}</div>
+    <div class="metric-sub">{{ hero_sub }}</div>
   </div>
-  <div class="metric-card {% if result.years_to_fire <= 0 %}metric-card--success{% elif result.years_to_fire >= 99 %}metric-card--danger{% elif result.years_to_fire <= 10 %}metric-card--accent{% endif %}">
+  <div class="metric-card {% if hero_progress >= 100 %}metric-card--success{% elif result.years_to_fire >= 99 %}metric-card--danger{% elif result.years_to_fire <= 10 %}metric-card--accent{% endif %}">
+    {% if v == 'coast' %}
+    <div class="metric-label">Coast Status</div>
+    <div class="metric-value">
+      {% if result.coast_fire_reached %}
+        <span class="text-success">Coasting! ✓</span>
+      {% else %}
+        ¥{{ "{:,}".format(hero_fire - result.current_portfolio_jpy) }} to go
+      {% endif %}
+    </div>
+    <div class="metric-sub">
+      {% if result.coast_fire_reached %}
+        You can stop saving — investments will grow to your FIRE number
+      {% else %}
+        Keep saving until portfolio reaches coast number
+      {% endif %}
+    </div>
+    {% else %}
     <div class="metric-label" data-i18n="result.years">Years to FIRE</div>
     <div class="metric-value" id="yearsToFire">
       {% if result.years_to_fire <= 0 %}
@@ -30,14 +74,15 @@
         <span data-i18n="result.fire_age_label">FIRE age:</span> {{ "%.0f" | format(result.fire_age) }}
       {% endif %}
     </div>
+    {% endif %}
   </div>
   <div class="metric-card">
     <div class="metric-label" data-i18n="result.progress">Progress</div>
-    <div class="metric-value">{{ "%.0f" | format(result.progress_pct) }}%</div>
+    <div class="metric-value">{{ "%.0f" | format([hero_progress, 100] | min) }}%</div>
     <div class="progress-bar">
-      <div class="progress-fill" style="width: {{ [result.progress_pct, 100] | min }}%"></div>
+      <div class="progress-fill" style="width: {{ [hero_progress, 100] | min }}%"></div>
     </div>
-    <div class="metric-sub">¥{{ "{:,}".format(result.current_portfolio_jpy) }} of ¥{{ "{:,}".format(result.fire_number_jpy) }}</div>
+    <div class="metric-sub">¥{{ "{:,}".format(result.current_portfolio_jpy) }} of ¥{{ "{:,}".format(hero_fire) }}</div>
   </div>
   {% if result.monte_carlo %}
   <div class="metric-card {% if result.monte_carlo.success_rate_pct >= 90 %}metric-card--success{% elif result.monte_carlo.success_rate_pct >= 75 %}metric-card--accent{% else %}metric-card--danger{% endif %}">
@@ -62,26 +107,46 @@
 </div>
 {% endif %}
 
-{# ── FIRE Variants ─────────────────────────────────────────────────────────── #}
-<div class="results-grid results-grid--2">
-  <div class="results-card">
-    <h3 class="results-card__title" data-i18n="result.coast">Coast FIRE</h3>
-    <div class="kv-list">
-      <div class="kv-row">
-        <span class="kv-key" data-i18n="result.coast_number">Coast Number (today)</span>
-        <span class="kv-val">¥{{ "{:,}".format(result.coast_fire_number_jpy) }}</span>
-      </div>
-      <div class="kv-row">
-        <span class="kv-key" data-i18n="result.coast_reached">Coast FIRE Reached?</span>
-        {% if result.coast_fire_reached %}
-        <span class="kv-val text-success" data-i18n="result.coast_yes">Yes ✓</span>
-        {% else %}
-        <span class="kv-val text-muted" data-i18n="result.coast_not_yet">Not yet</span>
-        {% endif %}
-      </div>
+{# ── All FIRE Variants Comparison ──────────────────────────────────────────── #}
+<div class="results-card">
+  <h3 class="results-card__title">FIRE Variants Comparison</h3>
+  <div class="kv-list">
+    <div class="kv-row {% if v == 'lean' %}kv-row--highlight{% endif %}">
+      <span class="kv-key">🌿 Lean FIRE (¥{{ "{:,}".format(result.lean_annual_expenses_jpy // 12) }}/mo)</span>
+      <span class="kv-val">¥{{ "{:,}".format(result.lean_fire_number_jpy) }}
+        {% if result.current_portfolio_jpy >= result.lean_fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
+      </span>
     </div>
+    <div class="kv-row {% if v == 'regular' %}kv-row--highlight{% endif %}">
+      <span class="kv-key">🔥 Regular FIRE (¥{{ "{:,}".format(result.annual_expenses_jpy // 12) }}/mo)</span>
+      <span class="kv-val">¥{{ "{:,}".format(result.fire_number_jpy) }}
+        {% if result.current_portfolio_jpy >= result.fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
+      </span>
+    </div>
+    <div class="kv-row {% if v == 'fat' %}kv-row--highlight{% endif %}">
+      <span class="kv-key">💎 Fat FIRE (¥{{ "{:,}".format(result.fat_annual_expenses_jpy // 12) }}/mo)</span>
+      <span class="kv-val">¥{{ "{:,}".format(result.fat_fire_number_jpy) }}
+        {% if result.current_portfolio_jpy >= result.fat_fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
+      </span>
+    </div>
+    <div class="kv-row {% if v == 'coast' %}kv-row--highlight{% endif %}">
+      <span class="kv-key">⛵ Coast FIRE</span>
+      <span class="kv-val">¥{{ "{:,}".format(result.coast_fire_number_jpy) }}
+        {% if result.coast_fire_reached %}<span class="text-success">✓</span>{% endif %}
+      </span>
+    </div>
+    {% if result.barista_fire_number_jpy > 0 %}
+    <div class="kv-row {% if v == 'barista' %}kv-row--highlight{% endif %}">
+      <span class="kv-key">☕ Barista FIRE (+¥{{ "{:,}".format(result.barista_income_annual_jpy // 12) }}/mo work)</span>
+      <span class="kv-val">¥{{ "{:,}".format(result.barista_fire_number_jpy) }}
+        {% if result.current_portfolio_jpy >= result.barista_fire_number_jpy %}<span class="text-success">✓</span>{% endif %}
+      </span>
+    </div>
+    {% endif %}
   </div>
+</div>
 
+<div class="results-grid results-grid--2">
   <div class="results-card">
     <h3 class="results-card__title" data-i18n="result.cashflow">Retirement Cash Flow</h3>
     <div class="kv-list">

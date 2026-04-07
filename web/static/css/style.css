@@ -1038,6 +1038,14 @@ img, svg { display: block; max-width: 100%; }
 .kv-row--total .kv-key,
 .kv-row--total .kv-val { color: var(--color-text); font-weight: var(--weight-bold); }
 .kv-row--warning .kv-val { color: var(--color-warning); }
+.kv-row--highlight {
+  background: rgba(91,106,240,0.08);
+  border-left: 3px solid var(--color-primary);
+  padding-left: var(--space-3);
+  border-radius: var(--radius-sm);
+}
+.kv-row--highlight .kv-key,
+.kv-row--highlight .kv-val { font-weight: var(--weight-semibold); }
 
 /* Balance items (account balances at retirement) */
 .balance-item { text-align: center; padding: var(--space-4); }

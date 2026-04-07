@@ -834,6 +834,25 @@ def run_fire_scenario(
         barista_income_annual_jpy=assumptions.barista_income_monthly_jpy * 12,
     )
 
+    # --- Lean / Fat FIRE numbers --------------------------------------------
+    # Lean: user-specified lean budget, or 70% of region template base
+    lean_monthly = assumptions.lean_monthly_expenses_jpy
+    if lean_monthly <= 0:
+        lean_monthly = int(expense_result["base_monthly_jpy"] * 0.70)
+    lean_annual = max(0, (lean_monthly + expense_result["mortgage_monthly_jpy"]
+                          - expense_result["rental_income_monthly_jpy"]) * 12)
+    lean_fire_info = calculate_fire_number(lean_annual, withdrawal_rate, net_pension)
+    lean_fire_number = int(max(0, lean_fire_info["net_annual_need_jpy"]) / withdrawal_rate)
+
+    # Fat: user-specified fat budget, or 150% of region template base
+    fat_monthly = assumptions.fat_monthly_expenses_jpy
+    if fat_monthly <= 0:
+        fat_monthly = int(expense_result["base_monthly_jpy"] * 1.50)
+    fat_annual = max(0, (fat_monthly + expense_result["mortgage_monthly_jpy"]
+                         - expense_result["rental_income_monthly_jpy"]) * 12)
+    fat_fire_info = calculate_fire_number(fat_annual, withdrawal_rate, net_pension)
+    fat_fire_number = int(max(0, fat_fire_info["net_annual_need_jpy"]) / withdrawal_rate)
+
     # --- iDeCo projections --------------------------------------------------
     ideco_accum = calculate_ideco_accumulation(
         monthly_contribution_jpy=profile.ideco_monthly_contribution_jpy,
@@ -1014,6 +1033,7 @@ def run_fire_scenario(
     return ScenarioResult(
         scenario_id=scenario_id,
         scenario_name=scenario_name,
+        fire_variant=assumptions.fire_variant,
         fire_number_jpy=fire_number,
         current_portfolio_jpy=current_portfolio,
         progress_pct=round(min(progress_pct, 100.0), 1),
@@ -1022,6 +1042,11 @@ def run_fire_scenario(
         coast_fire_number_jpy=coast["coast_fire_number_jpy"],
         coast_fire_reached=current_portfolio >= coast["coast_fire_number_jpy"],
         barista_fire_number_jpy=barista["barista_fire_number_jpy"],
+        barista_income_annual_jpy=assumptions.barista_income_monthly_jpy * 12,
+        lean_fire_number_jpy=lean_fire_number,
+        lean_annual_expenses_jpy=lean_annual,
+        fat_fire_number_jpy=fat_fire_number,
+        fat_annual_expenses_jpy=fat_annual,
         annual_expenses_jpy=annual_expenses,
         annual_pension_net_jpy=net_pension,
         annual_nhi_jpy=nhi_solve["nhi_premium"],
