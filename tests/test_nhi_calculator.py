@@ -98,9 +98,11 @@ class TestCalculateNhiPremium:
         result = calculate_nhi_premium(0, 1, self.MUNICIPALITY)
         # assessed_income = max(0, 0 - 430,000) = 0
         assert result["assessed_income"] == 0
-        # Only per-capita charges
-        assert result["medical"] == 47_300
-        assert result["support"] == 14_000
+        # Zero income qualifies for 70% low-income reduction (軽減制度) on per-capita
+        assert result["low_income_reduction_rate"] == 0.7
+        # Per-capita charges reduced to 30%: 47,300 * 0.3 = 14,190
+        assert result["medical"] == int(47_300 * 0.3)
+        assert result["support"] == int(14_000 * 0.3)
 
     def test_annual_cap_applied(self):
         # Very high income should hit the cap
@@ -245,3 +247,23 @@ class TestNhiReduction:
         family_threshold = 430_000 + 10_000 * 3
         assert calculate_nhi_reduction(single_threshold + 1, num_members=1) != 0.7
         assert calculate_nhi_reduction(single_threshold + 1, num_members=3) == 0.7
+
+    def test_reduction_applied_in_premium_calculation(self):
+        """Verify that calculate_nhi_premium integrates the low-income reduction."""
+        # Zero income → 70% reduction on per-capita levies
+        reduced = calculate_nhi_premium(0, 1, "tokyo_shinjuku")
+        assert reduced["low_income_reduction_rate"] == 0.7
+        # Normal income → no reduction
+        normal = calculate_nhi_premium(3_000_000, 1, "tokyo_shinjuku")
+        assert normal["low_income_reduction_rate"] == 0.0
+        # Per-capita portion should be higher when not reduced
+        assert normal["medical"] > reduced["medical"]
+
+    def test_reduction_50pct_applied_in_premium(self):
+        """50% reduction cuts per-capita in half."""
+        # Income ¥600k, 1 member → 50% reduction band
+        result = calculate_nhi_premium(600_000, 1, "tokyo_shinjuku")
+        assert result["low_income_reduction_rate"] == 0.5
+        # Medical = income_rate * assessed_income + per_capita * 0.5
+        # assessed_income = 600,000 - 430,000 = 170,000
+        assert result["assessed_income"] == 170_000

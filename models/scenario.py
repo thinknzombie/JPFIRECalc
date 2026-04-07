@@ -101,7 +101,7 @@ class AssumptionSet:
     def from_dict(cls, data: dict) -> "AssumptionSet":
         try:
             hints = typing.get_type_hints(cls)
-        except Exception:
+        except (TypeError, NameError, AttributeError):
             hints = {}
         coerced = {
             k: _coerce_value(v, hints[k]) if k in hints else v
@@ -138,7 +138,7 @@ class Scenario:
             d["assumptions"] = AssumptionSet.from_dict(d["assumptions"])
         try:
             hints = typing.get_type_hints(cls)
-        except Exception:
+        except (TypeError, NameError, AttributeError):
             hints = {}
         coerced = {
             k: _coerce_value(v, hints[k]) if k in hints else v

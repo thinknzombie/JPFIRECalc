@@ -116,7 +116,7 @@ def detail(scenario_id):
     store.init_store(current_app.config["SCENARIOS_DIR"])
     try:
         profile, scenario = store.load(scenario_id)
-    except FileNotFoundError:
+    except (FileNotFoundError, ValueError):
         flash("Scenario not found.", "error")
         return redirect(url_for("scenarios.index"))
 
@@ -144,7 +144,7 @@ def edit(scenario_id):
     store.init_store(current_app.config["SCENARIOS_DIR"])
     try:
         profile, scenario = store.load(scenario_id)
-    except FileNotFoundError:
+    except (FileNotFoundError, ValueError):
         flash("Scenario not found.", "error")
         return redirect(url_for("scenarios.index"))
     return render_template(
@@ -161,7 +161,7 @@ def update(scenario_id):
     store.init_store(current_app.config["SCENARIOS_DIR"])
     try:
         profile, scenario = store.load(scenario_id)
-    except FileNotFoundError:
+    except (FileNotFoundError, ValueError):
         flash("Scenario not found.", "error")
         return redirect(url_for("scenarios.index"))
 
@@ -197,7 +197,7 @@ def clone(scenario_id):
     store.init_store(current_app.config["SCENARIOS_DIR"])
     try:
         profile, scenario = store.load(scenario_id)
-    except FileNotFoundError:
+    except (FileNotFoundError, ValueError):
         flash("Scenario not found.", "error")
         return redirect(url_for("scenarios.index"))
 
@@ -216,7 +216,7 @@ def report_md(scenario_id):
     store.init_store(current_app.config["SCENARIOS_DIR"])
     try:
         profile, scenario = store.load(scenario_id)
-    except FileNotFoundError:
+    except (FileNotFoundError, ValueError):
         flash("Scenario not found.", "error")
         return redirect(url_for("scenarios.index"))
 

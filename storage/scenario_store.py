@@ -22,6 +22,7 @@ from pathlib import Path
 
 from models.profile import FinancialProfile
 from models.scenario import Scenario
+from storage._filelock import file_lock
 
 logger = logging.getLogger(__name__)
 
@@ -81,17 +82,18 @@ def save(profile: FinancialProfile, scenario: Scenario) -> str:
     }
     final_path = _path(scenario.id)
     tmp_path = final_path.with_suffix(".tmp")
-    try:
-        tmp_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        os.replace(tmp_path, final_path)  # atomic on POSIX; best-effort on Windows
-    except Exception:
-        # Clean up the temp file if anything went wrong before the rename
-        if tmp_path.exists():
-            tmp_path.unlink(missing_ok=True)
-        raise
+    with file_lock(final_path):
+        try:
+            tmp_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            os.replace(tmp_path, final_path)  # atomic on POSIX; best-effort on Windows
+        except Exception:
+            # Clean up the temp file if anything went wrong before the rename
+            if tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
+            raise
     return scenario.id
 
 
@@ -104,7 +106,8 @@ def load(scenario_id: str) -> tuple[FinancialProfile, Scenario]:
     p = _path(scenario_id)
     if not p.exists():
         raise FileNotFoundError(f"Scenario {scenario_id!r} not found")
-    payload = json.loads(p.read_text(encoding="utf-8"))
+    with file_lock(p):
+        payload = json.loads(p.read_text(encoding="utf-8"))
     profile = FinancialProfile.from_dict(payload["profile"])
     scenario = Scenario.from_dict(payload["scenario"])
     return profile, scenario
@@ -138,9 +141,10 @@ def load_all() -> list[tuple[FinancialProfile, Scenario]]:
 def delete(scenario_id: str) -> bool:
     """Delete a scenario file. Returns True if deleted, False if not found."""
     p = _path(scenario_id)
-    if p.exists():
-        p.unlink()
-        return True
+    with file_lock(p):
+        if p.exists():
+            p.unlink()
+            return True
     return False
 
 

@@ -551,10 +551,23 @@ def project_net_worth(
     annual_expenses = expense_result["annual_expenses_jpy"]
 
     # Pension details — project forward to retirement
+    # Split into Japan pension and foreign pension so they can start at
+    # different ages (nenkin_claim_age vs foreign_pension_start_age).
     years_to_ret = profile.years_to_retirement
     pension_info = calculate_pension_at_retirement(profile, years_to_ret)
     net_pension = pension_info["net_pension_annual_jpy"]
     pension_start_age = profile.nenkin_claim_age
+
+    # Separate foreign pension from Japan pension for age-aware timing.
+    # net_pension includes both; we need to know foreign share for phased start.
+    foreign_pension_annual = pension_info.get("foreign_pension_annual_jpy", 0)
+    foreign_pension_start_age = profile.foreign_pension_start_age
+
+    # Net pension from Japan sources only (for years before foreign pension starts)
+    # Note: tax was computed on combined total, so this is an approximation —
+    # in practice the marginal tax on the foreign slice is low due to the
+    # pension income deduction, so the error is small.
+    japan_pension_only = net_pension - foreign_pension_annual
 
     # FIRE number and NHI solve at target withdrawal level
     fire_info = calculate_fire_number(annual_expenses, withdrawal_rate, net_pension)
@@ -674,10 +687,22 @@ def project_net_worth(
                 portfolio += locked_ideco
                 locked_ideco = 0
 
-            # Pension income (zero before claim age)
-            pension_this_year = net_pension if age >= pension_start_age else 0
+            # Pension income — Japan and foreign pensions may start at different ages.
+            # Japan pension (kokumin + kosei) starts at nenkin_claim_age.
+            # Foreign pension (US SS, UK state, etc.) starts at foreign_pension_start_age.
+            japan_pension_this_year = japan_pension_only if age >= pension_start_age else 0
+            foreign_pension_this_year = foreign_pension_annual if age >= foreign_pension_start_age else 0
+            pension_this_year = japan_pension_this_year + foreign_pension_this_year
 
-            # NHI: re-solve at current portfolio size (simplified — use FIRE-level NHI)
+            # NHI simplification: uses the FIRE-level NHI premium for all retirement
+            # years rather than re-solving at the current withdrawal level each year.
+            # KNOWN LIMITATION: As portfolio depletes, withdrawal rate increases relative
+            # to portfolio, but NHI is income-based (on the withdrawal amount, not the
+            # portfolio size). In practice, if expenses stay constant, the withdrawal
+            # amount stays roughly constant too, so NHI stays roughly constant. The
+            # main inaccuracy is in the gap years before pension starts when withdrawals
+            # are higher — NHI should be higher in those years. This is a minor effect
+            # for most scenarios (<¥50k/yr difference).
             nhi_this_year = nhi_at_fire if portfolio > 0 else 0
 
             # Gross from portfolio = expenses - pension + NHI

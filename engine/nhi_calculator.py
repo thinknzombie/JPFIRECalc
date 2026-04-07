@@ -85,23 +85,28 @@ def calculate_nhi_premium(
     # Base income for NHI = income - 430,000 deduction (floored at 0)
     assessed_income = max(0, annual_income - _INCOME_DEDUCTION)
 
+    # Low-income per-capita reduction (軽減制度)
+    # Households below income thresholds get 20%, 50%, or 70% off per-capita levies.
+    reduction_rate = calculate_nhi_reduction(annual_income, num_members)
+    per_capita_factor = 1.0 - reduction_rate
+
     # Medical component (医療分)
     medical = (
         int(assessed_income * rates["medical_income_rate"])
-        + rates["medical_per_capita"] * num_members
+        + int(rates["medical_per_capita"] * num_members * per_capita_factor)
     )
 
     # Support component (支援分)
     support = (
         int(assessed_income * rates["support_income_rate"])
-        + rates["support_per_capita"] * num_members
+        + int(rates["support_per_capita"] * num_members * per_capita_factor)
     )
 
     # Long-term care component (介護分) — only for members aged 40–64
     if ltc_eligible_members > 0:
         ltc = (
             int(assessed_income * rates["ltc_income_rate"])
-            + rates["ltc_per_capita"] * ltc_eligible_members
+            + int(rates["ltc_per_capita"] * ltc_eligible_members * per_capita_factor)
         )
         ltc = min(ltc, _LTC_CAP)
     else:
@@ -125,6 +130,7 @@ def calculate_nhi_premium(
         "annual_cap_medical_support": _ANNUAL_CAP,
         "ltc_cap": _LTC_CAP,
         "cap_hit": medical_support > _ANNUAL_CAP,
+        "low_income_reduction_rate": reduction_rate,
     }
 
 

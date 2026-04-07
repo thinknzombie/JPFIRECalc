@@ -40,7 +40,7 @@ def get_scenario(scenario_id):
     store.init_store(current_app.config["SCENARIOS_DIR"])
     try:
         profile, scenario = store.load(scenario_id)
-    except FileNotFoundError:
+    except (FileNotFoundError, ValueError):
         return jsonify({"error": "not found"}), 404
 
     result = run_fire_scenario(
@@ -58,7 +58,7 @@ def run_scenario(scenario_id):
     store.init_store(current_app.config["SCENARIOS_DIR"])
     try:
         profile, scenario = store.load(scenario_id)
-    except FileNotFoundError:
+    except (FileNotFoundError, ValueError):
         return jsonify({"error": "not found"}), 404
 
     result = run_fire_scenario(

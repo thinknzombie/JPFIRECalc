@@ -72,5 +72,6 @@ def create_app(config_name=None):
 
 
 if __name__ == "__main__":
-    app = create_app("development")
-    app.run(debug=True, port=5000)
+    config_name = os.environ.get("FLASK_ENV", "development")
+    app = create_app(config_name)
+    app.run(debug=app.config.get("DEBUG", False), port=5000)

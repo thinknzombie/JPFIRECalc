@@ -102,8 +102,12 @@ class FinancialProfile:
 
     # --- Monthly cash flows ------------------------------------------------
     monthly_expenses_jpy: int = 250_000
-    monthly_nisa_contribution_jpy: int = 100_000  # tsumitate frame
-    nisa_growth_frame_annual_jpy: int = 0         # growth frame (annual lump sum)
+    monthly_nisa_contribution_jpy: int = 100_000  # tsumitate (積立) frame — max ¥120k/mo
+    nisa_growth_frame_annual_jpy: int = 0         # growth (成長投資枠) frame — max ¥2.4M/yr
+    # Note: the new NISA (2024+) has two frames:
+    #   - Tsumitate (monthly_nisa_contribution_jpy): up to ¥1.2M/yr for index funds
+    #   - Growth (nisa_growth_frame_annual_jpy): up to ¥2.4M/yr for stocks/ETFs
+    # Combined lifetime cap is ¥18M. These are separate from iDeCo.
     ideco_monthly_contribution_jpy: int = 23_000
 
     # --- Japan pension ------------------------------------------------------
@@ -189,7 +193,9 @@ class FinancialProfile:
     def from_dict(cls, data: dict) -> "FinancialProfile":
         try:
             hints = typing.get_type_hints(cls)
-        except Exception:
+        except (TypeError, NameError, AttributeError):
+            # TypeError: bad annotation syntax; NameError: unresolved forward ref;
+            # AttributeError: broken module-level import in annotation.
             hints = {}
         coerced = {
             k: _coerce_value(v, hints[k]) if k in hints else v

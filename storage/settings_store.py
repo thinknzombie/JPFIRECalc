@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from typing import Any
+
+from storage._filelock import file_lock
 
 logger = logging.getLogger(__name__)
 
@@ -88,12 +91,20 @@ def get() -> AppSettings:
 
 
 def save(settings: AppSettings) -> None:
-    """Persist settings to disk and update the cache."""
+    """Persist settings to disk atomically and update the cache."""
     global _cache
     _cache = settings
     if _SETTINGS_PATH:
         _SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _SETTINGS_PATH.write_text(
-            json.dumps(settings.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        tmp_path = _SETTINGS_PATH.with_suffix(".tmp")
+        with file_lock(_SETTINGS_PATH):
+            try:
+                tmp_path.write_text(
+                    json.dumps(settings.to_dict(), indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                os.replace(tmp_path, _SETTINGS_PATH)
+            except Exception:
+                if tmp_path.exists():
+                    tmp_path.unlink(missing_ok=True)
+                raise
