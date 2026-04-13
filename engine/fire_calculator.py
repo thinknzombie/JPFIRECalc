@@ -1322,7 +1322,6 @@ def run_fire_scenario(
         annual_nhi_jpy=nhi_solve["nhi_premium"],
         annual_withdrawal_needed_jpy=nhi_solve["gross_withdrawal"],
         year1_residence_tax_shock_jpy=shock["year1_residence_tax"],
-        year1_tax_shock_jpy=shock["year1_residence_tax"] + liquidated_jpy,
         nisa_at_retirement_jpy=nisa_at_retirement,
         ideco_at_retirement_jpy=ideco_at_retirement,
         taxable_at_retirement_jpy=taxable_at_retirement,
