@@ -536,6 +536,7 @@ def project_net_worth(
     profile: FinancialProfile,
     assumptions: AssumptionSet,
     region_key: str,
+    usd_jpy_rate: float = 150.0,
     projection_years: int = 50,
 ) -> list[YearProjection]:
     """
@@ -1098,7 +1099,7 @@ def run_fire_scenario(
     # Compound the taxable brokerage balance forward to retirement age,
     # matching how NISA and iDeCo projections are handled.
     taxable_at_retirement = int(
-        profile.taxable_brokerage_jpy * (1 + r_accum) ** years_to_ret
+        profile.taxable_brokerage_jpy * (1 + r_accum) ** profile.years_to_retirement
     )
 
     # --- Warnings -----------------------------------------------------------
@@ -1164,7 +1165,7 @@ def run_fire_scenario(
         )
 
     # --- Net worth trajectory -----------------------------------------------
-    trajectory = project_net_worth(profile, assumptions, region_key, projection_years=50)
+    trajectory = project_net_worth(profile, assumptions, region_key, usd_jpy_rate, projection_years=50)
 
     # --- Property sale lump sums (pre-retirement: boost portfolio; post: MC inject) ---
     property_lump_sums: list[tuple[int, int]] = []      # (year_into_retirement, net_proceeds)
