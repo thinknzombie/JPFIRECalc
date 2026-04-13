@@ -550,7 +550,7 @@ def project_net_worth(
     nhi_members = assumptions.nhi_household_members
 
     # Expense base in retirement
-    expense_result = calculate_retirement_expenses(profile, region_key)
+    expense_result = calculate_retirement_expenses(profile, region_key, use_region_template=False)
     annual_expenses = expense_result["annual_expenses_jpy"]
 
     # Pension details — project forward to retirement
@@ -806,7 +806,7 @@ def run_fire_scenario(
     residence_tax = calculate_residence_tax(tax_result["taxable_income"])
 
     # --- Retirement expenses -------------------------------------------------
-    expense_result = calculate_retirement_expenses(profile, region_key)
+    expense_result = calculate_retirement_expenses(profile, region_key, use_region_template=False)
     annual_expenses = expense_result["annual_expenses_jpy"]
 
     # --- Pension at retirement -----------------------------------------------
@@ -1061,6 +1061,13 @@ def run_fire_scenario(
     )
     nisa_at_retirement = nisa_result["final_balance_jpy"]
 
+    # --- Taxable brokerage projection -----------------------------------------
+    # Compound the taxable brokerage balance forward to retirement age,
+    # matching how NISA and iDeCo projections are handled.
+    taxable_at_retirement = int(
+        profile.taxable_brokerage_jpy * (1 + r_accum) ** years_to_ret
+    )
+
     # --- Warnings -----------------------------------------------------------
     if profile.target_retirement_age < 60:
         warnings.append(
@@ -1262,7 +1269,7 @@ def run_fire_scenario(
         year1_residence_tax_shock_jpy=shock["year1_residence_tax"],
         nisa_at_retirement_jpy=nisa_at_retirement,
         ideco_at_retirement_jpy=ideco_at_retirement,
-        taxable_at_retirement_jpy=profile.taxable_brokerage_jpy,
+        taxable_at_retirement_jpy=taxable_at_retirement,
         ideco_accessible_at_fire=ideco_accessible,
         ideco_bridge_needed_jpy=bridge["bridge_portfolio_needed_jpy"],
         current_income_tax_jpy=tax_result["income_tax"],
