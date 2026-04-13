@@ -317,13 +317,17 @@ def calculate_property_sale_proceeds(
 def calculate_accessible_portfolio(
     profile: FinancialProfile,
     fire_age: int,
+    usd_jpy_rate: float | None = None,
 ) -> dict:
     """
     Calculate the currently accessible portfolio for FIRE progress tracking.
 
     iDeCo is excluded from accessible assets if FIRE age < 60.
+
+    usd_jpy_rate: if None, falls back to profile.usd_jpy_rate.
     """
-    foreign_jpy = int(profile.foreign_assets_usd * profile.usd_jpy_rate)
+    fx_rate = usd_jpy_rate if usd_jpy_rate is not None else profile.usd_jpy_rate
+    foreign_jpy = int(profile.foreign_assets_usd * fx_rate)
     ideco_accessible = fire_age >= 60
 
     # Liquid / semi-liquid assets
@@ -594,7 +598,7 @@ def project_net_worth(
 
     # Starting portfolio (accessible only, including alternative assets)
     ideco_accessible_at_fire = profile.target_retirement_age >= 60
-    foreign_jpy = int(profile.foreign_assets_usd * profile.usd_jpy_rate)
+    foreign_jpy = int(profile.foreign_assets_usd * usd_jpy_rate)
     gold = getattr(profile, 'gold_silver_value_jpy', 0)
     crypto = getattr(profile, 'crypto_value_jpy', 0)
     rsu = getattr(profile, 'rsu_unvested_value_jpy', 0)
@@ -788,6 +792,10 @@ def run_fire_scenario(
     r_accum = assumptions.investment_return_pct / 100
     r_retire = assumptions.retirement_return_pct / 100
     municipality_key = get_nhi_municipality_key(region_key)
+    # Canonical USD/JPY rate — use the scenario assumption, not profile field.
+    # The profile.usd_jpy_rate is still used in the profile itself for display,
+    # but all FIRE calculations defer to assumptions.usd_jpy_rate.
+    usd_jpy_rate = assumptions.usd_jpy_rate
 
     # Years between FIRE and Japan pension start (0 if pension starts at or before retirement).
     # Used to gap-adjust the FIRE number — see below.
@@ -836,7 +844,7 @@ def run_fire_scenario(
     )
 
     # --- Accessible portfolio today -----------------------------------------
-    portfolio_info = calculate_accessible_portfolio(profile, profile.target_retirement_age)
+    portfolio_info = calculate_accessible_portfolio(profile, profile.target_retirement_age, usd_jpy_rate)
     current_portfolio = portfolio_info["total_accessible_jpy"]
 
     # --- Mortgage payoff deduction -------------------------------------------
@@ -1211,7 +1219,7 @@ def run_fire_scenario(
         n_simulations=min(assumptions.monte_carlo_simulations, 10_000),  # engine-level safety cap
         mean_return=assumptions.retirement_return_pct / 100,
         volatility=assumptions.return_volatility_pct / 100,
-        inflation_rate=assumptions.japan_inflation_pct / 100,
+        inflation_rate=assumptions.retirement_expense_growth_pct / 100,
         sequence_of_returns_risk=assumptions.sequence_of_returns_risk,
         lump_sums=property_lump_sums or None,
         withdrawal_reductions=mc_withdrawal_reductions or None,
@@ -1239,7 +1247,7 @@ def run_fire_scenario(
         projected_fire_number_jpy=fire_number,
         foreign_pension_annual_jpy=profile.foreign_pension_annual_jpy,
         foreign_assets_usd=profile.foreign_assets_usd,
-        usd_jpy_rate=profile.usd_jpy_rate,
+        usd_jpy_rate=usd_jpy_rate,
         nisa_balance_jpy=profile.nisa_balance_jpy,
     )
 
