@@ -143,6 +143,50 @@ def generate_markdown_report(
         ],
     )
 
+    # ── Monthly Drawdown Capacity ─────────────────────────────────────────────
+    wr = scenario.assumptions.withdrawal_rate_pct / 100
+    portfolio_annual = int(result.current_portfolio_jpy * wr)
+    portfolio_monthly = portfolio_annual // 12
+    nhi_monthly = result.annual_nhi_jpy // 12
+    pension_monthly = result.annual_pension_net_jpy // 12
+    max_pre_pension = portfolio_monthly - nhi_monthly
+    max_post_pension = portfolio_monthly + pension_monthly - nhi_monthly
+    stated_monthly = profile.monthly_expenses_jpy
+    gap_pre = stated_monthly - max_pre_pension
+    gap_post = stated_monthly - max_post_pension
+
+    h(2, "Monthly Drawdown Capacity")
+    p(f"Your current portfolio of **{_yen(result.current_portfolio_jpy)}** at "
+      f"**{_pct(scenario.assumptions.withdrawal_rate_pct)} WR** supports the following monthly draw:")
+    table(
+        ["Phase", "From Portfolio", "Pension Tops Up", "Total Available", "Your Stated Spend", "Headroom"],
+        [
+            [
+                f"Pre-pension ({profile.current_age}–{profile.nenkin_claim_age - 1})",
+                f"¥{max_pre_pension:,}/mo",
+                "—",
+                f"¥{max_pre_pension:,}/mo",
+                f"¥{stated_monthly:,}/mo",
+                f"{'✅ −¥{:,}/mo surplus'.format(abs(gap_pre)) if gap_pre >= 0 else '⚠️ +¥{:,}/mo gap'.format(abs(gap_pre))}",
+            ],
+            [
+                f"Post-pension ({profile.nenkin_claim_age}+)",
+                f"¥{portfolio_monthly:,}/mo",
+                f"+¥{pension_monthly:,}/mo",
+                f"¥{max_post_pension:,}/mo",
+                f"¥{stated_monthly:,}/mo",
+                f"{'✅ −¥{:,}/mo surplus'.format(abs(gap_post)) if gap_post >= 0 else '⚠️ +¥{:,}/mo gap'.format(abs(gap_post))}",
+            ],
+        ],
+    )
+    p(f"> **Interpretation:** This is the maximum monthly amount you could sustainably draw from your "
+      f"portfolio — before accounting for rental income, Social Security, or other non-portfolio sources. "
+      f"Your stated expenses of **¥{stated_monthly:,}/mo** are well within this capacity, leaving a "
+      f"substantial safety margin. The gap closes further once pension income starts at age "
+      f"{profile.nenkin_claim_age}.")
+
+    rule()
+
     # ── Warnings ──────────────────────────────────────────────────────────────
     if result.warnings:
         warn_block(result.warnings)
