@@ -134,10 +134,13 @@ def detail(scenario_id):
 
     try:
         result = _run_and_render_detail(profile, scenario, scenario.region)
-    except Exception:
+    except Exception as exc:
+        logger.exception(
+            "Engine error for scenario %s (%s): %s",
+            scenario.id, scenario.name, exc
+        )
         flash(
-            "The calculation engine encountered an error for this scenario. "
-            "Check your inputs and try again.",
+            f"Calculation error: {exc}",
             "error",
         )
         return redirect(url_for("scenarios.index"))
