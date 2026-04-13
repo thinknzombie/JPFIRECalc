@@ -985,7 +985,7 @@ def run_fire_scenario(
     # Lean: user-specified lean budget, or 70% of region template base
     lean_monthly = assumptions.lean_monthly_expenses_jpy
     if lean_monthly <= 0:
-        lean_monthly = int(expense_result["base_monthly_jpy"] * 0.70)
+        lean_monthly = int(get_region_template(region_key)["total_monthly"] * 0.70)
     lean_annual = max(0, (lean_monthly + expense_result["mortgage_monthly_jpy"]
                           - expense_result["rental_income_monthly_jpy"]) * 12)
     lean_fire_number, lean_withdrawal, lean_nhi = _variant_fire_number(lean_annual)
@@ -993,7 +993,7 @@ def run_fire_scenario(
     # Fat: user-specified fat budget, or 150% of region template base
     fat_monthly = assumptions.fat_monthly_expenses_jpy
     if fat_monthly <= 0:
-        fat_monthly = int(expense_result["base_monthly_jpy"] * 1.50)
+        fat_monthly = int(get_region_template(region_key)["total_monthly"] * 1.50)
     fat_annual = max(0, (fat_monthly + expense_result["mortgage_monthly_jpy"]
                          - expense_result["rental_income_monthly_jpy"]) * 12)
     fat_fire_number, fat_withdrawal, fat_nhi = _variant_fire_number(fat_annual)
@@ -1082,6 +1082,13 @@ def run_fire_scenario(
             f"iDeCo is locked until age 60. Your ¥{ideco_at_retirement:,} iDeCo balance "
             f"is not accessible at your target FIRE age of {profile.target_retirement_age}. "
             f"NISA + taxable must cover the {60 - profile.target_retirement_age}-year gap."
+        )
+    if profile.nenkin_claim_age < profile.target_retirement_age:
+        gap = profile.target_retirement_age - profile.nenkin_claim_age
+        warnings.append(
+            f"Nenkin claim age ({profile.nenkin_claim_age}) is before your target retirement "
+            f"age ({profile.target_retirement_age}) — a {gap}-year pension gap. "
+            f"You'll need portfolio withdrawals to cover expenses until nenkin starts."
         )
     if assumptions.withdrawal_rate_pct > 4.0:
         warnings.append(
