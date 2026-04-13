@@ -786,7 +786,12 @@ def run_fire_scenario(
     warnings: list[str] = []
     withdrawal_rate = assumptions.withdrawal_rate_pct / 100
     r_accum = assumptions.investment_return_pct / 100
+    r_retire = assumptions.retirement_return_pct / 100
     municipality_key = get_nhi_municipality_key(region_key)
+
+    # Years between FIRE and Japan pension start (0 if pension starts at or before retirement).
+    # Used to gap-adjust the FIRE number — see below.
+    pension_gap_years = max(0, profile.nenkin_claim_age - profile.target_retirement_age)
 
     # --- Current tax position -----------------------------------------------
     tax_result = calculate_income_tax(
@@ -858,6 +863,34 @@ def run_fire_scenario(
     # Include NHI in annual need (NHI is paid from portfolio in retirement)
     annual_need_with_nhi = fire_info["net_annual_need_jpy"] + nhi_solve["nhi_premium"]
     fire_number = int(annual_need_with_nhi / withdrawal_rate)
+
+    # --- Pension gap adjustment to FIRE number --------------------------------
+    # The standard formula (expenses - pension + NHI) / WR assumes pension
+    # income is available from day 1 of retirement. When nenkin_claim_age >
+    # target_retirement_age, the portfolio must fund full expenses during the
+    # gap years with no pension offset. This requires a substantially larger
+    # starting portfolio — e.g. FIREing at 50 with pension at 65 means 15 years
+    # of withdrawals at the full expense rate, not the reduced post-pension rate.
+    #
+    # Fix: two-phase PV calculation
+    #   Phase 1 (gap years, no pension): pre_pension_withdrawal × annuity_PV_factor
+    #   Phase 2 (steady state, with pension): steady_state_FIRE# × discount_factor
+    #
+    #   FIRE# = steady_FIRE# × (1+r)^(-n) + W_pre × (1 - (1+r)^(-n)) / r
+    #
+    # where r = retirement return rate, n = pension gap years,
+    # W_pre = full annual expenses + NHI assessed on that higher withdrawal.
+    if pension_gap_years > 0 and withdrawal_rate > 0:
+        _pre_nhi = solve_withdrawal_with_nhi(
+            target_net_expenses=annual_expenses,   # no pension offset during gap
+            num_members=assumptions.nhi_household_members,
+            municipality_key=municipality_key,
+            age=profile.target_retirement_age,
+        )
+        _pre_w = _pre_nhi["gross_withdrawal"]      # expenses + NHI_pre
+        _disc = (1 + withdrawal_rate) ** (-pension_gap_years)
+        fire_number = int(fire_number * _disc + _pre_w * (1 - _disc) / withdrawal_rate)
+
     progress_pct = (current_portfolio / fire_number * 100) if fire_number > 0 else 100.0
 
     # --- Annual savings (used in years-to-fire below) -----------------------
@@ -899,7 +932,18 @@ def run_fire_scenario(
         age=profile.target_retirement_age,
     )
     barista_annual_need_with_nhi = barista_net_need + barista_nhi_solve["nhi_premium"]
-    barista_fire_number = int(barista_annual_need_with_nhi / withdrawal_rate) if withdrawal_rate > 0 else 0
+    barista_steady = int(barista_annual_need_with_nhi / withdrawal_rate) if withdrawal_rate > 0 else 0
+    if pension_gap_years > 0 and withdrawal_rate > 0:
+        _barista_pre_nhi = solve_withdrawal_with_nhi(
+            target_net_expenses=max(0, annual_expenses - barista_income_annual),
+            num_members=assumptions.nhi_household_members,
+            municipality_key=municipality_key,
+            age=profile.target_retirement_age,
+        )
+        _disc = (1 + withdrawal_rate) ** (-pension_gap_years)
+        barista_fire_number = int(barista_steady * _disc + _barista_pre_nhi["gross_withdrawal"] * (1 - _disc) / withdrawal_rate)
+    else:
+        barista_fire_number = barista_steady
 
     # --- Lean / Fat FIRE numbers --------------------------------------------
     # Use the same NHI-inclusive methodology as the regular FIRE number:
@@ -916,7 +960,18 @@ def run_fire_scenario(
             age=profile.target_retirement_age,
         )
         v_annual_need = v_fire_info["net_annual_need_jpy"] + v_nhi_solve["nhi_premium"]
-        v_fire_number = int(v_annual_need / withdrawal_rate) if withdrawal_rate > 0 else 0
+        v_steady = int(v_annual_need / withdrawal_rate) if withdrawal_rate > 0 else 0
+        if pension_gap_years > 0 and withdrawal_rate > 0:
+            _v_pre_nhi = solve_withdrawal_with_nhi(
+                target_net_expenses=variant_annual_expenses,
+                num_members=assumptions.nhi_household_members,
+                municipality_key=municipality_key,
+                age=profile.target_retirement_age,
+            )
+            _disc = (1 + withdrawal_rate) ** (-pension_gap_years)
+            v_fire_number = int(v_steady * _disc + _v_pre_nhi["gross_withdrawal"] * (1 - _disc) / withdrawal_rate)
+        else:
+            v_fire_number = v_steady
         return v_fire_number, v_nhi_solve["gross_withdrawal"], v_nhi_solve["nhi_premium"]
 
     # Lean: user-specified lean budget, or 70% of region template base
