@@ -264,7 +264,7 @@
     "name": {{ item.scenario.name | tojson }},
     "trajectory": [
       {% for yr in item.result.trajectory %}
-      {"age": {{ yr.age }}, "phase": {{ yr.phase | tojson }}, "value": {{ yr.portfolio_value_jpy }}}{% if not loop.last %},{% endif %}
+      {"age": {{ yr.age }}, "phase": {{ yr.phase | tojson }}, "value": {{ yr.portfolio_value_jpy }}, "year1_residence_tax_jpy": {{ yr.year1_residence_tax_jpy }}}{% if not loop.last %},{% endif %}
       {% endfor %}
     ],
     "mc_p50": {{ item.result.monte_carlo.p50 | tojson if item.result.monte_carlo else '[]' }}

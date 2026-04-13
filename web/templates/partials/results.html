@@ -442,7 +442,8 @@
       "year": {{ yr.year }},
       "age": {{ yr.age }},
       "phase": {{ yr.phase | tojson }},
-      "portfolio_value_jpy": {{ yr.portfolio_value_jpy }}
+      "portfolio_value_jpy": {{ yr.portfolio_value_jpy }},
+      "year1_residence_tax_jpy": {{ yr.year1_residence_tax_jpy }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
   ]

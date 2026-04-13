@@ -336,9 +336,19 @@ def calculate_accessible_portfolio(
     rsu     = getattr(profile, 'rsu_unvested_value_jpy', 0)
     other   = getattr(profile, 'other_assets_jpy', 0)
 
+    # Taxable brokerage: if a cost basis is provided, count only the gain as
+    # accessible (the original cost basis is returned to the user; only the
+    # gain is available to fund retirement).  If cost_basis is None, assume
+    # the full market value is gain (i.e. user has no tax-cost basis tracking).
+    taxable_gain = max(
+        0,
+        profile.taxable_brokerage_jpy
+        - (profile.taxable_brokerage_cost_basis_jpy or 0),
+    )
+
     liquid = (
         profile.nisa_balance_jpy
-        + profile.taxable_brokerage_jpy
+        + taxable_gain
         + profile.cash_savings_jpy
         + foreign_jpy
         + (profile.ideco_balance_jpy if ideco_accessible else 0)
@@ -540,6 +550,15 @@ def project_net_worth(
       - Withdrawals made (solved iteratively with NHI)
       - Pension income offsets withdrawals from pension start age
       - Year-1 residence tax shock added in first retirement year
+
+    KNOWN LIMITATION — NHI in retirement:
+      NHI is solved once at the FIRE withdrawal level and held constant for all
+      retirement years.  In practice, NHI depends on the withdrawal amount (which
+      is the proxy for income).  As the portfolio depletes, the withdrawal falls,
+      but because the portfolio also shrinks, the withdrawal rate (and hence the
+      implied income) stays roughly similar.  The main inaccuracy appears in the
+      pension gap years: withdrawals are larger pre-pension, so actual NHI should
+      be higher too.  The effect is small in most scenarios (< ¥50k/yr).
 
     The iDeCo balance unlocks at age 60 (added to portfolio at that point).
 
@@ -836,11 +855,17 @@ def run_fire_scenario(
         )
 
     # --- Year-1 residence tax shock -----------------------------------------
+    # Any RSU/equity liquidated in the FIRE year increases taxable income and
+    # therefore the residence tax shock.  NOTE: this models only the residence
+    # tax impact.  Capital gains tax on the liquidation itself is a separate
+    # calculation — see crypto warning for the same limitation pattern.
+    liquidated_jpy = getattr(profile, "rsu_liquidated_at_fire_jpy", 0)
     shock = calculate_year1_retirement_tax_shock(
         last_working_gross=profile.annual_gross_income_jpy,
         employment_type=profile.employment_type,
         ideco_monthly_jpy=profile.ideco_monthly_contribution_jpy,
         social_insurance_premium=profile.social_insurance_annual_jpy,
+        liquidated_assets_jpy=liquidated_jpy,
     )
 
     # --- Accessible portfolio today -----------------------------------------
@@ -1095,6 +1120,20 @@ def run_fire_scenario(
             f"Withdrawal rate {assumptions.withdrawal_rate_pct}% is above 4%. "
             "Japan research suggests 3.0–3.5% for long-term safety."
         )
+    # iDeCo monthly cap: employees ≤ 55 = ¥23,000/mo; 56-59 = ¥53,000/mo;
+    # self-employed / full-time domestic worker = ¥68,000/mo.
+    ideco_cap_by_type = {
+        "company_employee": 23_000 if profile.current_age <= 55 else 53_000,
+        "self_employed": 68_000,
+        "domestic_worker": 68_000,
+    }
+    ideco_cap = ideco_cap_by_type.get(profile.employment_type, 23_000)
+    if profile.ideco_monthly_contribution_jpy > ideco_cap:
+        warnings.append(
+            f"iDeCo contribution (¥{profile.ideco_monthly_contribution_jpy:,}/mo) exceeds "
+            f"the legal cap of ¥{ideco_cap:,}/mo for a {profile.employment_type.replace('_', ' ')}. "
+            "Excess contributions will not receive tax relief."
+        )
     if years_to_fire == float("inf"):
         warnings.append(
             "With current savings rate and return assumptions, the FIRE number "
@@ -1282,6 +1321,7 @@ def run_fire_scenario(
         annual_nhi_jpy=nhi_solve["nhi_premium"],
         annual_withdrawal_needed_jpy=nhi_solve["gross_withdrawal"],
         year1_residence_tax_shock_jpy=shock["year1_residence_tax"],
+        year1_tax_shock_jpy=shock["year1_residence_tax"] + liquidated_jpy,
         nisa_at_retirement_jpy=nisa_at_retirement,
         ideco_at_retirement_jpy=ideco_at_retirement,
         taxable_at_retirement_jpy=taxable_at_retirement,

@@ -169,6 +169,7 @@ class YearProjection:
     pension_income_jpy: int = 0
     net_from_portfolio_jpy: int = 0
     year1_residence_tax_jpy: int = 0
+    year1_tax_shock_jpy: int = 0                  # total year-1 tax shock (residence tax + any RSU/equity liquidation income)
 
 
 @dataclass

@@ -97,6 +97,7 @@ class FinancialProfile:
     nisa_lifetime_used_jpy: int = 0               # acquisition cost used of the 18M cap
     ideco_balance_jpy: int = 0
     taxable_brokerage_jpy: int = 0
+    taxable_brokerage_cost_basis_jpy: int | None = None  # optional cost basis; if None, gains assumed = full balance
     cash_savings_jpy: int = 0
     foreign_assets_usd: float = 0.0               # USD-denominated (e.g. US ETFs, foreign bank)
 
@@ -161,6 +162,7 @@ class FinancialProfile:
     crypto_value_jpy: int = 0                    # cryptocurrency (BTC, ETH, etc.)
     rsu_unvested_value_jpy: int = 0              # current fair-market value of unvested RSUs
     rsu_vesting_annual_jpy: int = 0              # expected annual vest while still employed
+    rsu_liquidated_at_fire_jpy: int = 0          # equity/RSU shares liquidated in FIRE year (sold to fund retirement)
     other_assets_jpy: int = 0                    # other (business equity, art, collectibles…)
 
     # --- Helpers ------------------------------------------------------------

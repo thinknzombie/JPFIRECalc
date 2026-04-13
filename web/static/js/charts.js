@@ -233,6 +233,30 @@ const JPFIRECharts = (() => {
         tickvals: _yenTickVals(allValues),
         ticktext: _yenTickVals(allValues).map(formatYen),
       },
+      // Year-1 residence tax shock: draw a vertical dashed line at the first
+      // retirement year and label the lump-sum amount so it's visually distinct
+      // from the regular withdrawal slope.
+      shapes: (() => {
+        const firstRet = retire.find(d => d.year1_residence_tax_jpy > 0);
+        if (!firstRet) return [];
+        return [{
+          type: 'line',
+          x0: firstRet.age, x1: firstRet.age,
+          y0: 0, y1: firstRet.portfolio_value_jpy,
+          line: { color: C.danger, width: 1.5, dash: 'dot' },
+        }];
+      })(),
+      annotations: (() => {
+        const firstRet = retire.find(d => d.year1_residence_tax_jpy > 0);
+        if (!firstRet || firstRet.year1_residence_tax_jpy === 0) return [];
+        return [{
+          x: firstRet.age,
+          y: Math.max(...allValues) * 0.05,
+          text: `¥${(firstRet.year1_residence_tax_jpy / 1e6).toFixed(1)}M tax shock`,
+          showarrow: false,
+          font: { color: C.danger, size: 11 },
+        }];
+      })(),
     };
 
     Plotly.newPlot(chartEl, traces, layout, CONFIG);

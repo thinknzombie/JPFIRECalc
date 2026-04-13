@@ -250,6 +250,7 @@ def calculate_year1_retirement_tax_shock(
     spouse_income_jpy: int = 0,
     social_insurance_premium: int = 0,
     per_capita_levy: int = 5_000,
+    liquidated_assets_jpy: int = 0,
 ) -> dict:
     """
     Calculate the residence tax owed in year 1 of retirement.
@@ -258,12 +259,22 @@ def calculate_year1_retirement_tax_shock(
     billed/paid in year N (typically June–May). A retiree pays full residence
     tax on their last working year's income even though they have no salary.
 
+    Any equity, RSU, or other assets liquidated in the FIRE year are treated
+    as additional ordinary income (雑所得/分離課税) in that tax year, so this
+    function adds them to the gross income used for the income-tax calculation
+    that underlies the residence tax base.
+
+    Args:
+        liquidated_assets_jpy: Value of equity/RSU/other assets sold in the
+            FIRE year (above and beyond regular salary). These are added to
+            gross income for the shock calculation.
+
     Returns:
         dict with last_working_year_residence_tax, retirement_year_residence_tax,
         shock_amount (= last_working_year_residence_tax, since retirement year = 0)
     """
     last_year_result = calculate_income_tax(
-        gross_income=last_working_gross,
+        gross_income=last_working_gross + liquidated_assets_jpy,
         employment_type=employment_type,
         ideco_monthly_jpy=ideco_monthly_jpy,
         num_dependents=num_dependents,
@@ -277,6 +288,7 @@ def calculate_year1_retirement_tax_shock(
 
     return {
         "last_working_year_gross": last_working_gross,
+        "liquidated_assets_jpy": liquidated_assets_jpy,
         "last_working_year_taxable_income": last_year_result["taxable_income"],
         "year1_residence_tax": residence_tax["total"],
         "income_based_component": residence_tax["income_based"],
