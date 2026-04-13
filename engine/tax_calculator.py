@@ -28,16 +28,19 @@ _SURTAX_RATE = _TAX["surtax_rate"]
 # ---------------------------------------------------------------------------
 
 def calculate_employment_income_deduction(gross_income: int) -> int:
-    """Return the employment income deduction for a given gross salary."""
+    """Return the employment income deduction for a given gross salary.
+
+    Formula per NTA 2024: deduction = income × rate + base
+    https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1410.htm
+    """
     for bracket in _EI_DEDUCTION:
-        lo = bracket["min"]
         hi = bracket["max"]
         if hi is None or gross_income <= hi:
             if bracket["deduction"] is not None:
                 return bracket["deduction"]
-            # Rate-based bracket
-            deduction = int(gross_income * bracket["rate"])
-            return max(deduction, bracket.get("min_deduction", 0))
+            # Rate-based bracket: income × rate + base (base may be negative)
+            deduction = int(gross_income * bracket["rate"]) + bracket.get("base", 0)
+            return max(deduction, 0)
     # Fallback: max deduction
     return 1_950_000
 

@@ -32,24 +32,24 @@ class TestEmploymentIncomeDeduction:
         assert calculate_employment_income_deduction(1_625_000) == 550_000
 
     def test_rate_bracket_1800000(self):
-        # 1,625,001–1,800,000: 40% rate, min 650,000
-        # 1,700,000 * 0.40 = 680,000 ≥ 650,000
-        assert calculate_employment_income_deduction(1_700_000) == 680_000
+        # 1,625,001–1,800,000: income × 40% - 100,000
+        # 1,700,000 * 0.40 - 100,000 = 580,000
+        assert calculate_employment_income_deduction(1_700_000) == 580_000
 
     def test_rate_bracket_3600000(self):
-        # 1,800,001–3,600,000: 30% rate, min 540,000
-        # 3,000,000 * 0.30 = 900,000 ≥ 540,000
-        assert calculate_employment_income_deduction(3_000_000) == 900_000
+        # 1,800,001–3,600,000: income × 30% + 80,000
+        # 3,000,000 * 0.30 + 80,000 = 980,000
+        assert calculate_employment_income_deduction(3_000_000) == 980_000
 
     def test_rate_bracket_6600000(self):
-        # 3,600,001–6,600,000: 20% rate, min 540,000
-        # 6,000,000 * 0.20 = 1,200,000 ≥ 540,000
-        assert calculate_employment_income_deduction(6_000_000) == 1_200_000
+        # 3,600,001–6,600,000: income × 20% + 440,000
+        # 6,000,000 * 0.20 + 440,000 = 1,640,000
+        assert calculate_employment_income_deduction(6_000_000) == 1_640_000
 
     def test_rate_bracket_8500000(self):
-        # 6,600,001–8,500,000: 10% rate, min 660,000
-        # 8,000,000 * 0.10 = 800,000 ≥ 660,000
-        assert calculate_employment_income_deduction(8_000_000) == 800_000
+        # 6,600,001–8,500,000: income × 10% + 1,100,000
+        # 8,000,000 * 0.10 + 1,100,000 = 1,900,000
+        assert calculate_employment_income_deduction(8_000_000) == 1_900_000
 
     def test_above_8500000_fixed_cap(self):
         # Above 8,500,000: fixed 1,950,000 cap
@@ -57,8 +57,8 @@ class TestEmploymentIncomeDeduction:
         assert calculate_employment_income_deduction(20_000_000) == 1_950_000
 
     def test_employment_income_6m(self):
-        # 6,000,000 gross → 1,200,000 deduction → 4,800,000 employment income
-        assert calculate_employment_income(6_000_000) == 4_800_000
+        # 6,000,000 gross → 6,000,000 * 0.20 + 440,000 = 1,640,000 deduction → 4,360,000 employment income
+        assert calculate_employment_income(6_000_000) == 4_360_000
 
     def test_employment_income_never_negative(self):
         assert calculate_employment_income(0) == 0
@@ -131,17 +131,20 @@ class TestCalculateIncomeTax:
     def test_single_employee_6m(self):
         """
         Single company employee, 6M gross, no iDeCo, no dependents.
-        Expected: employment income 4,800,000, basic ded 480,000,
-                  taxable 4,320,000, tax 445,600.
+        EI deduction: 6,000,000 * 0.20 + 440,000 = 1,640,000
+        Employment income: 6,000,000 - 1,640,000 = 4,360,000
+        Taxable: 4,360,000 - 480,000 (basic) = 3,880,000
+        Tax on 3,880,000 (20% bracket): 3,880,000 * 0.20 - 427,500 = 348,500
+        Surtax: 348,500 * 0.021 = 7,318 → total 355,818 → rounded to 355,800
         """
         result = calculate_income_tax(
             gross_income=6_000_000,
             employment_type="company_employee",
         )
-        assert result["employment_income"] == 4_800_000
+        assert result["employment_income"] == 4_360_000
         assert result["basic_deduction"] == 480_000
-        assert result["taxable_income"] == 4_320_000
-        assert result["income_tax"] == 445_600
+        assert result["taxable_income"] == 3_880_000
+        assert result["income_tax"] == 355_800
 
     def test_ideco_reduces_taxable_income(self):
         """iDeCo contribution of 23,000/month = 276,000/year deduction."""

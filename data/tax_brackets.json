@@ -16,14 +16,15 @@
   "surtax_rate": 0.021,
 
   "employment_income_deduction": {
-    "_notes": "給与所得控除 — deduction from gross employment income before applying brackets",
+    "_notes": "給与所得控除 — deduction from gross employment income before applying brackets. Source: NTA 2024 https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1410.htm",
+    "_formula": "For rate-based brackets: deduction = income × rate + base",
     "brackets": [
-      { "min": 0,        "max": 1625000,  "deduction": 550000,                  "rate": null  },
-      { "min": 1625000,  "max": 1800000,  "deduction": null,                    "rate": 0.40, "min_deduction": 650000  },
-      { "min": 1800000,  "max": 3600000,  "deduction": null,                    "rate": 0.30, "min_deduction": 540000  },
-      { "min": 3600000,  "max": 6600000,  "deduction": null,                    "rate": 0.20, "min_deduction": 540000  },
-      { "min": 6600000,  "max": 8500000,  "deduction": null,                    "rate": 0.10, "min_deduction": 660000  },
-      { "min": 8500000,  "max": null,     "deduction": 1950000,                 "rate": null  }
+      { "min": 0,        "max": 1625000,  "deduction": 550000,  "rate": null, "base": 0        },
+      { "min": 1625000,  "max": 1800000,  "deduction": null,    "rate": 0.40, "base": -100000  },
+      { "min": 1800000,  "max": 3600000,  "deduction": null,    "rate": 0.30, "base": 80000    },
+      { "min": 3600000,  "max": 6600000,  "deduction": null,    "rate": 0.20, "base": 440000   },
+      { "min": 6600000,  "max": 8500000,  "deduction": null,    "rate": 0.10, "base": 1100000  },
+      { "min": 8500000,  "max": null,     "deduction": 1950000, "rate": null, "base": 0        }
     ]
   },
 
