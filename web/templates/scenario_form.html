@@ -26,7 +26,8 @@
       {{ section("Scenario Details", key="section.scenario_details") }}
       <div class="form-grid form-grid--2">
         {{ field("scenario_name", "Scenario Name",
-                 value=scenario.name, required=true) }}
+                 value=scenario.name, required=true,
+                 help="Name this scenario so you can compare it with others — e.g. 'Base Case' vs 'Pessimistic Returns'.") }}
         {{ field_select("region", "Cost-of-Living Region",
                         options=[
                           ("tokyo",         "Tokyo (¥257,000/mo)"),
@@ -37,7 +38,8 @@
                           ("secondary_city","Secondary City (¥155,000/mo)"),
                           ("rural",         "Rural (¥127,000/mo)"),
                         ],
-                        selected=scenario.region) }}
+                        selected=scenario.region,
+                        help="Sets your cost-of-living baseline. Changing the region updates the monthly expense estimates used in the FIRE number.") }}
       </div>
       <div class="form-grid form-grid--1">
         {{ field("description", "Description (optional)",
@@ -202,7 +204,8 @@
       <div class="form-grid form-grid--2">
         {{ field("usd_jpy_rate", "USD/JPY Rate",
                  value=scenario.assumptions.usd_jpy_rate,
-                 type="number", min=50, max=300, step=1) }}
+                 type="number", min=50, max=300, step=1,
+                 help="Current USD/JPY exchange rate. Used to convert USD-denominated foreign assets to JPY for the total portfolio calculation.") }}
       </div>
     </div>
 

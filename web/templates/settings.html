@@ -90,7 +90,8 @@
                           ("secondary_city","Secondary City (¥155,000/mo)"),
                           ("rural",         "Rural (¥127,000/mo)"),
                         ],
-                        selected=settings.default_region) }}
+                        selected=settings.default_region,
+                        help="Pre-fills the region for new scenarios. Can be changed per-scenario.") }}
         {{ field_select("default_nhi_municipality_key", "NHI Municipality",
                         options=[
                           ("national_average", "National Average"),
@@ -104,15 +105,18 @@
                           ("hiroshima",        "Hiroshima"),
                           ("rural_average",    "Rural Average"),
                         ],
-                        selected=settings.default_nhi_municipality_key) }}
+                        selected=settings.default_nhi_municipality_key,
+                        help="Default NHI municipality for new scenarios. NHI rates can vary up to 2× between the cheapest and most expensive municipalities.") }}
       </div>
       <div class="form-grid form-grid--2">
         {{ field("default_nhi_household_members", "NHI Household Members",
                  value=settings.default_nhi_household_members,
-                 type="number", min=1, max=6) }}
+                 type="number", min=1, max=6,
+                 help="Default number of people covered under NHI. Each additional member adds a per-head levy to the annual premium.") }}
         {{ field("default_usd_jpy_rate", "USD/JPY Rate",
                  value=settings.default_usd_jpy_rate,
-                 type="number", min=50, max=300, step=1) }}
+                 type="number", min=50, max=300, step=1,
+                 help="Default USD/JPY rate pre-filled for new scenarios. Update when the rate changes significantly.") }}
       </div>
     </div>
 
@@ -146,7 +150,8 @@
                           ("coast",   "Coast FIRE"),
                           ("barista", "Barista FIRE"),
                         ],
-                        selected=settings.default_fire_variant) }}
+                        selected=settings.default_fire_variant,
+                        help="Which FIRE strategy is highlighted by default in new scenario results. All variants are always calculated regardless of this setting.") }}
       </div>
     </div>
 
@@ -166,7 +171,8 @@
                           ("en", "English"),
                           ("ja", "日本語"),
                         ],
-                        selected=settings.default_language) }}
+                        selected=settings.default_language,
+                        help="Sets the default display language. Can be switched at any time using the language toggle in the navigation bar.") }}
       </div>
     </div>
 

@@ -81,7 +81,8 @@
         {{ field("scenario_name", "Scenario Name",
                  value=scenario.name if scenario else "My Scenario",
                  required=true,
-                 placeholder="e.g. Base Case — Tokyo") }}
+                 placeholder="e.g. Base Case — Tokyo",
+                 help="Name this scenario so you can compare it with others — e.g. 'Base Case' vs 'Pessimistic Returns'. Each scenario stores its own assumptions.") }}
         {{ field_select("region", "Cost-of-Living Region",
                         options=[
                           ("tokyo",         "Tokyo (¥257,000/mo)"),
@@ -92,7 +93,8 @@
                           ("secondary_city","Secondary City (¥155,000/mo)"),
                           ("rural",         "Rural (¥127,000/mo)"),
                         ],
-                        selected=scenario.region if scenario else "tokyo") }}
+                        selected=scenario.region if scenario else "tokyo",
+                        help="Sets your cost-of-living baseline. Regional monthly expense estimates are built in. You can override the total with your actual figure in Monthly Expenses below.") }}
       </div>
     </div>
 
@@ -101,9 +103,11 @@
       {{ section("Personal Details", key="section.personal") }}
       <div class="form-grid form-grid--3">
         {{ field("current_age", "Current Age", value=profile.current_age,
-                 type="number", min=18, max=80, required=true) }}
+                 type="number", min=18, max=80, required=true,
+                 help="Your age today. Used to calculate years to FIRE and project account balances at retirement.") }}
         {{ field("target_retirement_age", "Target Retirement Age", value=profile.target_retirement_age,
-                 type="number", min=30, max=80, required=true) }}
+                 type="number", min=30, max=80, required=true,
+                 help="The age you plan to stop working. Earlier = fewer accumulation years and a longer drawdown, which requires a larger FIRE number.") }}
         {{ field_select("employment_type", "Employment Type",
                         options=[
                           ("company_employee",    "Company Employee (会社員)"),
@@ -112,7 +116,8 @@
                           ("corporate_officer",   "Corporate Officer (役員)"),
                           ("no_job",              "Not Employed / FIRE'd"),
                         ],
-                        selected=profile.employment_type) }}
+                        selected=profile.employment_type,
+                        help="Determines which income deduction applies. Company employees receive a large employment income deduction (給与所得控除) that significantly lowers taxable income. Self-employed enter net business income directly.") }}
       </div>
     </div>
 
@@ -121,18 +126,22 @@
       {{ section("Income", "Gross figures — we calculate deductions automatically.", key="section.income") }}
       <div class="form-grid form-grid--2">
         {{ field_yen("annual_gross_income_jpy", "Annual Gross Income",
-                     value=profile.annual_gross_income_jpy) }}
+                     value=profile.annual_gross_income_jpy,
+                     help="Total salary before any deductions (税込み年収). Used to calculate income tax, residence tax, and social insurance. Check your annual withholding statement (源泉徴収票).") }}
         {{ field_yen("social_insurance_annual_jpy", "Social Insurance Paid (Annual)",
                      value=profile.social_insurance_annual_jpy,
                      help="健康保険 + 厚生年金 + 雇用保険. Typically ~14% of gross for company employees (e.g. ¥1.1M on ¥8M gross). Check your payslip or withholding statement (源泉徴収票). Enter 0 if unsure — tax estimate will be slightly high.") }}
       </div>
       <div class="form-grid form-grid--3">
-        {{ field_checkbox("has_spouse", "Has Spouse / Partner", checked=profile.has_spouse) }}
+        {{ field_checkbox("has_spouse", "Has Spouse / Partner", checked=profile.has_spouse,
+                          help="A qualifying spouse entitles you to the spouse deduction (配偶者控除) of ¥380,000, reducing your taxable income.") }}
         {{ field_yen("spouse_income_jpy", "Spouse Annual Income",
-                     value=profile.spouse_income_jpy) }}
+                     value=profile.spouse_income_jpy,
+                     help="If your spouse earns ≤ ¥1,030,000/year you qualify for the full ¥380,000 spouse deduction (配偶者控除). Enter 0 if they have no income.") }}
         {{ field("num_dependents", "Number of Dependents",
                  value=profile.num_dependents,
-                 type="number", min=0, max=10) }}
+                 type="number", min=0, max=10,
+                 help="Each qualifying dependent reduces your taxable income by ¥380,000 (扶養控除). Include children under 16 and adult dependents you financially support.") }}
       </div>
     </div>
 
@@ -141,18 +150,24 @@
       {{ section("Current Assets", "Enter current market values for each account.", key="section.assets") }}
       <div class="form-grid form-grid--2">
         {{ field_yen("nisa_balance_jpy", "新NISA Balance",
-                     value=profile.nisa_balance_jpy) }}
+                     value=profile.nisa_balance_jpy,
+                     help="Current market value of your 新NISA account. Growth and withdrawals are completely tax-free — no capital gains or dividend tax.") }}
         {{ field_yen("nisa_lifetime_used_jpy", "新NISA Lifetime Cap Used (Acquisition Cost)",
-                     value=profile.nisa_lifetime_used_jpy) }}
+                     value=profile.nisa_lifetime_used_jpy,
+                     help="Total acquisition cost (purchase price, not current market value) of assets ever bought in your NISA. The ¥18M lifetime cap is tracked on purchase cost, not market value.") }}
         {{ field_yen("ideco_balance_jpy", "iDeCo Balance",
-                     value=profile.ideco_balance_jpy) }}
+                     value=profile.ideco_balance_jpy,
+                     help="Current iDeCo account value. Contributions are tax-deductible, but the account is locked until age 60. Pre-60 FIRE requires other accounts to bridge the gap.") }}
         {{ field_yen("taxable_brokerage_jpy", "Taxable Brokerage",
-                     value=profile.taxable_brokerage_jpy) }}
+                     value=profile.taxable_brokerage_jpy,
+                     help="Investments in a regular brokerage (特定口座). Fully liquid, but realised gains are taxed at 20.315%. No lock-up period.") }}
         {{ field_yen("cash_savings_jpy", "Cash Savings",
-                     value=profile.cash_savings_jpy) }}
+                     value=profile.cash_savings_jpy,
+                     help="Bank deposits and liquid savings. No lock-up and immediately accessible, but earns near-zero interest in Japan.") }}
         {{ field("foreign_assets_usd", "Foreign Assets (USD)",
                  value=profile.foreign_assets_usd,
-                 type="number", min=0, step=1000) }}
+                 type="number", min=0, step=1000,
+                 help="Investments or savings held outside Japan (e.g. US brokerage, UK ISA). Converted to JPY using the USD/JPY rate you set below.") }}
       </div>
     </div>
 
@@ -161,13 +176,17 @@
       {{ section("Monthly Cash Flows", "What you spend and invest each month.", key="section.cashflow") }}
       <div class="form-grid form-grid--2">
         {{ field_yen("monthly_expenses_jpy", "Monthly Expenses",
-                     value=profile.monthly_expenses_jpy, step=10000) }}
+                     value=profile.monthly_expenses_jpy, step=10000,
+                     help="Your total monthly living expenses — or your planned retirement budget. The single most important FIRE number input. Include rent/mortgage, food, transport, utilities, insurance, travel, and hobbies.") }}
         {{ field_yen("monthly_nisa_contribution_jpy", "Monthly NISA Contribution",
-                     value=profile.monthly_nisa_contribution_jpy, step=10000) }}
+                     value=profile.monthly_nisa_contribution_jpy, step=10000,
+                     help="Monthly investment into the tsumitate (積立) frame of 新NISA. Cap: ¥100,000/month (¥1.2M/year). Tax-free growth and withdrawal.") }}
         {{ field_yen("nisa_growth_frame_annual_jpy", "NISA Growth Frame (Annual Lump Sum)",
-                     value=profile.nisa_growth_frame_annual_jpy, step=100000) }}
+                     value=profile.nisa_growth_frame_annual_jpy, step=100000,
+                     help="Annual lump-sum contribution to the growth frame (成長投資枠) of 新NISA. Cap: ¥2.4M/year. Leave at 0 if you only use the monthly tsumitate frame.") }}
         {{ field_yen("ideco_monthly_contribution_jpy", "iDeCo Monthly Contribution",
-                     value=profile.ideco_monthly_contribution_jpy, step=1000) }}
+                     value=profile.ideco_monthly_contribution_jpy, step=1000,
+                     help="Monthly iDeCo contribution — fully tax-deductible against employment income. Company employee cap: ¥23,000/month. Self-employed cap: ¥68,000/month. Funds are locked until age 60.") }}
       </div>
     </div>
 
@@ -177,21 +196,27 @@
       <div class="form-grid form-grid--2">
         {{ field("nenkin_contribution_months", "Nenkin Contribution Months",
                  value=profile.nenkin_contribution_months,
-                 type="number", min=0, max=480) }}
+                 type="number", min=0, max=480,
+                 help="Total months paid into the Japanese pension system (国民年金 + 厚生年金). Full kokumin nenkin requires 480 months (40 years). Check your statement at ねんきんネット (nenkin.ne.jp).") }}
         {{ field("nenkin_claim_age", "Pension Claim Age",
                  value=profile.nenkin_claim_age,
-                 type="number", min=60, max=75) }}
+                 type="number", min=60, max=75,
+                 help="When you start receiving nenkin. Standard is 65. Claiming early (60–64) reduces the benefit 0.4%/month. Deferring past 65 increases it 0.7%/month — maximum at age 75.") }}
         {{ field_yen("nenkin_net_kosei_annual_jpy", "Kosei Nenkin Estimate (Annual, Optional)",
-                     value=profile.nenkin_net_kosei_annual_jpy or 0) }}
+                     value=profile.nenkin_net_kosei_annual_jpy or 0,
+                     help="Your annual kosei nenkin (厚生年金) estimate in JPY, after tax. Leave at 0 to let the app estimate from your average remuneration below. Best source: your latest nenkin statement from ねんきんネット.") }}
         {{ field_yen("avg_standard_monthly_remuneration_jpy", "Avg Standard Monthly Remuneration",
-                     value=profile.avg_standard_monthly_remuneration_jpy, step=10000) }}
+                     value=profile.avg_standard_monthly_remuneration_jpy, step=10000,
+                     help="Your average standard monthly remuneration (標準報酬月額) used to estimate kosei nenkin if you have no direct statement. A rough guide: use your typical gross monthly salary.") }}
       </div>
       <div class="form-grid form-grid--2">
         {{ field_yen("foreign_pension_annual_jpy", "Foreign Pension Income (Annual JPY)",
-                     value=profile.foreign_pension_annual_jpy) }}
+                     value=profile.foreign_pension_annual_jpy,
+                     help="Annual income from a foreign state pension (e.g. US Social Security, UK State Pension, Australian Age Pension) in JPY at current exchange rate. Permanent residents in Japan pay income tax on this.") }}
         {{ field("foreign_pension_start_age", "Foreign Pension Start Age",
                  value=profile.foreign_pension_start_age,
-                 type="number", min=60, max=80) }}
+                 type="number", min=60, max=80,
+                 help="Age when your foreign pension begins. US Social Security: 62–70; UK State Pension: 66; Australian Age Pension: 67.") }}
       </div>
     </div>
 
@@ -201,7 +226,8 @@
       <div class="form-grid form-grid--2">
         {{ field("usd_jpy_rate", "USD/JPY Rate",
                  value=profile.usd_jpy_rate,
-                 type="number", min=50, max=300, step=1) }}
+                 type="number", min=50, max=300, step=1,
+                 help="Current USD/JPY exchange rate. Used to convert USD-denominated foreign assets to JPY for the total portfolio calculation.") }}
       </div>
     </div>
 
@@ -230,7 +256,8 @@
       <div id="foreignerFields" class="collapsible-body" {% if not foreigner_active %}hidden{% endif %}>
         <div class="form-grid form-grid--2">
           {{ field("nationality", "Nationality (ISO 3166-1 alpha-2)",
-                   value=profile.nationality, placeholder="JP, US, GB, AU…") }}
+                   value=profile.nationality, placeholder="JP, US, GB, AU…",
+                   help="Your nationality as a 2-letter ISO code (e.g. US, GB, AU). Used to identify relevant double taxation agreements and non-permanent resident tax rules.") }}
           {{ field_select("residency_status", "Japan Residency Status",
                           options=[
                             ("citizen",            "Japanese Citizen"),
@@ -241,13 +268,16 @@
                             ("student_visa",       "Student Visa"),
                             ("other",              "Other"),
                           ],
-                          selected=profile.residency_status) }}
+                          selected=profile.residency_status,
+                          help="Your immigration status in Japan. Non-permanent residents who have lived here fewer than 5 of the last 10 years may pay tax only on Japan-sourced income and foreign income remitted to Japan.") }}
           {{ field("treaty_country", "Home Country (for DTA notes)",
                    value=profile.treaty_country,
-                   placeholder="e.g. United States, United Kingdom, Australia") }}
+                   placeholder="e.g. United States, United Kingdom, Australia",
+                   help="Your home country for Double Taxation Agreement (DTA) analysis. Japan has treaties with most OECD countries that can affect how foreign pensions and investment income are taxed.") }}
           {{ field("years_in_japan", "Years Resident in Japan",
                    value=profile.years_in_japan,
-                   type="number", min=0, max=60) }}
+                   type="number", min=0, max=60,
+                   help="Total years resident in Japan. Non-permanent residents with fewer than 5 years here in the last 10 may qualify for favourable tax treatment — foreign investment gains may not be taxable in Japan.") }}
         </div>
       </div>
     </div>
@@ -267,21 +297,28 @@
       </div>
       <div class="form-grid form-grid--2" id="propertyFields" style="{{ 'display:none' if not profile.owns_property else '' }}">
         {{ field_yen("property_value_jpy", "Property Value",
-                     value=profile.property_value_jpy, step=1000000) }}
+                     value=profile.property_value_jpy, step=1000000,
+                     help="Current estimated market value of your Japan property. Used in net worth calculations. Not included in the investable portfolio unless you plan to sell.") }}
         {{ field_yen("mortgage_balance_jpy", "Mortgage Balance",
-                     value=profile.mortgage_balance_jpy, step=100000) }}
+                     value=profile.mortgage_balance_jpy, step=100000,
+                     help="Remaining mortgage principal. Subtracted from property value to show your net property equity.") }}
         {{ field_yen("monthly_mortgage_payment_jpy", "Monthly Mortgage Payment",
-                     value=profile.monthly_mortgage_payment_jpy, step=10000) }}
+                     value=profile.monthly_mortgage_payment_jpy, step=10000,
+                     help="Your monthly mortgage repayment. Added to expenses until the mortgage is paid off — tick the checkbox below if it will be paid off by retirement.") }}
         {{ field_yen("rental_income_monthly_jpy", "Monthly Rental Income",
-                     value=profile.rental_income_monthly_jpy, step=10000) }}
+                     value=profile.rental_income_monthly_jpy, step=10000,
+                     help="Monthly rental income from this property (if rented out). Reduces net monthly expenses and lowers your FIRE number.") }}
         {{ field_checkbox("property_paid_off_at_retirement", "Mortgage paid off by retirement",
-                          checked=profile.property_paid_off_at_retirement) }}
+                          checked=profile.property_paid_off_at_retirement,
+                          help="If ticked, the mortgage payment is removed from your retirement expenses — improving cash flow and lowering your FIRE number.") }}
         {{ field("property_planned_sale_age", "Planned Sale Age (blank = keep forever)",
                  value=profile.property_planned_sale_age or "",
-                 type="number", min=profile.current_age, max=100) }}
+                 type="number", min=profile.current_age, max=100,
+                 help="If you plan to sell, net proceeds (value minus remaining mortgage) are injected as a lump sum into your portfolio at that age in the Monte Carlo simulation.") }}
         {{ field("property_appreciation_pct", "Expected Annual Appreciation (%)",
                  value=profile.property_appreciation_pct,
-                 type="number", min="-5", max=20, step="0.5") }}
+                 type="number", min="-5", max=20, step="0.5",
+                 help="Expected annual property value growth. Japan residential property has historically seen near-zero or negative real appreciation in many regions. Tokyo central is an exception.") }}
       </div>
 
       {# Foreign / overseas property #}
@@ -293,17 +330,22 @@
       </div>
       <div class="form-grid form-grid--2" id="foreignPropertyFields" style="{{ 'display:none' if not foreign_re_active else '' }}">
         {{ field_yen("foreign_property_value_jpy", "Foreign Property Value (JPY equivalent)",
-                     value=profile.foreign_property_value_jpy, step=1000000) }}
+                     value=profile.foreign_property_value_jpy, step=1000000,
+                     help="Estimated current market value of your foreign property, converted to JPY at the current exchange rate.") }}
         {{ field_yen("foreign_property_mortgage_jpy", "Foreign Property Mortgage (JPY equivalent)",
-                     value=profile.foreign_property_mortgage_jpy, step=100000) }}
+                     value=profile.foreign_property_mortgage_jpy, step=100000,
+                     help="Remaining mortgage on the foreign property, converted to JPY.") }}
         {{ field_yen("foreign_property_rental_monthly_jpy", "Foreign Monthly Rental Income (JPY equivalent)",
-                     value=profile.foreign_property_rental_monthly_jpy, step=10000) }}
+                     value=profile.foreign_property_rental_monthly_jpy, step=10000,
+                     help="Monthly rental income from the foreign property, converted to JPY.") }}
         {{ field("foreign_property_planned_sale_age", "Planned Sale Age (blank = keep forever)",
                  value=profile.foreign_property_planned_sale_age or "",
-                 type="number", min=profile.current_age, max=100) }}
+                 type="number", min=profile.current_age, max=100,
+                 help="Age when you plan to sell the foreign property. Net proceeds are added as a lump sum to your portfolio in the Monte Carlo simulation.") }}
         {{ field("foreign_property_appreciation_pct", "Expected Annual Appreciation (%)",
                  value=profile.foreign_property_appreciation_pct,
-                 type="number", min="-5", max=20, step="0.5") }}
+                 type="number", min="-5", max=20, step="0.5",
+                 help="Expected annual appreciation for the foreign property.") }}
       </div>
     </details>
 
@@ -317,15 +359,20 @@
       </summary>
       <div class="form-grid form-grid--2">
         {{ field_yen("gold_silver_value_jpy", "Gold / Precious Metals",
-                     value=profile.gold_silver_value_jpy, step=100000) }}
+                     value=profile.gold_silver_value_jpy, step=100000,
+                     help="Current market value of gold, silver, or other precious metals.") }}
         {{ field_yen("crypto_value_jpy", "Cryptocurrency",
-                     value=profile.crypto_value_jpy, step=100000) }}
+                     value=profile.crypto_value_jpy, step=100000,
+                     help="Current value of cryptocurrency holdings. Note: crypto gains in Japan are taxed as miscellaneous income (雑所得) at progressive rates — not the flat 20.315% capital gains rate.") }}
         {{ field_yen("rsu_unvested_value_jpy", "Unvested RSUs (current FMV)",
-                     value=profile.rsu_unvested_value_jpy, step=100000) }}
+                     value=profile.rsu_unvested_value_jpy, step=100000,
+                     help="Fair market value of unvested Restricted Stock Units. RSUs are taxed as employment income when they vest, not when sold.") }}
         {{ field_yen("rsu_vesting_annual_jpy", "Annual RSU Vest (while employed)",
-                     value=profile.rsu_vesting_annual_jpy, step=100000) }}
+                     value=profile.rsu_vesting_annual_jpy, step=100000,
+                     help="Annual value of RSUs vesting while you are still employed. Modelled as additional savings each year in the accumulation phase.") }}
         {{ field_yen("other_assets_jpy", "Other Assets",
-                     value=profile.other_assets_jpy, step=100000) }}
+                     value=profile.other_assets_jpy, step=100000,
+                     help="Other assets not covered above — e.g. whole-life insurance (終身保険), business equity, unlisted stock, or collectibles.") }}
       </div>
     </details>
 
