@@ -232,7 +232,30 @@ def calculate_payoff_vs_invest_npv(
     lost_credit_jpy = 0
 
     for yr in range(horizon_years):
-        # Monthly payments this year
+        # Lump-sum payoff in Path A at payoff_year
+        if yr == payoff_year and bal_a > 0:
+            fee_paid = prepayment_fee if lump_sum_jpy > 0 else 0
+            principal_budget = max(0, lump_sum_jpy - fee_paid)
+            principal_paid = min(principal_budget, int(bal_a))
+            payoff_amount = principal_paid + (fee_paid if principal_paid > 0 else 0)
+            original_balance = bal_a
+            portfolio_a = max(0.0, portfolio_a - payoff_amount)
+            bal_a = max(0.0, bal_a - principal_paid)
+            # Forgo tax credits only on the principal actually prepaid.
+            if credit_years_a > 0 and principal_paid > 0:
+                cleared_ratio = principal_paid / max(original_balance, 1.0)
+                for ry in range(credit_years_a):
+                    proj_bal = original_balance * cleared_ratio * (0.95 ** ry)  # rough amortisation proxy
+                    lost_credit_jpy += _annual_loan_tax_credit_jpy(
+                        int(proj_bal),
+                        profile.mortgage_tax_credit_rate_pct / 100.0,
+                        profile.mortgage_tax_credit_principal_cap_jpy,
+                    )
+                if bal_a <= 0:
+                    credit_years_a = 0  # credit forfeited if loan cleared
+
+        # Monthly payments this year. Compute after any payoff so Path A does
+        # not also make a regular payment on principal already prepaid.
         pmt_a = _monthly_payment(int(bal_a), mortgage_rate_pct, years_remaining_a) if bal_a > 0 and years_remaining_a > 0 else 0
         pmt_b = _monthly_payment(int(bal_b), mortgage_rate_pct, years_remaining_b) if bal_b > 0 and years_remaining_b > 0 else 0
 
@@ -240,31 +263,9 @@ def calculate_payoff_vs_invest_npv(
         credit_a = _annual_loan_tax_credit_jpy(int(bal_a), profile.mortgage_tax_credit_rate_pct / 100.0, profile.mortgage_tax_credit_principal_cap_jpy) if credit_years_a > 0 and bal_a > 0 else 0
         credit_b = _annual_loan_tax_credit_jpy(int(bal_b), profile.mortgage_tax_credit_rate_pct / 100.0, profile.mortgage_tax_credit_principal_cap_jpy) if credit_years_b > 0 and bal_b > 0 else 0
 
-        # Lump-sum payoff in Path A at payoff_year
-        if yr == payoff_year and bal_a > 0:
-            payoff_amount = min(lump_sum_jpy, int(bal_a) + prepayment_fee)
-            principal_paid = min(lump_sum_jpy - prepayment_fee, int(bal_a))
-            portfolio_a = max(0.0, portfolio_a - payoff_amount)
-            bal_a = max(0.0, bal_a - principal_paid)
-            years_remaining_a = max(0, years_remaining_a)
-            # Forgo tax credits on the cleared portion
-            if credit_years_a > 0:
-                for ry in range(credit_years_a):
-                    proj_bal = bal_a * (0.95 ** ry)  # rough amortisation proxy
-                    lost_credit_jpy += _annual_loan_tax_credit_jpy(
-                        int(proj_bal),
-                        profile.mortgage_tax_credit_rate_pct / 100.0,
-                        profile.mortgage_tax_credit_principal_cap_jpy,
-                    )
-                credit_years_a = 0  # credit forfeited if loan cleared
-
         # Grow portfolios
         portfolio_a = portfolio_a * (1 + after_tax) - pmt_a * 12 + credit_a
         portfolio_b = portfolio_b * (1 + after_tax) - pmt_b * 12 + credit_b
-
-        # Invest the lump sum in Path B at payoff_year (no cost removed from portfolio)
-        if yr == payoff_year:
-            portfolio_b = portfolio_b + lump_sum_jpy  # lump sum goes into investments in B
 
         # Amortise mortgage balances
         if bal_a > 0 and years_remaining_a > 0:
@@ -454,9 +455,11 @@ def generate_rate_paths(
     r_t = np.full(n_simulations, float(initial_rate_pct))
 
     for t in range(n_years):
+        paths[:, t] = r_t
+        if t == n_years - 1:
+            break
         shock = rng.standard_normal(n_simulations)
         r_t = r_t + mean_reversion_speed * (long_term_mean_pct - r_t) * dt + volatility_pct * math.sqrt(dt) * shock
         r_t = np.clip(r_t, floor_pct, cap_pct)
-        paths[:, t] = r_t
 
     return paths

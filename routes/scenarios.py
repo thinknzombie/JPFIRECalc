@@ -54,6 +54,16 @@ def _validate_assumptions_form(form) -> list[str]:
         except (ValueError, TypeError):
             pass  # will fall back to default in _assumptions_from_form
 
+    mortgage_mean = fv("mortgage_rate_long_term_mean_pct")
+    if mortgage_mean is not None and not (0 <= mortgage_mean <= 20):
+        errors.append("Mortgage long-term mean rate must be between 0% and 20%.")
+    mortgage_kappa = fv("mortgage_rate_mean_reversion_speed")
+    if mortgage_kappa is not None and not (0 <= mortgage_kappa <= 2):
+        errors.append("Mortgage mean reversion speed must be between 0 and 2.")
+    mortgage_vol = fv("mortgage_rate_volatility_pct")
+    if mortgage_vol is not None and not (0 <= mortgage_vol <= 10):
+        errors.append("Mortgage rate volatility must be between 0 and 10 percentage points.")
+
     return errors
 
 
@@ -96,6 +106,10 @@ def _assumptions_from_form(form) -> AssumptionSet:
         coast_target_retirement_age=i("coast_target_retirement_age", 65),
         retirement_expense_growth_pct=f("retirement_expense_growth_pct", 1.5),
         foreign_inflation_pct=f("foreign_inflation_pct", 2.5),
+        stochastic_mortgage_rate=b("stochastic_mortgage_rate", default=False),
+        mortgage_rate_long_term_mean_pct=f("mortgage_rate_long_term_mean_pct", 2.0),
+        mortgage_rate_mean_reversion_speed=f("mortgage_rate_mean_reversion_speed", 0.15),
+        mortgage_rate_volatility_pct=f("mortgage_rate_volatility_pct", 0.3),
     )
 
 

@@ -539,8 +539,8 @@ def project_net_worth(
     profile: FinancialProfile,
     assumptions: AssumptionSet,
     region_key: str,
-    usd_jpy_rate: float = 150.0,
     projection_years: int = 50,
+    usd_jpy_rate: float = 150.0,
 ) -> list[YearProjection]:
     """
     Generate a year-by-year net worth projection through accumulation and retirement.
@@ -1179,7 +1179,13 @@ def run_fire_scenario(
         )
 
     # --- Net worth trajectory -----------------------------------------------
-    trajectory = project_net_worth(profile, assumptions, region_key, usd_jpy_rate, projection_years=50)
+    trajectory = project_net_worth(
+        profile,
+        assumptions,
+        region_key,
+        projection_years=50,
+        usd_jpy_rate=usd_jpy_rate,
+    )
 
     # --- Property sale lump sums (pre-retirement: boost portfolio; post: MC inject) ---
     property_lump_sums: list[tuple[int, int]] = []      # (year_into_retirement, net_proceeds)
@@ -1285,6 +1291,7 @@ def run_fire_scenario(
         getattr(assumptions, "stochastic_mortgage_rate", False)
         and profile.mortgage_balance_jpy > 0
         and getattr(profile, "mortgage_remaining_years", 0) > 0
+        and getattr(profile, "mortgage_type", "variable") == "variable"
     ):
         from engine.mortgage_analysis import generate_rate_paths
         # Amortise balance forward to retirement (use local function — no circular import)

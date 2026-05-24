@@ -216,6 +216,35 @@ def test_payoff_vs_invest_returns_expected_keys():
     assert expected_keys.issubset(result.keys())
 
 
+def test_payoff_vs_invest_zero_rate_zero_return_neutral():
+    """With no interest, no returns, and no tax credit, payoff vs invest should conserve net worth."""
+    p = _make_profile(
+        mortgage_balance_jpy=10_000_000,
+        mortgage_interest_rate_pct=0.0,
+        mortgage_remaining_years=10,
+        cash_savings_jpy=10_000_000,
+        taxable_brokerage_jpy=0,
+        property_value_jpy=10_000_000,
+    )
+    a = _make_assumptions(investment_return_pct=0.0)
+    result = calculate_payoff_vs_invest_npv(p, a, lump_sum_jpy=10_000_000, horizon_years=10)
+    assert abs(result["advantage_jpy"]) < 10_000
+    assert result["recommendation"] == "neutral"
+
+
+def test_payoff_vs_invest_fee_larger_than_lump_does_not_increase_balance():
+    p = _make_profile(
+        mortgage_balance_jpy=10_000_000,
+        mortgage_interest_rate_pct=1.0,
+        mortgage_remaining_years=10,
+        cash_savings_jpy=1_000_000,
+        mortgage_prepayment_fee_jpy=2_000_000,
+    )
+    a = _make_assumptions(investment_return_pct=0.0)
+    result = calculate_payoff_vs_invest_npv(p, a, lump_sum_jpy=1_000_000, horizon_years=1)
+    assert result["trajectory_a"][0]["mortgage_balance_jpy"] <= p.mortgage_balance_jpy
+
+
 # ---------------------------------------------------------------------------
 # Rate scenarios tests
 # ---------------------------------------------------------------------------
@@ -260,6 +289,7 @@ def test_generate_rate_paths_shape():
         seed=42,
     )
     assert paths.shape == (100, 30)
+    assert np.all(paths[:, 0] == 0.7)
 
 
 def test_generate_rate_paths_floor_cap():

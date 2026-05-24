@@ -198,6 +198,30 @@
       </div>
     </div>
 
+    {# Mortgage Rate Model #}
+    <div class="form-card">
+      {{ section("Mortgage Rate Model") }}
+      <div class="form-subsection-divider"></div>
+      <p class="form-section-subtitle">Mortgage Rate Stochastic Model</p>
+      <div class="form-grid form-grid--3">
+        {{ field_checkbox("stochastic_mortgage_rate", "Model Variable Mortgage Rates",
+                          checked=scenario.assumptions.stochastic_mortgage_rate,
+                          help="If enabled, variable-rate Japan mortgage payments are stress-tested with a mean-reverting rate path in Monte Carlo. Fixed mortgages are not varied.") }}
+        {{ field("mortgage_rate_long_term_mean_pct", "Long-Term Mortgage Rate Mean (%)",
+                 value=scenario.assumptions.mortgage_rate_long_term_mean_pct,
+                 type="number", min=0, max=20, step=0.1,
+                 help="Mean reversion target for stochastic mortgage rates.") }}
+        {{ field("mortgage_rate_mean_reversion_speed", "Mean Reversion Speed",
+                 value=scenario.assumptions.mortgage_rate_mean_reversion_speed,
+                 type="number", min=0, max=2, step=0.05,
+                 help="Higher values pull rates back to the long-term mean faster.") }}
+        {{ field("mortgage_rate_volatility_pct", "Mortgage Rate Volatility",
+                 value=scenario.assumptions.mortgage_rate_volatility_pct,
+                 type="number", min=0, max=10, step=0.1,
+                 help="Annual standard deviation in absolute percentage points.") }}
+      </div>
+    </div>
+
     {# ── FX ────────────────────────────────────────────────────────────────── #}
     <div class="form-card">
       {{ section("Foreign Exchange", key="section.fx") }}
