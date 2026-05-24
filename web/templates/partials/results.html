@@ -406,6 +406,128 @@
 </div>
 {% endif %}
 
+{# ── Mortgage Rate Analysis ───────────────────────────────────────────────── #}
+{% if result.mortgage_breakeven or result.mortgage_rate_scenarios %}
+<div class="results-card">
+  <h3 class="results-card__title">
+    <span>Mortgage Rate Analysis</span>
+    <span class="badge badge--secondary">住宅ローン分析</span>
+  </h3>
+
+  {% if result.mortgage_breakeven %}
+  {% set be = result.mortgage_breakeven %}
+  <div class="results-subsection">
+    <h4 class="results-subsection__title">Break-Even Analysis</h4>
+    <div class="key-value-grid">
+      <div class="kv-row">
+        <span class="kv-label">Current mortgage rate</span>
+        <span class="kv-value">{{ "%.2f"|format(be.current_mortgage_rate_pct) }}%</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Effective cost (after 住宅ローン控除)</span>
+        <span class="kv-value">{{ "%.2f"|format(be.effective_mortgage_cost_pct) }}%</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">After-tax investment return</span>
+        <span class="kv-value">{{ "%.2f"|format(be.after_tax_investment_return_pct) }}%</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Break-even rate</span>
+        <span class="kv-value kv-value--highlight">{{ "%.2f"|format(be.break_even_rate_pct) }}%</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Recommendation</span>
+        <span class="kv-value {% if be.investing_wins %}text-success{% else %}text-warning{% endif %}">
+          {% if be.investing_wins %}Investing wins{% else %}Paying off wins{% endif %}
+        </span>
+      </div>
+      {% if be.annual_tax_credit_jpy > 0 %}
+      <div class="kv-row">
+        <span class="kv-label">Annual tax credit (住宅ローン控除)</span>
+        <span class="kv-value">¥{{ "{:,}".format(be.annual_tax_credit_jpy) }}</span>
+      </div>
+      {% endif %}
+    </div>
+    <p class="results-note">{{ be.explanation }}</p>
+  </div>
+  {% endif %}
+
+  {% if result.mortgage_payoff_vs_invest %}
+  {% set pv = result.mortgage_payoff_vs_invest %}
+  <div class="results-subsection">
+    <h4 class="results-subsection__title">Payoff vs. Invest — 30-Year Projection</h4>
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Path</th>
+            <th>Net Worth at Year 30</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>A — Pay off mortgage</td>
+            <td>¥{{ "{:,}".format(pv.path_a_terminal_jpy) }}</td>
+            <td>Lost tax credit: ¥{{ "{:,}".format(pv.lost_tax_credit_jpy) }}</td>
+          </tr>
+          <tr>
+            <td>B — Invest lump sum</td>
+            <td>¥{{ "{:,}".format(pv.path_b_terminal_jpy) }}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="results-note">
+      {% if pv.recommendation == 'invest' %}
+        <strong>Recommendation: Invest</strong> — advantage ¥{{ "{:,}".format(pv.advantage_jpy | abs) }}
+        ({{ "%.1f"|format(pv.advantage_pct | abs) }}%) in favour of investing over 30 years.
+      {% elif pv.recommendation == 'payoff' %}
+        <strong>Recommendation: Pay off</strong> — advantage ¥{{ "{:,}".format(pv.advantage_jpy | abs) }}
+        ({{ "%.1f"|format(pv.advantage_pct | abs) }}%) in favour of paying off the mortgage over 30 years.
+      {% else %}
+        <strong>Neutral</strong> — both paths are within ¥500,000 of each other at 30 years.
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+
+  {% if result.mortgage_rate_scenarios %}
+  <div class="results-subsection">
+    <h4 class="results-subsection__title">Rate Sensitivity — Key FIRE Metrics at Different Rates</h4>
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Rate</th>
+            <th>Monthly Payment</th>
+            <th>FIRE Number</th>
+            <th>Years to FIRE</th>
+            <th>MC Survival</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in result.mortgage_rate_scenarios %}
+          <tr>
+            <td>{{ "%.1f"|format(r.mortgage_rate_pct) }}%</td>
+            <td>¥{{ "{:,}".format(r.monthly_payment_jpy) }}</td>
+            <td>¥{{ "{:,}".format(r.fire_number_jpy) }}</td>
+            <td>{{ "%.1f"|format(r.years_to_fire) }} yrs</td>
+            <td class="{% if r.mc_survival_pct >= 90 %}text-success{% elif r.mc_survival_pct >= 75 %}text-warning{% else %}text-danger{% endif %}">
+              {{ "%.1f"|format(r.mc_survival_pct) }}%
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="results-note">Monthly payments recomputed using the standard annuity formula at each rate, applied to your current mortgage balance and remaining term. MC survival uses 1,000 simulations for speed.</p>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 {# ── Net Worth Trajectory ──────────────────────────────────────────────────── #}
 {% if result.trajectory %}
 <div class="results-card">

@@ -99,6 +99,12 @@ class AssumptionSet:
     # home-country CPI, not Japanese CPI.
     foreign_inflation_pct: float = 2.5           # US CPI ~2.5%; UK ~2.0%
 
+    # Stochastic mortgage rate modeling (Phase 4) — off by default
+    stochastic_mortgage_rate: bool = False           # enable Vasicek rate path in MC
+    mortgage_rate_long_term_mean_pct: float = 2.0    # theta — mean reversion target
+    mortgage_rate_mean_reversion_speed: float = 0.15 # kappa — annual speed
+    mortgage_rate_volatility_pct: float = 0.3        # sigma — annual std dev in absolute pct points
+
     def to_dict(self) -> dict:
         return asdict(self)
 
@@ -286,6 +292,11 @@ class ScenarioResult:
 
     # --- Warnings -----------------------------------------------------------
     warnings: list[str] = field(default_factory=list)
+
+    # --- Mortgage rate analysis (Phase 5) -----------------------------------
+    mortgage_breakeven: dict | None = None           # output of calculate_breakeven_mortgage_rate
+    mortgage_payoff_vs_invest: dict | None = None    # output of calculate_payoff_vs_invest_npv
+    mortgage_rate_scenarios: list[dict] = field(default_factory=list)  # rate sensitivity table
 
     def to_dict(self) -> dict:
         return asdict(self)

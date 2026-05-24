@@ -305,6 +305,68 @@
         {{ field_yen("monthly_mortgage_payment_jpy", "Monthly Mortgage Payment",
                      value=profile.monthly_mortgage_payment_jpy, step=10000,
                      help="Your monthly mortgage repayment. Added to expenses until the mortgage is paid off — tick the checkbox below if it will be paid off by retirement.") }}
+      </div>
+
+      {# Mortgage Rate Details sub-section #}
+      <div class="form-subsection-divider"></div>
+      <p class="form-section-subtitle">Mortgage Rate Details</p>
+      <div class="form-grid form-grid--2">
+        {{ field("mortgage_interest_rate_pct", "Interest Rate (%)",
+                 value=profile.mortgage_interest_rate_pct,
+                 type="number", min="0", max="20", step="0.05",
+                 help="Current annual mortgage interest rate (e.g. 0.7 for 0.7%). For variable rate loans, use the rate currently being applied. Used to compute the break-even vs. investing analysis.") }}
+        <div class="form-field">
+          <label>Mortgage Type</label>
+          <select name="mortgage_type" class="form-control">
+            <option value="variable" {{ 'selected' if profile.mortgage_type == 'variable' else '' }}>Variable rate (変動金利)</option>
+            <option value="fixed" {{ 'selected' if profile.mortgage_type == 'fixed' else '' }}>Fixed rate (固定金利)</option>
+          </select>
+          <p class="form-help-text">Variable rate loans are sensitive to BoJ rate changes; fixed are not.</p>
+        </div>
+        {{ field("mortgage_remaining_years", "Remaining Term (years)",
+                 value=profile.mortgage_remaining_years,
+                 type="number", min="0", max="50", step="1",
+                 help="Years remaining on the loan. Used to recompute your monthly payment at different rate scenarios.") }}
+        {{ field("mortgage_tax_credit_remaining_years", "Housing Loan Tax Credit Years Left (住宅ローン控除)",
+                 value=profile.mortgage_tax_credit_remaining_years,
+                 type="number", min="0", max="13", step="1",
+                 help="Number of years remaining for the 住宅ローン控除 deduction (0 if expired or not applicable). The credit effectively reduces your net mortgage cost, which affects the break-even analysis.") }}
+        {{ field_yen("mortgage_tax_credit_principal_cap_jpy", "Tax Credit Principal Cap",
+                     value=profile.mortgage_tax_credit_principal_cap_jpy, step=1000000,
+                     help="Maximum loan balance eligible for the credit (¥30M standard; up to ¥50M for 認定長期優良住宅). Leave at ¥30M if unsure.") }}
+        {{ field("mortgage_tax_credit_rate_pct", "Tax Credit Rate (%)",
+                 value=profile.mortgage_tax_credit_rate_pct,
+                 type="number", min="0", max="1", step="0.05",
+                 help="Annual credit rate applied to the eligible balance (0.7% from 2024 under the new rules).") }}
+        {{ field_yen("mortgage_prepayment_fee_jpy", "Prepayment Fee",
+                     value=profile.mortgage_prepayment_fee_jpy, step=10000,
+                     help="One-time fee charged if you pay off the loan early in a lump sum. 0 if your loan has no prepayment penalty.") }}
+      </div>
+
+      {# Foreign mortgage rate sub-section — only if foreign property exists #}
+      <div id="foreignMortgageRateFields" style="{{ 'display:none' if not profile.owns_foreign_property and not profile.foreign_property_mortgage_jpy else '' }}">
+        <div class="form-subsection-divider"></div>
+        <p class="form-section-subtitle">Foreign Mortgage Rate Details</p>
+        <div class="form-grid form-grid--2">
+          {{ field("foreign_mortgage_interest_rate_pct", "Foreign Mortgage Interest Rate (%)",
+                   value=profile.foreign_mortgage_interest_rate_pct,
+                   type="number", min="0", max="20", step="0.05",
+                   help="Current annual interest rate on your overseas mortgage (e.g. 4.5 for 4.5%).") }}
+          <div class="form-field">
+            <label>Foreign Mortgage Type</label>
+            <select name="foreign_mortgage_type" class="form-control">
+              <option value="fixed" {{ 'selected' if profile.foreign_mortgage_type == 'fixed' else '' }}>Fixed rate</option>
+              <option value="variable" {{ 'selected' if profile.foreign_mortgage_type == 'variable' else '' }}>Variable rate</option>
+            </select>
+          </div>
+          {{ field("foreign_mortgage_remaining_years", "Foreign Mortgage Remaining Term (years)",
+                   value=profile.foreign_mortgage_remaining_years,
+                   type="number", min="0", max="50", step="1",
+                   help="Years left on the overseas loan.") }}
+        </div>
+      </div>
+
+      <div class="form-grid form-grid--2">
         {{ field_yen("rental_income_monthly_jpy", "Monthly Rental Income",
                      value=profile.rental_income_monthly_jpy, step=10000,
                      help="Monthly rental income from this property (if rented out). Reduces net monthly expenses and lowers your FIRE number.") }}

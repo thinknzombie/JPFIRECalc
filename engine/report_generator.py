@@ -463,6 +463,77 @@ def generate_markdown_report(
             )
         rule()
 
+    # ── Mortgage Rate Analysis ───────────────────────────────────────────────
+    if result.mortgage_breakeven or result.mortgage_rate_scenarios:
+        h(2, "Mortgage Rate Analysis")
+
+        if result.mortgage_breakeven:
+            be = result.mortgage_breakeven
+            h(3, "Break-Even Analysis")
+            kv("Current mortgage rate", f"{_pct(be['current_mortgage_rate_pct'], 2)}"
+               f" ({'variable' if getattr(profile, 'mortgage_type', 'variable') == 'variable' else 'fixed'})")
+            kv("Effective mortgage cost (after tax credit)", _pct(be['effective_mortgage_cost_pct'], 2))
+            kv("After-tax investment return", _pct(be['after_tax_investment_return_pct'], 2))
+            kv("Break-even rate", _pct(be['break_even_rate_pct'], 2))
+            kv("Recommendation", "Investing wins" if be['investing_wins'] else "Paying off the mortgage wins")
+            credit_yrs = getattr(profile, "mortgage_tax_credit_remaining_years", 0)
+            kv("Housing loan tax credit (住宅ローン控除)",
+               f"{credit_yrs} years remaining" if credit_yrs > 0 else "Expired / not applicable")
+            if be.get("annual_tax_credit_jpy", 0) > 0:
+                kv("Annual tax credit value", _yen(be["annual_tax_credit_jpy"]))
+            lines.append("")
+            p(f"> {be['explanation']}")
+
+        if result.mortgage_payoff_vs_invest:
+            pv = result.mortgage_payoff_vs_invest
+            lump = max(abs(pv.get("path_a_terminal_jpy", 0) - pv.get("path_b_terminal_jpy", 0)),
+                       getattr(profile, "cash_savings_jpy", 0) or 10_000_000)
+            # Re-derive lump sum from trajectory delta at year 1
+            lump_used = 0
+            if pv.get("trajectory_a") and pv.get("trajectory_b"):
+                t0a = pv["trajectory_a"][0]["portfolio_jpy"]
+                t0b = pv["trajectory_b"][0]["portfolio_jpy"]
+                lump_used = max(0, t0b - t0a)
+            h(3, f"Payoff vs. Invest Scenario ({_yen(lump_used or profile.mortgage_balance_jpy)} lump sum)")
+            horizon_age = profile.current_age + 30
+            table(
+                ["Path", "Net worth at age " + str(horizon_age), "Notes"],
+                [
+                    ["A — Pay off mortgage", _yen(pv["path_a_terminal_jpy"]),
+                     f"Lost tax credit: {_yen(pv.get('lost_tax_credit_jpy', 0))}"],
+                    ["B — Invest the lump sum", _yen(pv["path_b_terminal_jpy"]), ""],
+                ],
+            )
+            adv = pv["advantage_jpy"]
+            rec = pv["recommendation"]
+            if rec == "invest":
+                p(f"> **Recommendation: Invest** — advantage {_yen(abs(adv))} ({pv['advantage_pct']:.1f}%) "
+                  f"in favour of investing at 30-year horizon.")
+            elif rec == "payoff":
+                p(f"> **Recommendation: Pay off** — advantage {_yen(abs(adv))} ({abs(pv['advantage_pct']):.1f}%) "
+                  f"in favour of paying off the mortgage at 30-year horizon.")
+            else:
+                p(f"> **Recommendation: Neutral** — the two paths are within ¥500,000 of each other at 30 years.")
+
+        if result.mortgage_rate_scenarios:
+            h(3, "Rate Sensitivity Table")
+            p("Impact on monthly payment, FIRE number, and Monte Carlo survival "
+              "at different mortgage interest rates.")
+            table(
+                ["Mortgage Rate", "Monthly Payment", "FIRE Number", "Years to FIRE", "MC Survival"],
+                [
+                    [
+                        _pct(r["mortgage_rate_pct"], 1),
+                        _yen(r["monthly_payment_jpy"]),
+                        _yen(r["fire_number_jpy"]),
+                        _yrs(r["years_to_fire"]),
+                        _pct(r["mc_survival_pct"], 1),
+                    ]
+                    for r in result.mortgage_rate_scenarios
+                ],
+            )
+        rule()
+
     # ── Net worth trajectory ───────────────────────────────────────────────────
     if result.trajectory:
         h(2, "Net Worth Trajectory (Key Milestones)")

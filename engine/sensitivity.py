@@ -257,6 +257,30 @@ def run_sensitivity_analysis(
     if abs(nhi_item.delta_pessimistic) > 0.1 or abs(nhi_item.delta_optimistic) > 0.1:
         items.append(nhi_item)
 
+    # 8. Mortgage rate (only if profile has a mortgage)
+    if profile.mortgage_balance_jpy > 0 and profile.mortgage_interest_rate_pct > 0:
+        from dataclasses import replace as _replace
+        rate_base = profile.mortgage_interest_rate_pct
+        remaining = max(1, profile.mortgage_remaining_years)
+
+        def _recompute_payment(rate_pct):
+            from engine.mortgage_analysis import _monthly_payment
+            return _monthly_payment(profile.mortgage_balance_jpy, rate_pct, remaining)
+
+        rate_pess = min(20.0, rate_base * (1 + delta))
+        rate_opt = max(0.0, rate_base * (1 - delta))
+        items.append(_item(
+            "mortgage_rate",
+            f"Mortgage rate ({rate_base:.2f}%)",
+            _replace(profile,
+                     mortgage_interest_rate_pct=rate_pess,
+                     monthly_mortgage_payment_jpy=_recompute_payment(rate_pess)),
+            _replace(profile,
+                     mortgage_interest_rate_pct=rate_opt,
+                     monthly_mortgage_payment_jpy=_recompute_payment(rate_opt)),
+            is_profile_change=True,
+        ))
+
     # Sort by total swing (|pessimistic delta| + |optimistic delta|), largest first
     items.sort(key=lambda x: abs(x.delta_pessimistic) + abs(x.delta_optimistic), reverse=True)
 
