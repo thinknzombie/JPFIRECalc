@@ -149,6 +149,20 @@ class FinancialProfile:
     property_planned_sale_age: int | None = None  # age to sell Japan property (None = keep)
     property_appreciation_pct: float = 0.0        # expected annual appreciation % (e.g. 1.0 = 1%)
 
+    # --- Japan mortgage rate & terms ----------------------------------------
+    mortgage_interest_rate_pct: float = 0.7          # current annual rate, e.g. 0.7%
+    mortgage_type: str = "variable"                   # "variable" or "fixed"
+    mortgage_remaining_years: int = 25                # years left on the loan
+    mortgage_tax_credit_remaining_years: int = 0      # 住宅ローン控除 years left (0 if expired)
+    mortgage_tax_credit_principal_cap_jpy: int = 30_000_000  # ¥30M default, up to ¥50M for 認定長期優良
+    mortgage_tax_credit_rate_pct: float = 0.7         # 0.7% standard (2024+ rules)
+    mortgage_prepayment_fee_jpy: int = 0              # one-time fee for lump-sum payoff
+
+    # --- Foreign mortgage rate & terms --------------------------------------
+    foreign_mortgage_interest_rate_pct: float = 0.0
+    foreign_mortgage_type: str = "fixed"
+    foreign_mortgage_remaining_years: int = 0
+
     # --- Foreign real estate ------------------------------------------------
     owns_foreign_property: bool = False
     foreign_property_value_jpy: int = 0          # combined market value in JPY
@@ -164,6 +178,24 @@ class FinancialProfile:
     rsu_vesting_annual_jpy: int = 0              # expected annual vest while still employed
     rsu_liquidated_at_fire_jpy: int = 0          # equity/RSU shares liquidated in FIRE year (sold to fund retirement)
     other_assets_jpy: int = 0                    # other (business equity, art, collectibles…)
+
+    # --- Validation ---------------------------------------------------------
+
+    def __post_init__(self):
+        valid_types = {"variable", "fixed"}
+        if self.mortgage_type not in valid_types:
+            raise ValueError(f"mortgage_type must be one of {valid_types}, got {self.mortgage_type!r}")
+        if self.foreign_mortgage_type not in valid_types:
+            raise ValueError(f"foreign_mortgage_type must be one of {valid_types}, got {self.foreign_mortgage_type!r}")
+        for attr in ("mortgage_interest_rate_pct", "mortgage_tax_credit_rate_pct",
+                     "foreign_mortgage_interest_rate_pct"):
+            v = getattr(self, attr)
+            if not (0 <= v <= 20):
+                raise ValueError(f"{attr} must be between 0 and 20, got {v}")
+        if self.mortgage_remaining_years < 0:
+            raise ValueError(f"mortgage_remaining_years must be >= 0, got {self.mortgage_remaining_years}")
+        if self.foreign_mortgage_remaining_years < 0:
+            raise ValueError(f"foreign_mortgage_remaining_years must be >= 0, got {self.foreign_mortgage_remaining_years}")
 
     # --- Helpers ------------------------------------------------------------
 

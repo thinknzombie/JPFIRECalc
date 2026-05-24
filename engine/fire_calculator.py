@@ -800,6 +800,7 @@ def run_fire_scenario(
     scenario_id: str,
     assumptions: AssumptionSet,
     region_key: str,
+    _skip_mortgage_rate_scenarios: bool = False,
 ) -> ScenarioResult:
     """
     Run a complete FIRE scenario and return a ScenarioResult.
@@ -1267,13 +1268,42 @@ def run_fire_scenario(
     japan_pension_for_mc = net_pension - foreign_pension_annual
     foreign_pension_start_yr = max(0, profile.foreign_pension_start_age - profile.target_retirement_age)
 
-    # For Barista FIRE, the side income should reduce portfolio withdrawals
+# For Barista FIRE, the side income should reduce portfolio withdrawals
     # throughout retirement, not just lower the headline FIRE number. Feed it
     # into Monte Carlo as a withdrawal reduction schedule from year 0 onward.
     if assumptions.fire_variant == 'barista' and assumptions.barista_income_monthly_jpy > 0:
         barista_reduction = assumptions.barista_income_monthly_jpy * 12
         mc_withdrawal_reductions = list(mc_withdrawal_reductions or [])
         mc_withdrawal_reductions.append((0, barista_reduction))
+
+    # Stochastic mortgage rate path (optional, off by default)
+    stoch_rate_path = None
+    if (
+        getattr(assumptions, "stochastic_mortgage_rate", False)
+        and profile.mortgage_balance_jpy > 0
+        and getattr(profile, "mortgage_remaining_years", 0) > 0
+    ):
+        from engine.mortgage_analysis import generate_rate_paths
+        # Amortise balance forward to retirement (use local function — no circular import)
+        ret_mortgage_balance = _amortise_mortgage(
+            balance_jpy=profile.mortgage_balance_jpy,
+            monthly_payment_jpy=profile.monthly_mortgage_payment_jpy,
+            years=profile.years_to_retirement,
+            annual_rate=getattr(profile, "mortgage_interest_rate_pct", 1.5) / 100,
+        )
+        ret_mortgage_years = max(0, getattr(profile, "mortgage_remaining_years", 25) - profile.years_to_retirement)
+        if ret_mortgage_balance > 0 and ret_mortgage_years > 0:
+            stoch_rate_path = generate_rate_paths(
+                initial_rate_pct=getattr(profile, "mortgage_interest_rate_pct", 0.7),
+                long_term_mean_pct=getattr(assumptions, "mortgage_rate_long_term_mean_pct", 2.0),
+                mean_reversion_speed=getattr(assumptions, "mortgage_rate_mean_reversion_speed", 0.15),
+                volatility_pct=getattr(assumptions, "mortgage_rate_volatility_pct", 0.3),
+                n_simulations=min(assumptions.monte_carlo_simulations, 10_000),
+                n_years=assumptions.simulation_years,
+            )
+    else:
+        ret_mortgage_balance = 0
+        ret_mortgage_years = 0
 
     mc_result = run_monte_carlo(
         initial_portfolio_jpy=current_portfolio,
@@ -1292,11 +1322,54 @@ def run_fire_scenario(
         foreign_pension_annual_jpy=foreign_pension_annual,
         foreign_pension_start_year=foreign_pension_start_yr,
         foreign_pension_growth_rate=assumptions.foreign_inflation_pct / 100,
+        mortgage_rate_path=stoch_rate_path,
+        mortgage_balance_initial_jpy=ret_mortgage_balance,
+        mortgage_remaining_years_initial=ret_mortgage_years,
+        mortgage_tax_credit_remaining_years=getattr(profile, "mortgage_tax_credit_remaining_years", 0),
+        mortgage_tax_credit_rate=getattr(profile, "mortgage_tax_credit_rate_pct", 0.7) / 100,
+        mortgage_tax_credit_cap_jpy=getattr(profile, "mortgage_tax_credit_principal_cap_jpy", 30_000_000),
     )
 
     # --- Sensitivity analysis -----------------------------------------------
     from engine.sensitivity import run_sensitivity_analysis
     sensitivity = run_sensitivity_analysis(profile, assumptions, region_key)
+
+    # --- Mortgage rate analysis ---------------------------------------------
+    from engine.mortgage_analysis import (
+        calculate_breakeven_mortgage_rate,
+        calculate_payoff_vs_invest_npv,
+        run_mortgage_rate_scenarios,
+    )
+    mortgage_breakeven = None
+    mortgage_payoff_vs_invest = None
+    mortgage_rate_scenarios_list: list[dict] = []
+
+    if profile.mortgage_balance_jpy > 0 and not _skip_mortgage_rate_scenarios:
+        try:
+            mortgage_breakeven = calculate_breakeven_mortgage_rate(profile, assumptions)
+        except Exception:
+            mortgage_breakeven = None
+        try:
+            lump_sum_for_analysis = min(profile.mortgage_balance_jpy, profile.cash_savings_jpy or 10_000_000)
+            if lump_sum_for_analysis <= 0:
+                lump_sum_for_analysis = min(profile.mortgage_balance_jpy, 10_000_000)
+            mortgage_payoff_vs_invest = calculate_payoff_vs_invest_npv(
+                profile=profile,
+                assumptions=assumptions,
+                lump_sum_jpy=lump_sum_for_analysis,
+                horizon_years=30,
+            )
+        except Exception:
+            mortgage_payoff_vs_invest = None
+        try:
+            mortgage_rate_scenarios_list = run_mortgage_rate_scenarios(
+                profile=profile,
+                assumptions=assumptions,
+                region_key=region_key,
+                mc_simulations_override=1_000,
+            )
+        except Exception:
+            mortgage_rate_scenarios_list = []
 
     # --- Foreigners mode ----------------------------------------------------
     from engine.foreigners import analyse_foreigners
@@ -1361,4 +1434,7 @@ def run_fire_scenario(
         foreigners_non_pr=foreigners.non_permanent_resident,
         foreigners_exit_tax_risk=foreigners.exit_tax_risk,
         warnings=list(dict.fromkeys(warnings)),  # deduplicate, preserve order
+        mortgage_breakeven=mortgage_breakeven,
+        mortgage_payoff_vs_invest=mortgage_payoff_vs_invest,
+        mortgage_rate_scenarios=mortgage_rate_scenarios_list,
     )
