@@ -258,3 +258,127 @@ class TestFinancialProfileMortgageAggregation:
         assert p2.mortgages[0].id == "loan_a"
         assert p2.mortgages[1].is_foreign is True
         assert p2.mortgages[1].interest_rate_pct == 4.0
+
+
+# ---------------------------------------------------------------------------
+# routes/profile.py form parsing — _parse_mortgages_from_form
+# ---------------------------------------------------------------------------
+
+class TestParseMortgagesFromForm:
+    """Round-trip the form POST data → list[MortgageEntry]."""
+
+    def _call_parse(self, form_data):
+        # We test via dict that mimics the form key/value structure
+        from routes.profile import _parse_mortgages_from_form
+        # Werkzeug MultiDict is what request.form returns; simulate it
+        # with a plain dict (the parser only uses .get() and .keys())
+        return _parse_mortgages_from_form(form_data)
+
+    def test_no_mortgage_fields_returns_empty(self):
+        """Legacy form posts (no mortgages_N_*) → empty list."""
+        form_data = {
+            "current_age": "40",
+            "mortgage_balance_jpy": "50_000_000",  # legacy field present
+        }
+        result = self._call_parse(form_data)
+        assert result == []
+
+    def test_single_complete_row(self):
+        form_data = {
+            "current_age": "52",
+            "mortgages_0_label": "柿ノ木坂 土地",
+            "mortgages_0_balance_jpy": "70309716",
+            "mortgages_0_interest_rate_pct": "0.47",
+            "mortgages_0_monthly_payment_jpy": "256174",
+            "mortgages_0_remaining_years": "28",
+            "mortgages_0_loan_type": "variable",
+            "mortgages_0_is_foreign": "",  # unchecked
+            "mortgages_0_tax_credit_remaining_years": "8",
+            "mortgages_0_tax_credit_principal_cap_jpy": "30000000",
+            "mortgages_0_tax_credit_rate_pct": "0.7",
+        }
+        result = self._call_parse(form_data)
+        assert len(result) == 1
+        m = result[0]
+        assert m.label == "柿ノ木坂 土地"
+        assert m.balance_jpy == 70309716
+        assert m.interest_rate_pct == 0.47
+        assert m.monthly_payment_jpy == 256174
+        assert m.remaining_years == 28
+        assert m.loan_type == "variable"
+        assert m.is_foreign is False
+        assert m.tax_credit_remaining_years == 8
+        assert m.id != ""  # auto-generated
+
+    def test_multiple_rows_in_order(self):
+        form_data = {
+            "mortgages_0_label": "land",
+            "mortgages_0_balance_jpy": "70309716",
+            "mortgages_0_monthly_payment_jpy": "256174",
+            "mortgages_1_label": "building",
+            "mortgages_1_balance_jpy": "23200519",
+            "mortgages_1_monthly_payment_jpy": "99905",
+            "mortgages_1_interest_rate_pct": "0.67",
+            "mortgages_2_label": "Crozier",
+            "mortgages_2_balance_jpy": "25811695",
+            "mortgages_2_monthly_payment_jpy": "130000",
+            "mortgages_2_interest_rate_pct": "5.5",
+            "mortgages_2_is_foreign": "on",  # checked
+        }
+        result = self._call_parse(form_data)
+        assert len(result) == 3
+        assert result[0].label == "land"
+        assert result[1].label == "building"
+        assert result[1].interest_rate_pct == 0.67
+        assert result[2].label == "Crozier"
+        assert result[2].is_foreign is True
+        assert result[2].interest_rate_pct == 5.5
+
+    def test_blank_row_is_skipped(self):
+        """A freshly-added blank row (all empty) gets dropped."""
+        form_data = {
+            "mortgages_0_label": "real loan",
+            "mortgages_0_balance_jpy": "10000000",
+            "mortgages_0_monthly_payment_jpy": "50000",
+            # Row 1: completely empty (user clicked Add then didn't fill)
+            "mortgages_1_label": "",
+            "mortgages_1_balance_jpy": "",
+            "mortgages_1_monthly_payment_jpy": "",
+            "mortgages_2_label": "another real loan",
+            "mortgages_2_balance_jpy": "5000000",
+            "mortgages_2_monthly_payment_jpy": "30000",
+        }
+        result = self._call_parse(form_data)
+        assert len(result) == 2
+        assert result[0].label == "real loan"
+        assert result[1].label == "another real loan"
+
+    def test_partial_data_row_is_kept(self):
+        """A row with label but no balance is kept (user is filling it in)."""
+        form_data = {
+            "mortgages_0_label": "in progress",
+            # No balance, no payment
+        }
+        result = self._call_parse(form_data)
+        assert len(result) == 1
+        assert result[0].label == "in progress"
+
+    def test_invalid_loan_type_falls_back_to_variable(self):
+        form_data = {
+            "mortgages_0_label": "weird",
+            "mortgages_0_balance_jpy": "1000000",
+            "mortgages_0_monthly_payment_jpy": "10000",
+            "mortgages_0_loan_type": "floating",  # not in allowed set
+        }
+        result = self._call_parse(form_data)
+        assert result[0].loan_type == "variable"
+
+    def test_mortgage_id_field_is_preserved(self):
+        form_data = {
+            "mortgages_0_id": "kakinoki_tochi",
+            "mortgages_0_label": "kakinoki tochi",
+            "mortgages_0_balance_jpy": "70309716",
+            "mortgages_0_monthly_payment_jpy": "256174",
+        }
+        result = self._call_parse(form_data)
+        assert result[0].id == "kakinoki_tochi"

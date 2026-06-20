@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/form_field.html" import field, field_yen, field_select, field_checkbox, section %}
+{% from "components/form_field.html" import field, field_yen, field_select, field_checkbox, section, mortgage_row %}
 
 {% block title %}{{ title }} — JPFIRECalc{% endblock %}
 
@@ -299,72 +299,34 @@
         {{ field_yen("property_value_jpy", "Property Value",
                      value=profile.property_value_jpy, step=1000000,
                      help="Current estimated market value of your Japan property. Used in net worth calculations. Not included in the investable portfolio unless you plan to sell.") }}
-        {{ field_yen("mortgage_balance_jpy", "Mortgage Balance",
-                     value=profile.mortgage_balance_jpy, step=100000,
-                     help="Remaining mortgage principal. Subtracted from property value to show your net property equity.") }}
-        {{ field_yen("monthly_mortgage_payment_jpy", "Monthly Mortgage Payment",
-                     value=profile.monthly_mortgage_payment_jpy, step=10000,
-                     help="Your monthly mortgage repayment. Added to expenses until the mortgage is paid off — tick the checkbox below if it will be paid off by retirement.") }}
+        <div></div>  {# placeholder so balance/payment live in their own row below #}
       </div>
 
-      {# Mortgage Rate Details sub-section #}
+      {# Mortgages — list editor. Each row: one mortgage loan. JS adds/removes
+         rows dynamically. Server renders an initial row per existing
+         profile.mortgages entry, or one blank row if the list is empty. #}
       <div class="form-subsection-divider"></div>
-      <p class="form-section-subtitle">Mortgage Rate Details</p>
-      <div class="form-grid form-grid--2">
-        {{ field("mortgage_interest_rate_pct", "Interest Rate (%)",
-                 value=profile.mortgage_interest_rate_pct,
-                 type="number", min="0", max="20", step="0.05",
-                 help="Current annual mortgage interest rate (e.g. 0.7 for 0.7%). For variable rate loans, use the rate currently being applied. Used to compute the break-even vs. investing analysis.") }}
-        <div class="form-field">
-          <label>Mortgage Type</label>
-          <select name="mortgage_type" class="form-control">
-            <option value="variable" {{ 'selected' if profile.mortgage_type == 'variable' else '' }}>Variable rate (変動金利)</option>
-            <option value="fixed" {{ 'selected' if profile.mortgage_type == 'fixed' else '' }}>Fixed rate (固定金利)</option>
-          </select>
-          <p class="form-help-text">Variable rate loans are sensitive to BoJ rate changes; fixed are not.</p>
-        </div>
-        {{ field("mortgage_remaining_years", "Remaining Term (years)",
-                 value=profile.mortgage_remaining_years,
-                 type="number", min="0", max="50", step="1",
-                 help="Years remaining on the loan. Used to recompute your monthly payment at different rate scenarios.") }}
-        {{ field("mortgage_tax_credit_remaining_years", "Housing Loan Tax Credit Years Left (住宅ローン控除)",
-                 value=profile.mortgage_tax_credit_remaining_years,
-                 type="number", min="0", max="13", step="1",
-                 help="Number of years remaining for the 住宅ローン控除 deduction (0 if expired or not applicable). The credit effectively reduces your net mortgage cost, which affects the break-even analysis.") }}
-        {{ field_yen("mortgage_tax_credit_principal_cap_jpy", "Tax Credit Principal Cap",
-                     value=profile.mortgage_tax_credit_principal_cap_jpy, step=1000000,
-                     help="Maximum loan balance eligible for the credit (¥30M standard; up to ¥50M for 認定長期優良住宅). Leave at ¥30M if unsure.") }}
-        {{ field("mortgage_tax_credit_rate_pct", "Tax Credit Rate (%)",
-                 value=profile.mortgage_tax_credit_rate_pct,
-                 type="number", min="0", max="1", step="0.05",
-                 help="Annual credit rate applied to the eligible balance (0.7% from 2024 under the new rules).") }}
-        {{ field_yen("mortgage_prepayment_fee_jpy", "Prepayment Fee",
-                     value=profile.mortgage_prepayment_fee_jpy, step=10000,
-                     help="One-time fee charged if you pay off the loan early in a lump sum. 0 if your loan has no prepayment penalty.") }}
-      </div>
-
-      {# Foreign mortgage rate sub-section — only if foreign property exists #}
-      <div id="foreignMortgageRateFields" style="{{ 'display:none' if not profile.owns_foreign_property and not profile.foreign_property_mortgage_jpy else '' }}">
-        <div class="form-subsection-divider"></div>
-        <p class="form-section-subtitle">Foreign Mortgage Rate Details</p>
-        <div class="form-grid form-grid--2">
-          {{ field("foreign_mortgage_interest_rate_pct", "Foreign Mortgage Interest Rate (%)",
-                   value=profile.foreign_mortgage_interest_rate_pct,
-                   type="number", min="0", max="20", step="0.05",
-                   help="Current annual interest rate on your overseas mortgage (e.g. 4.5 for 4.5%).") }}
-          <div class="form-field">
-            <label>Foreign Mortgage Type</label>
-            <select name="foreign_mortgage_type" class="form-control">
-              <option value="fixed" {{ 'selected' if profile.foreign_mortgage_type == 'fixed' else '' }}>Fixed rate</option>
-              <option value="variable" {{ 'selected' if profile.foreign_mortgage_type == 'variable' else '' }}>Variable rate</option>
-            </select>
+      <p class="form-section-subtitle">Mortgages
+        <span class="form-help-inline">— add one row per loan (e.g. JP land, JP building, foreign property)</span>
+      </p>
+      <div id="mortgages-list" class="mortgages-list">
+        {% set ns = namespace(idx=0) %}
+        {% if profile.mortgages %}
+          {% for m in profile.mortgages %}
+            <div class="mortgage-row" data-idx="{{ ns.idx }}">
+              {{ mortgage_row(ns.idx, m, profile.owns_foreign_property) }}
+            </div>
+            {% set ns.idx = ns.idx + 1 %}
+          {% endfor %}
+        {% else %}
+          <div class="mortgage-row" data-idx="0">
+            {{ mortgage_row(0, none, profile.owns_foreign_property) }}
           </div>
-          {{ field("foreign_mortgage_remaining_years", "Foreign Mortgage Remaining Term (years)",
-                   value=profile.foreign_mortgage_remaining_years,
-                   type="number", min="0", max="50", step="1",
-                   help="Years left on the overseas loan.") }}
-        </div>
+        {% endif %}
       </div>
+      <button type="button" class="btn-secondary mortgages-add-btn" id="mortgages-add-btn">
+        + Add another mortgage
+      </button>
 
       <div class="form-grid form-grid--2">
         {{ field_yen("rental_income_monthly_jpy", "Monthly Rental Income",
@@ -480,6 +442,9 @@
       foreignPropertyFields.style.display = ownsForeignProperty.checked ? '' : 'none';
     });
   }
+
+  // ── Mortgages list — add/remove rows + re-index + foreign toggle ────────────
+  initMortgagesList();
 
   // Tooltip hover is handled globally in main.js
 

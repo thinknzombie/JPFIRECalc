@@ -128,3 +128,146 @@
   {% if subtitle %}<p class="form-section-subtitle" {% if key %}data-i18n="{{ key }}.sub"{% endif %}>{{ subtitle }}</p>{% endif %}
 </div>
 {% endmacro %}
+
+{#
+  Mortgage row — one entry per loan in profile.mortgages list.
+  Used in profile.html inside the mortgages-list container.
+  Field names are indexed (mortgages_0_label, mortgages_0_balance_jpy, etc.)
+  so a single name prefix can be re-indexed by JS on add/remove.
+
+  Args:
+    idx          int   — the row index used in field names
+    mortgage     MortgageEntry|None — current values, or None for a blank row
+    has_foreign_property  bool — whether to show foreign-loan checkbox as relevant
+#}
+{% macro mortgage_row(idx, mortgage, has_foreign_property=false) %}
+{% set m = mortgage or namespace(
+  id="", label="", balance_jpy=0, interest_rate_pct=0.7,
+  monthly_payment_jpy=0, remaining_years=25, loan_type="variable",
+  is_foreign=false, tax_credit_remaining_years=0,
+  tax_credit_principal_cap_jpy=30000000, tax_credit_rate_pct=0.7,
+  prepayment_fee_jpy=0
+) %}
+<div class="mortgage-row-inner">
+  {# Hidden id field — preserves the stable UUID across form posts. Server
+     reads this to keep the same MortgageEntry id when editing. #}
+  <input type="hidden" name="mortgages_{{ idx }}_id" value="{{ m.id }}">
+  <div class="mortgage-row-header">
+    <span class="mortgage-row-title">Loan #{{ idx + 1 }}</span>
+    <button type="button" class="mortgage-remove-btn" data-action="remove-mortgage"
+            aria-label="Remove mortgage row">×</button>
+  </div>
+
+  <div class="form-grid form-grid--2">
+    <div class="form-field">
+      <label for="mortgages_{{ idx }}_label" class="form-label">Label</label>
+      <input type="text" id="mortgages_{{ idx }}_label" name="mortgages_{{ idx }}_label"
+             value="{{ m.label }}" placeholder="e.g. 柿ノ木坂 土地"
+             class="form-input">
+    </div>
+    <div class="form-field form-field--checkbox">
+      <label class="checkbox-label">
+        <input type="checkbox" id="mortgages_{{ idx }}_is_foreign"
+               name="mortgages_{{ idx }}_is_foreign"
+               {% if m.is_foreign %}checked{% endif %}
+               class="form-checkbox">
+        <span class="checkbox-text">Foreign loan (no 住宅ローン控除)</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="form-grid form-grid--3">
+    <div class="form-field">
+      <label for="mortgages_{{ idx }}_balance_jpy" class="form-label">Balance</label>
+      <div class="input-prefix-wrapper">
+        <span class="input-prefix">¥</span>
+        <input type="number" id="mortgages_{{ idx }}_balance_jpy"
+               name="mortgages_{{ idx }}_balance_jpy"
+               value="{{ m.balance_jpy }}" min="0" step="100000"
+               class="form-input has-prefix">
+      </div>
+    </div>
+    <div class="form-field">
+      <label for="mortgages_{{ idx }}_interest_rate_pct" class="form-label">Interest Rate (%)</label>
+      <input type="number" id="mortgages_{{ idx }}_interest_rate_pct"
+             name="mortgages_{{ idx }}_interest_rate_pct"
+             value="{{ m.interest_rate_pct }}" min="0" max="20" step="0.05"
+             class="form-input">
+    </div>
+    <div class="form-field">
+      <label for="mortgages_{{ idx }}_monthly_payment_jpy" class="form-label">Monthly Payment</label>
+      <div class="input-prefix-wrapper">
+        <span class="input-prefix">¥</span>
+        <input type="number" id="mortgages_{{ idx }}_monthly_payment_jpy"
+               name="mortgages_{{ idx }}_monthly_payment_jpy"
+               value="{{ m.monthly_payment_jpy }}" min="0" step="10000"
+               class="form-input has-prefix">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-grid form-grid--3">
+    <div class="form-field">
+      <label for="mortgages_{{ idx }}_remaining_years" class="form-label">Remaining (years)</label>
+      <input type="number" id="mortgages_{{ idx }}_remaining_years"
+             name="mortgages_{{ idx }}_remaining_years"
+             value="{{ m.remaining_years }}" min="0" max="50" step="1"
+             class="form-input">
+    </div>
+    <div class="form-field">
+      <label for="mortgages_{{ idx }}_loan_type" class="form-label">Type</label>
+      <select id="mortgages_{{ idx }}_loan_type"
+              name="mortgages_{{ idx }}_loan_type" class="form-select">
+        <option value="variable" {% if m.loan_type == 'variable' %}selected{% endif %}>Variable</option>
+        <option value="fixed" {% if m.loan_type == 'fixed' %}selected{% endif %}>Fixed</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label for="mortgages_{{ idx }}_prepayment_fee_jpy" class="form-label">Prepay Fee</label>
+      <div class="input-prefix-wrapper">
+        <span class="input-prefix">¥</span>
+        <input type="number" id="mortgages_{{ idx }}_prepayment_fee_jpy"
+               name="mortgages_{{ idx }}_prepayment_fee_jpy"
+               value="{{ m.prepayment_fee_jpy }}" min="0" step="10000"
+               class="form-input has-prefix">
+      </div>
+    </div>
+  </div>
+
+  {# 住宅ローン控除 fields — only for Japanese mortgages (auto-hidden when is_foreign) #}
+  <div class="mortgage-tax-credit-fields"
+       data-show-when-not-foreign="{{ '1' if m.is_foreign else '0' }}">
+    <div class="form-subsection-divider mortgage-credit-divider"></div>
+    <p class="form-help-inline">Housing loan tax credit (住宅ローン控除) — Japanese mortgages only</p>
+    <div class="form-grid form-grid--3">
+      <div class="form-field">
+        <label for="mortgages_{{ idx }}_tax_credit_remaining_years"
+               class="form-label">Credit Years Left</label>
+        <input type="number" id="mortgages_{{ idx }}_tax_credit_remaining_years"
+               name="mortgages_{{ idx }}_tax_credit_remaining_years"
+               value="{{ m.tax_credit_remaining_years }}" min="0" max="13" step="1"
+               class="form-input">
+      </div>
+      <div class="form-field">
+        <label for="mortgages_{{ idx }}_tax_credit_rate_pct"
+               class="form-label">Credit Rate (%)</label>
+        <input type="number" id="mortgages_{{ idx }}_tax_credit_rate_pct"
+               name="mortgages_{{ idx }}_tax_credit_rate_pct"
+               value="{{ m.tax_credit_rate_pct }}" min="0" max="1" step="0.05"
+               class="form-input">
+      </div>
+      <div class="form-field">
+        <label for="mortgages_{{ idx }}_tax_credit_principal_cap_jpy"
+               class="form-label">Credit Cap</label>
+        <div class="input-prefix-wrapper">
+          <span class="input-prefix">¥</span>
+          <input type="number" id="mortgages_{{ idx }}_tax_credit_principal_cap_jpy"
+                 name="mortgages_{{ idx }}_tax_credit_principal_cap_jpy"
+                 value="{{ m.tax_credit_principal_cap_jpy }}" min="0" step="1000000"
+                 class="form-input has-prefix">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}

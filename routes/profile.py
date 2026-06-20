@@ -69,7 +69,7 @@ _FIELD_META: dict[str, dict] = {
     "foreign_mortgage_interest_rate_pct":    {"label": "Foreign Mortgage Interest Rate (%)",    "type": "float", "description": "Annual interest rate on overseas mortgage (e.g. 4.5 for 4.5%)",                   "example": 0.0},
     "foreign_mortgage_type":                 {"label": "Foreign Mortgage Type",                 "type": "str",   "description": "variable or fixed",                                                                "example": "fixed"},
     "foreign_mortgage_remaining_years":      {"label": "Foreign Mortgage Remaining Years",      "type": "int",   "description": "Years left on the overseas loan",                                                  "example": 0},
-    "mortgages":                            {"label": "Mortgages (List)",                       "type": "list",   "description": "Array of mortgage loans. Each entry: {id, label, balance_jpy, interest_rate_pct, monthly_payment_jpy, remaining_years, loan_type, is_foreign, tax_credit_*}. When non-empty, takes precedence over the legacy single-loan fields above.",                                          "example": [{"id": "kakinoki_tochi", "label": "柿ノ木坂 土地", "balance_jpy": 70309716, "interest_rate_pct": 0.47, "monthly_payment_jpy": 256174, "remaining_years": 28, "loan_type": "variable", "is_foreign": false, "tax_credit_remaining_years": 8}]},
+    "mortgages":                            {"label": "Mortgages (List)",                       "type": "list",   "description": "Array of mortgage loans. Each entry: {id, label, balance_jpy, interest_rate_pct, monthly_payment_jpy, remaining_years, loan_type, is_foreign, tax_credit_*}. When non-empty, takes precedence over the legacy single-loan fields above.",                                          "example": '[{"id": "kakinoki_tochi", "label": "柿ノ木坂 土地", "balance_jpy": 70309716, "interest_rate_pct": 0.47, "monthly_payment_jpy": 256174, "remaining_years": 28, "loan_type": "variable", "is_foreign": false, "tax_credit_remaining_years": 8}]'},
     "rental_income_monthly_jpy":             {"label": "Monthly Rental Income (JPY)",           "type": "int",   "description": "Monthly rental income from investment property",                                   "example": 0},
     "property_paid_off_at_retirement":       {"label": "Property Paid Off at Retirement",       "type": "bool",  "description": "true or false — whether mortgage clears before FIRE age",                        "example": False},
     "property_planned_sale_age":             {"label": "Japan Property Planned Sale Age",        "type": "int",   "description": "Age at which you plan to sell the Japan property (0 or blank = keep forever)",   "example": 0},
@@ -132,8 +132,85 @@ def _validate_profile_form(form) -> list[str]:
     return errors
 
 
+def _parse_mortgages_from_form(form) -> list:
+    """Parse `mortgages_N_*` indexed form fields into a list of MortgageEntry.
+
+    Each mortgage row in the UI posts fields like:
+        mortgages_0_label, mortgages_0_balance_jpy, mortgages_0_interest_rate_pct, ...
+
+    Rows where ALL the core numeric fields are 0/empty AND the label is
+    empty are skipped (catches blank newly-added rows that the user didn't
+    fill in). Rows with even partial data are kept.
+
+    Returns an empty list if no mortgages_N_* fields are present at all
+    (the form was a legacy post — single-loan fields are used instead).
+    """
+    from models.profile import MortgageEntry
+    import uuid as _uuid
+
+    # Find all unique row indices present in the form
+    indices: set[int] = set()
+    for key in form.keys():
+        if key and key.startswith("mortgages_"):
+            parts = key.split("_", 2)
+            if len(parts) >= 3 and parts[1].isdigit():
+                indices.add(int(parts[1]))
+    if not indices:
+        return []
+
+    def i(key, default=0):
+        try:
+            return int(form.get(key, default) or default)
+        except (ValueError, TypeError):
+            return default
+    def f(key, default=0.0):
+        try:
+            return float(form.get(key, default) or default)
+        except (ValueError, TypeError):
+            return default
+    def s(key, default=""):
+        return (form.get(key, default) or default).strip()
+    def b(key):
+        return form.get(key) in ("on", "true", "1", "yes")
+
+    entries = []
+    for idx in sorted(indices):
+        label = s(f"mortgages_{idx}_label")
+        balance = i(f"mortgages_{idx}_balance_jpy")
+        monthly = i(f"mortgages_{idx}_monthly_payment_jpy")
+        # Skip rows that are completely empty (no label, no balance, no payment)
+        if not label and balance == 0 and monthly == 0:
+            continue
+        loan_type = s(f"mortgages_{idx}_loan_type", "variable")
+        if loan_type not in ("variable", "fixed"):
+            loan_type = "variable"
+        entry = MortgageEntry(
+            id=s(f"mortgages_{idx}_id") or _uuid.uuid4().hex[:8],
+            label=label or f"Mortgage {idx + 1}",
+            balance_jpy=balance,
+            interest_rate_pct=f(f"mortgages_{idx}_interest_rate_pct", 0.7),
+            monthly_payment_jpy=monthly,
+            remaining_years=max(0, i(f"mortgages_{idx}_remaining_years", 25)),
+            loan_type=loan_type,
+            is_foreign=b(f"mortgages_{idx}_is_foreign"),
+            tax_credit_remaining_years=max(0, i(f"mortgages_{idx}_tax_credit_remaining_years", 0)),
+            tax_credit_principal_cap_jpy=i(f"mortgages_{idx}_tax_credit_principal_cap_jpy", 30_000_000),
+            tax_credit_rate_pct=f(f"mortgages_{idx}_tax_credit_rate_pct", 0.7),
+            prepayment_fee_jpy=max(0, i(f"mortgages_{idx}_prepayment_fee_jpy", 0)),
+        )
+        entries.append(entry)
+    return entries
+
+
 def _profile_from_form(form) -> FinancialProfile:
-    """Parse the flat POST form into a FinancialProfile dataclass."""
+    """Parse the flat POST form into a FinancialProfile dataclass.
+
+    The mortgages list is parsed from indexed form fields
+    (`mortgages_0_balance_jpy`, `mortgages_1_label`, etc.). When no such
+    fields are present (legacy form posts), the existing single-loan
+    fields are populated and the model's auto-synthesis logic in
+    FinancialProfile.from_dict() will build a 1-entry list from them.
+    """
     def i(key, default=0):
         try:
             return int(form.get(key, default) or default)
@@ -151,6 +228,13 @@ def _profile_from_form(form) -> FinancialProfile:
 
     def s(key, default=""):
         return form.get(key, default) or default
+
+    # Parse the mortgages list from indexed form fields. Each row's fields
+    # are prefixed with `mortgages_{idx}_` (e.g. mortgages_0_balance_jpy).
+    # Rows with all-empty values are skipped (e.g. a freshly added blank row).
+    # If no mortgages_N_* fields are present at all, fall back to legacy
+    # single-loan fields so old forms keep working.
+    mortgages = _parse_mortgages_from_form(form)
 
     return FinancialProfile(
         current_age=i("current_age", 35),
@@ -196,6 +280,12 @@ def _profile_from_form(form) -> FinancialProfile:
         foreign_mortgage_interest_rate_pct=f("foreign_mortgage_interest_rate_pct", 0.0),
         foreign_mortgage_type=s("foreign_mortgage_type", "fixed") if s("foreign_mortgage_type", "fixed") in ("variable", "fixed") else "fixed",
         foreign_mortgage_remaining_years=i("foreign_mortgage_remaining_years", 0),
+        # New list-based mortgages. When the form posts indexed fields
+        # (mortgages_N_*) this list takes precedence over the legacy
+        # single-loan fields above. When the form is legacy (no indexed
+        # fields), this is an empty list and the from_dict() auto-synthesis
+        # builds a 1-entry list from the legacy fields.
+        mortgages=mortgages,
         rental_income_monthly_jpy=i("rental_income_monthly_jpy"),
         property_paid_off_at_retirement=b("property_paid_off_at_retirement"),
         property_planned_sale_age=i("property_planned_sale_age") or None,
