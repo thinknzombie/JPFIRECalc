@@ -435,11 +435,13 @@ def generate_markdown_report(
         for item in result.sensitivity:
             direction = "↑ more impact" if (abs(item.delta_pessimistic) + abs(item.delta_optimistic)) > 4 else ""
             if surplus_mode:
+                # Use {:+} to let the value carry its own sign — avoids "−-56.0%"
+                # when the delta is already negative (pessimistic surplus < base).
                 sens_rows.append([
                     item.label,
                     f"{item.base_years:.1f}%",
-                    f"−{item.delta_pessimistic:.1f}%",
-                    f"+{item.delta_optimistic:.1f}%",
+                    f"{item.delta_pessimistic:+.1f}%",
+                    f"{item.delta_optimistic:+.1f}%",
                     direction,
                 ])
             else:
@@ -452,8 +454,12 @@ def generate_markdown_report(
                 ])
 
         if surplus_mode:
+            # Column headers carry only the magnitude; the value rows use {:+}
+            # so the sign comes from the delta itself. Both sides are clearly
+            # directional (worse/better) and the displayed number carries the
+            # actual direction.
             table(
-                ["Variable", "Base surplus", "Pessimistic (−%)", "Optimistic (+%)", ""],
+                ["Variable", "Base surplus", "Pessimistic", "Optimistic", ""],
                 sens_rows,
             )
         else:

@@ -119,7 +119,10 @@ def calculate_retirement_expenses(
     # Subtract mortgage if it'll be paid off by retirement
     mortgage_monthly = 0
     if profile.owns_property and not profile.property_paid_off_at_retirement:
-        mortgage_monthly = profile.monthly_mortgage_payment_jpy
+        # Use the aggregate property so split-rate mortgages (mortgages list)
+        # are summed correctly. Falls back to the legacy single field when
+        # the list is empty.
+        mortgage_monthly = profile.total_mortgage_payment_monthly_jpy
 
     # Add rental income (reduces expenses)
     japan_rental_monthly = profile.rental_income_monthly_jpy

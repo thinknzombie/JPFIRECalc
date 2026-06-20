@@ -364,6 +364,7 @@ def run_monte_carlo(
         p90=raw["percentiles"]["p90"],
         success_rate_pct=raw["success_rate_pct"],
         n_simulations=n_simulations,
+        ruin_year_median=raw.get("ruin_year_median"),
     )
 
 

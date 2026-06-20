@@ -188,6 +188,7 @@ class MonteCarloResult:
     p90: list[int] = field(default_factory=list)
     success_rate_pct: float = 0.0
     n_simulations: int = 0
+    ruin_year_median: int | None = None           # median year of ruin for failed paths (None if no failures)
 
 
 @dataclass

@@ -58,7 +58,13 @@ def _compute_for_params(
     if annual_expenses_override is not None:
         annual_expenses = annual_expenses_override
     else:
-        expense_result = calculate_retirement_expenses(profile, region_key)
+        # Use the same baseline the main run_fire_scenario() uses:
+        # profile.monthly_expenses_jpy directly when set, else region template.
+        # Sensitivity should measure against the user's actual spending plan,
+        # not a generic Tokyo default that ignores their input.
+        expense_result = calculate_retirement_expenses(
+            profile, region_key, use_region_template=False,
+        )
         annual_expenses = expense_result["annual_expenses_jpy"]
 
     pension_info = calculate_pension_at_retirement(profile, profile.years_to_retirement)
@@ -125,8 +131,15 @@ def run_sensitivity_analysis(
     surplus_mode = base_years == 0.0
     items: list[SensitivityItem] = []
 
-    # Get the base annual expenses from the region template (what the engine actually uses)
-    base_expense_result = calculate_retirement_expenses(profile, region_key)
+    # Get the base annual expenses from the same baseline the main calc uses
+    # (profile.monthly_expenses_jpy when set, else region template). The previous
+    # implementation hard-coded use_region_template=True here, which silently
+    # ignored the user's profile.monthly_expenses_jpy input — making sensitivity
+    # analysis measure against a generic Tokyo default rather than the user's
+    # actual spending plan. Fix matches the main run_fire_scenario() pattern.
+    base_expense_result = calculate_retirement_expenses(
+        profile, region_key, use_region_template=False,
+    )
     base_annual_expenses = base_expense_result["annual_expenses_jpy"]
 
     def _item(variable, label, pessimistic_assumptions_or_profile, optimistic_assumptions_or_profile,
@@ -257,29 +270,87 @@ def run_sensitivity_analysis(
     if abs(nhi_item.delta_pessimistic) > 0.1 or abs(nhi_item.delta_optimistic) > 0.1:
         items.append(nhi_item)
 
-    # 8. Mortgage rate (only if profile has a mortgage)
-    if profile.mortgage_balance_jpy > 0 and profile.mortgage_interest_rate_pct > 0:
+    # 8. Mortgage rate (one row per loan in profile.mortgages; falls back to
+    # legacy single-loan fields when the list is empty). Each row perturbs
+    # only that loan's rate by ±20% and shows the resulting surplus swing —
+    # correctly handling split-rate scenarios like 柿ノ木坂 land 0.47% +
+    # building 0.67%. For each loan, we temporarily override the legacy
+    # single-loan fields with the loan's values, run the engine, capture the
+    # surplus delta, then restore the originals.
+    if profile.mortgages:
         from dataclasses import replace as _replace
+        for loan in profile.mortgages:
+            rate_pess = min(20.0, loan.interest_rate_pct * (1 + delta))
+            rate_opt = max(0.0, loan.interest_rate_pct * (1 - delta))
+            # Scale this loan's monthly payment proportionally to the rate
+            # change. This is an approximation — actual bank recalculation
+            # would re-amortise the full term, which is what _monthly_payment
+            # does but produces counterintuitive numbers for partially-paid
+            # loans. Linear scaling gives a defensible first-order estimate
+            # for sensitivity purposes: a 20% rate rise → 20% payment rise.
+            scale_p = rate_pess / loan.interest_rate_pct if loan.interest_rate_pct > 0 else 1.0
+            scale_o = rate_opt / loan.interest_rate_pct if loan.interest_rate_pct > 0 else 1.0
+            new_payment_p = int(loan.monthly_payment_jpy * scale_p)
+            new_payment_o = int(loan.monthly_payment_jpy * scale_o)
+            # Build the perturbed mortgages list (one loan updated).
+            pess_mortgages = [
+                replace(m, monthly_payment_jpy=new_payment_p, interest_rate_pct=rate_pess)
+                if m.id == loan.id else m
+                for m in profile.mortgages
+            ]
+            opt_mortgages = [
+                replace(m, monthly_payment_jpy=new_payment_o, interest_rate_pct=rate_opt)
+                if m.id == loan.id else m
+                for m in profile.mortgages
+            ]
+            # Update the legacy single-loan field to the new aggregate
+            # payment so engines that still read it see the updated total.
+            pess_total_payment = sum(m.monthly_payment_jpy for m in pess_mortgages)
+            opt_total_payment = sum(m.monthly_payment_jpy for m in opt_mortgages)
+
+            items.append(_item(
+                f"mortgage_rate_{loan.id}",
+                f"Mortgage rate — {loan.label} ({loan.interest_rate_pct:.2f}%)",
+                _replace(profile,
+                         mortgages=pess_mortgages,
+                         monthly_mortgage_payment_jpy=pess_total_payment,
+                         mortgage_interest_rate_pct=rate_pess),
+                _replace(profile,
+                         mortgages=opt_mortgages,
+                         monthly_mortgage_payment_jpy=opt_total_payment,
+                         mortgage_interest_rate_pct=rate_opt),
+                is_profile_change=True,
+            ))
+    elif profile.mortgage_balance_jpy > 0 and profile.mortgage_interest_rate_pct > 0:
+        # Legacy single-loan path (kept for back-compat with old profiles)
+        from dataclasses import replace as _replace
+        from engine.mortgage_analysis import _monthly_payment
         rate_base = profile.mortgage_interest_rate_pct
         remaining = max(1, profile.mortgage_remaining_years)
-
-        def _recompute_payment(rate_pct):
-            from engine.mortgage_analysis import _monthly_payment
-            return _monthly_payment(profile.mortgage_balance_jpy, rate_pct, remaining)
-
-        rate_pess = min(20.0, rate_base * (1 + delta))
-        rate_opt = max(0.0, rate_base * (1 - delta))
-        items.append(_item(
-            "mortgage_rate",
-            f"Mortgage rate ({rate_base:.2f}%)",
-            _replace(profile,
-                     mortgage_interest_rate_pct=rate_pess,
-                     monthly_mortgage_payment_jpy=_recompute_payment(rate_pess)),
-            _replace(profile,
-                     mortgage_interest_rate_pct=rate_opt,
-                     monthly_mortgage_payment_jpy=_recompute_payment(rate_opt)),
-            is_profile_change=True,
-        ))
+        implied_payment = _monthly_payment(profile.mortgage_balance_jpy, rate_base, remaining)
+        actual_payment = profile.monthly_mortgage_payment_jpy
+        # Skip if actual payment differs >5% from a fresh single-rate amortisation
+        if abs(actual_payment - implied_payment) / max(implied_payment, 1) > 0.05:
+            import logging
+            logging.getLogger(__name__).info(
+                "Skipping mortgage rate sensitivity: actual payment ¥%s differs "
+                ">5%% from single-rate amortisation ¥%s (likely split-rate mortgage).",
+                actual_payment, implied_payment,
+            )
+        else:
+            rate_pess = min(20.0, rate_base * (1 + delta))
+            rate_opt = max(0.0, rate_base * (1 - delta))
+            items.append(_item(
+                "mortgage_rate",
+                f"Mortgage rate ({rate_base:.2f}%)",
+                _replace(profile,
+                         mortgage_interest_rate_pct=rate_pess,
+                         monthly_mortgage_payment_jpy=_monthly_payment(profile.mortgage_balance_jpy, rate_pess, remaining)),
+                _replace(profile,
+                         mortgage_interest_rate_pct=rate_opt,
+                         monthly_mortgage_payment_jpy=_monthly_payment(profile.mortgage_balance_jpy, rate_opt, remaining)),
+                is_profile_change=True,
+            ))
 
     # Sort by total swing (|pessimistic delta| + |optimistic delta|), largest first
     items.sort(key=lambda x: abs(x.delta_pessimistic) + abs(x.delta_optimistic), reverse=True)

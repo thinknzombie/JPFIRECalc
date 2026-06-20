@@ -9,6 +9,7 @@ from dataclasses import dataclass, field, asdict
 import json
 import types
 import typing
+import uuid as _uuid
 
 
 def _coerce_value(value, annotation):
@@ -59,6 +60,67 @@ class UserProfile:
     treaty_country: str | None = None             # e.g. "United States" — for totalization / DTA notes
     prefecture: str = "Tokyo"
     municipality_key: str = "tokyo_shinjuku"      # key into nhi_rates.json
+
+
+# ---------------------------------------------------------------------------
+# MortgageEntry — one row per loan (supports split-rate mortgages like
+# 柿ノ木坂 land 0.47% + building 0.67% + Crozier 5.5% etc.)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class MortgageEntry:
+    """A single mortgage loan.
+
+    The FinancialProfile model keeps legacy single-loan fields
+    (mortgage_balance_jpy, monthly_mortgage_payment_jpy, etc.) for backward
+    compatibility. When `FinancialProfile.mortgages` is non-empty, the list
+    takes precedence and the engine uses the aggregate properties below.
+
+    For Japanese mortgages, 住宅ローン控除 fields apply; for foreign
+    mortgages (is_foreign=True), the tax credit fields are ignored.
+    """
+    id: str = field(default_factory=lambda: _uuid.uuid4().hex[:8])
+    label: str = "Mortgage"
+    balance_jpy: int = 0
+    interest_rate_pct: float = 0.7
+    monthly_payment_jpy: int = 0
+    remaining_years: int = 25
+    loan_type: str = "variable"                   # "variable" or "fixed"
+    is_foreign: bool = False
+
+    # 住宅ローン控除 (Japanese mortgage tax credit) — only used when is_foreign=False
+    tax_credit_remaining_years: int = 0
+    tax_credit_principal_cap_jpy: int = 30_000_000
+    tax_credit_rate_pct: float = 0.7
+    prepayment_fee_jpy: int = 0
+
+    @property
+    def annual_interest_jpy(self) -> int:
+        """Approximate annual interest paid this year (balance × rate)."""
+        return int(self.balance_jpy * self.interest_rate_pct / 100)
+
+    @property
+    def annual_principal_jpy(self) -> int:
+        """Approximate annual principal paid (payment × 12 − interest)."""
+        return max(0, self.monthly_payment_jpy * 12 - self.annual_interest_jpy)
+
+    @property
+    def annual_tax_credit_jpy(self) -> int:
+        """Annual 住宅ローン控除 credit. Only meaningful for Japanese mortgages."""
+        if self.is_foreign or self.tax_credit_remaining_years <= 0:
+            return 0
+        capped_balance = min(self.balance_jpy, self.tax_credit_principal_cap_jpy)
+        return int(capped_balance * self.tax_credit_rate_pct / 100)
+
+    @property
+    def effective_annual_rate_pct(self) -> float:
+        """Net effective rate after tax credit (for Japanese mortgages)."""
+        if self.is_foreign or self.balance_jpy <= 0:
+            return self.interest_rate_pct
+        annual_credit = self.annual_tax_credit_jpy
+        if annual_credit <= 0:
+            return self.interest_rate_pct
+        return max(0.0, self.interest_rate_pct - (annual_credit / self.balance_jpy) * 100)
 
 
 @dataclass
@@ -163,6 +225,13 @@ class FinancialProfile:
     foreign_mortgage_type: str = "fixed"
     foreign_mortgage_remaining_years: int = 0
 
+    # --- Mortgages list (per-loan) ------------------------------------------
+    # When non-empty, this list takes precedence over the legacy single-loan
+    # fields above. The aggregate properties below read from this list.
+    # Each entry supports split-rate scenarios like
+    # 柿ノ木坂 land 0.47% + building 0.67% + Crozier 5.5%.
+    mortgages: list[MortgageEntry] = field(default_factory=list)
+
     # --- Foreign real estate ------------------------------------------------
     owns_foreign_property: bool = False
     foreign_property_value_jpy: int = 0          # combined market value in JPY
@@ -224,6 +293,53 @@ class FinancialProfile:
         """Estimated monthly investable savings (contributions to tax-advantaged + residual)."""
         return self.monthly_nisa_contribution_jpy + self.ideco_monthly_contribution_jpy
 
+    # --- Aggregate mortgage properties (single source of truth for the engine) ---
+    # These read from the per-loan `mortgages` list if populated, otherwise
+    # fall back to the legacy single-loan fields. Engine callers should
+    # always use these properties instead of reading the legacy fields
+    # directly — this guarantees split-rate mortgages are modelled correctly.
+
+    @property
+    def total_mortgage_balance_jpy(self) -> int:
+        """Sum of all mortgage balances across the list (or legacy single field)."""
+        if self.mortgages:
+            return sum(max(0, m.balance_jpy) for m in self.mortgages)
+        return max(0, self.mortgage_balance_jpy)
+
+    @property
+    def total_mortgage_payment_monthly_jpy(self) -> int:
+        """Sum of all monthly mortgage payments (list or legacy single field)."""
+        if self.mortgages:
+            return sum(max(0, m.monthly_payment_jpy) for m in self.mortgages)
+        return max(0, self.monthly_mortgage_payment_jpy)
+
+    @property
+    def weighted_avg_mortgage_rate_pct(self) -> float:
+        """Balance-weighted average interest rate across all loans.
+
+        Returns 0.0 if no balance. For a single loan, this equals its rate.
+        For split-rate mortgages, this gives the true cost of capital.
+        """
+        if self.mortgages:
+            total = self.total_mortgage_balance_jpy
+            if total <= 0:
+                return 0.0
+            return sum(
+                max(0, m.balance_jpy) * m.interest_rate_pct for m in self.mortgages
+            ) / total
+        return self.mortgage_interest_rate_pct
+
+    @property
+    def total_annual_mortgage_tax_credit_jpy(self) -> int:
+        """Sum of 住宅ローン控除 credits across all Japanese mortgages in the list."""
+        if self.mortgages:
+            return sum(m.annual_tax_credit_jpy for m in self.mortgages if not m.is_foreign)
+        # Legacy single-loan: compute manually
+        if self.mortgage_tax_credit_remaining_years > 0 and self.mortgage_balance_jpy > 0:
+            capped = min(self.mortgage_balance_jpy, self.mortgage_tax_credit_principal_cap_jpy)
+            return int(capped * self.mortgage_tax_credit_rate_pct / 100)
+        return 0
+
     def to_dict(self) -> dict:
         return asdict(self)
 
@@ -235,9 +351,61 @@ class FinancialProfile:
             # TypeError: bad annotation syntax; NameError: unresolved forward ref;
             # AttributeError: broken module-level import in annotation.
             hints = {}
-        coerced = {
-            k: _coerce_value(v, hints[k]) if k in hints else v
-            for k, v in data.items()
-            if k in cls.__dataclass_fields__
-        }
+        coerced: dict = {}
+        for k, v in data.items():
+            if k not in cls.__dataclass_fields__:
+                continue
+            # Special-case: nested MortgageEntry list — coerce each dict entry
+            if k == "mortgages":
+                coerced[k] = _coerce_mortgage_list(v)
+                continue
+            coerced[k] = _coerce_value(v, hints[k]) if k in hints else v
+        # Back-compat: if mortgages list is empty but legacy single-loan
+        # fields are populated, synthesise a single-entry list so engine
+        # aggregate properties work uniformly. Skip if mortgage_balance is 0.
+        if not coerced.get("mortgages") and (
+            coerced.get("mortgage_balance_jpy", 0) > 0
+            or coerced.get("monthly_mortgage_payment_jpy", 0) > 0
+        ):
+            coerced["mortgages"] = [_synthesise_legacy_mortgage(coerced)]
         return cls(**coerced)
+
+
+def _coerce_mortgage_list(value):
+    """Convert raw list of dicts into list[MortgageEntry]."""
+    if not value:
+        return []
+    if not isinstance(value, list):
+        return []
+    out = []
+    for item in value:
+        if isinstance(item, MortgageEntry):
+            out.append(item)
+            continue
+        if not isinstance(item, dict):
+            continue
+        try:
+            out.append(MortgageEntry(**item))
+        except (TypeError, ValueError):
+            # Drop malformed entries silently — caller's validation
+            # surfaces the real error if needed
+            continue
+    return out
+
+
+def _synthesise_legacy_mortgage(coerced: dict) -> MortgageEntry:
+    """Build a single MortgageEntry from the legacy single-loan fields."""
+    return MortgageEntry(
+        id="legacy",
+        label="Primary mortgage (legacy)",
+        balance_jpy=coerced.get("mortgage_balance_jpy", 0),
+        interest_rate_pct=coerced.get("mortgage_interest_rate_pct", 0.7),
+        monthly_payment_jpy=coerced.get("monthly_mortgage_payment_jpy", 0),
+        remaining_years=coerced.get("mortgage_remaining_years", 25),
+        loan_type=coerced.get("mortgage_type", "variable"),
+        is_foreign=False,
+        tax_credit_remaining_years=coerced.get("mortgage_tax_credit_remaining_years", 0),
+        tax_credit_principal_cap_jpy=coerced.get("mortgage_tax_credit_principal_cap_jpy", 30_000_000),
+        tax_credit_rate_pct=coerced.get("mortgage_tax_credit_rate_pct", 0.7),
+        prepayment_fee_jpy=coerced.get("mortgage_prepayment_fee_jpy", 0),
+    )
