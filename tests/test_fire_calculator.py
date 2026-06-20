@@ -469,3 +469,102 @@ class TestRunFireScenario:
         r_no = run_fire_scenario(no_pension, "NP", "np", assumptions, "national_average")
         r_with = run_fire_scenario(with_pension, "WP", "wp", assumptions, "national_average")
         assert r_with.fire_number_jpy < r_no.fire_number_jpy
+
+
+# ---------------------------------------------------------------------------
+# Lean / Fat FIRE ordering (regression test for ea2a881 → fix)
+# ---------------------------------------------------------------------------
+
+class TestLeanFatFireOrdering:
+    """
+    Lean FIRE number must be < regular FIRE number < Fat FIRE number when
+    the user has set profile.monthly_expenses_jpy explicitly AND no
+    lean/fat override is supplied.
+
+    Regression: commit ea2a881 broke this by hard-coding the region-template
+    baseline for the lean/fat fallback. The fix uses
+    max(profile.monthly_expenses_jpy, region_template) so user-set baselines
+    propagate to variants. See PR/issue for full analysis.
+    """
+
+    def test_lean_lt_regular_lt_fat_when_profile_set_above_template(self):
+        # Andrew's actual case: profile ¥570k/mo vs Tokyo template ¥257k.
+        # Lean must use the profile baseline (¥399k), not the template (¥180k).
+        profile = base_profile(monthly_expenses_jpy=570_000)
+        result = run_fire_scenario(
+            profile, "Lean/Fat ordering", "lfo", base_assumptions(), "tokyo"
+        )
+        assert result.lean_fire_number_jpy < result.fire_number_jpy, (
+            f"Lean ({result.lean_fire_number_jpy:,}) should be < regular "
+            f"({result.fire_number_jpy:,})"
+        )
+        assert result.fire_number_jpy < result.fat_fire_number_jpy, (
+            f"Regular ({result.fire_number_jpy:,}) should be < fat "
+            f"({result.fat_fire_number_jpy:,}) — this is the ea2a881 regression"
+        )
+
+    def test_lean_lt_regular_lt_fat_when_profile_set_below_template(self):
+        # If user's profile baseline is below the region template (rare but
+        # legal — e.g. someone who knows they live cheaply), lean/fat scale
+        # from the template so the variance is still meaningful.
+        profile = base_profile(monthly_expenses_jpy=150_000)
+        result = run_fire_scenario(
+            profile, "Lean/Fat low", "lfl", base_assumptions(), "tokyo"
+        )
+        assert result.lean_fire_number_jpy < result.fire_number_jpy
+        assert result.fire_number_jpy < result.fat_fire_number_jpy
+
+    def test_user_lean_override_wins(self):
+        # If user explicitly sets lean_monthly_expenses_jpy, it must override
+        # the computed fallback.
+        profile = base_profile(monthly_expenses_jpy=570_000)
+        assumptions = base_assumptions(lean_monthly_expenses_jpy=100_000)
+        result = run_fire_scenario(
+            profile, "Lean override", "lo", assumptions, "tokyo"
+        )
+        # Override ¥100k/mo lean should yield smaller lean FIRE# than
+        # the default-fallback lean FIRE# on the same profile.
+        result_default = run_fire_scenario(
+            profile, "Lean default", "ld", base_assumptions(), "tokyo"
+        )
+        assert result.lean_fire_number_jpy < result_default.lean_fire_number_jpy
+
+    def test_user_fat_override_wins(self):
+        profile = base_profile(monthly_expenses_jpy=570_000)
+        assumptions_default = base_assumptions()
+        assumptions_explicit_fat = base_assumptions(fat_monthly_expenses_jpy=900_000)
+        result_default = run_fire_scenario(
+            profile, "Fat default", "fd", assumptions_default, "tokyo"
+        )
+        result_explicit = run_fire_scenario(
+            profile, "Fat override", "fo", assumptions_explicit_fat, "tokyo"
+        )
+        assert result_explicit.fat_fire_number_jpy > result_default.fat_fire_number_jpy
+
+    def test_lean_fat_use_profile_baseline_not_template(self):
+        """
+        Direct check: with profile.monthly_expenses_jpy = 570k and Tokyo
+        template = 257k, the lean baseline must be ¥399k (= 570 * 0.70),
+        NOT ¥180k (= 257 * 0.70). This is the original Andrew case that
+        surfaced the bug.
+        """
+        profile = base_profile(monthly_expenses_jpy=570_000)
+        result = run_fire_scenario(
+            profile, "Lean baseline check", "lbc", base_assumptions(), "tokyo"
+        )
+        # lean_annual = (lean_monthly + mortgage - rental) * 12; mortgage=0 in
+        # base_profile, rental=0. So lean_annual = lean_monthly * 12.
+        # lean_monthly should be int(570000 * 0.70) = 399000, giving
+        # lean_annual = 4,788,000 (pre-NHI). With baseline lean would be
+        # int(257000 * 0.70) * 12 = 180000 * 12 = 2,160,000.
+        assert result.lean_annual_expenses_jpy >= 4_000_000, (
+            f"Lean annual expenses should be ~¥4.79M (profile baseline ¥570k "
+            f"× 0.70), got ¥{result.lean_annual_expenses_jpy:,} — looks like "
+            f"the engine fell back to the ¥257k template baseline."
+        )
+        # Fat baseline: ¥570k × 1.50 = ¥855k/mo → annual ~¥10.26M (pre-NHI).
+        # Template fallback would give ¥257k × 1.50 = ¥386k → ~¥4.6M (wrong).
+        assert result.fat_annual_expenses_jpy >= 8_000_000, (
+            f"Fat annual expenses should be ~¥10.26M (profile baseline ¥570k "
+            f"× 1.50), got ¥{result.fat_annual_expenses_jpy:,}."
+        )

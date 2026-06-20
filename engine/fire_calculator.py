@@ -1008,18 +1008,28 @@ def run_fire_scenario(
             v_fire_number = v_steady
         return v_fire_number, v_nhi_solve["gross_withdrawal"], v_nhi_solve["nhi_premium"]
 
-    # Lean: user-specified lean budget, or 70% of region template base
+    # Lean / Fat: scale from the same baseline the regular FIRE number uses
+    # (profile.monthly_expenses_jpy directly — not the region template).
+    # This guarantees lean < regular < fat when no user override is supplied,
+    # regardless of whether the profile baseline is above or below the region
+    # template's total_monthly.
+    #
+    # Regression history: commit ea2a881 changed the fallback from
+    # expense_result["base_monthly_jpy"] to get_region_template(...)["total_monthly"],
+    # which broke the ordering whenever the user-set profile.monthly_expenses_jpy
+    # exceeded the region template. Fix uses profile.monthly_expenses_jpy as
+    # the scaling baseline for both lean and fat.
+    baseline_monthly = profile.monthly_expenses_jpy
     lean_monthly = assumptions.lean_monthly_expenses_jpy
     if lean_monthly <= 0:
-        lean_monthly = int(get_region_template(region_key)["total_monthly"] * 0.70)
+        lean_monthly = int(baseline_monthly * 0.70)
     lean_annual = max(0, (lean_monthly + expense_result["mortgage_monthly_jpy"]
                           - expense_result["rental_income_monthly_jpy"]) * 12)
     lean_fire_number, lean_withdrawal, lean_nhi = _variant_fire_number(lean_annual)
 
-    # Fat: user-specified fat budget, or 150% of region template base
     fat_monthly = assumptions.fat_monthly_expenses_jpy
     if fat_monthly <= 0:
-        fat_monthly = int(get_region_template(region_key)["total_monthly"] * 1.50)
+        fat_monthly = int(baseline_monthly * 1.50)
     fat_annual = max(0, (fat_monthly + expense_result["mortgage_monthly_jpy"]
                          - expense_result["rental_income_monthly_jpy"]) * 12)
     fat_fire_number, fat_withdrawal, fat_nhi = _variant_fire_number(fat_annual)
@@ -1256,6 +1266,14 @@ def run_fire_scenario(
     foreign_pension_annual = pension_info.get("foreign_pension_annual_jpy", 0)
     japan_pension_for_mc = net_pension - foreign_pension_annual
     foreign_pension_start_yr = max(0, profile.foreign_pension_start_age - profile.target_retirement_age)
+
+    # For Barista FIRE, the side income should reduce portfolio withdrawals
+    # throughout retirement, not just lower the headline FIRE number. Feed it
+    # into Monte Carlo as a withdrawal reduction schedule from year 0 onward.
+    if assumptions.fire_variant == 'barista' and assumptions.barista_income_monthly_jpy > 0:
+        barista_reduction = assumptions.barista_income_monthly_jpy * 12
+        mc_withdrawal_reductions = list(mc_withdrawal_reductions or [])
+        mc_withdrawal_reductions.append((0, barista_reduction))
 
     mc_result = run_monte_carlo(
         initial_portfolio_jpy=current_portfolio,
