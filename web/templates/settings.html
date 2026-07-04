@@ -64,7 +64,7 @@
         {{ field("default_withdrawal_rate_pct", "Withdrawal Rate (%)",
                  value=settings.default_withdrawal_rate_pct,
                  type="number", min=1, max=8, step=0.1,
-                 help="Japan research suggests 3–3.5% is safer than the US 4% rule.") }}
+                 help="Results compare this with a Monte Carlo-derived safe rate for each scenario.") }}
         {{ field("default_japan_inflation_pct", "Japan Inflation (%)",
                  value=settings.default_japan_inflation_pct,
                  type="number", min=0, max=10, step=0.1,

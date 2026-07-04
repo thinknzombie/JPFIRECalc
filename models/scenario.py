@@ -137,6 +137,10 @@ class Scenario:
     region: str = "tokyo"                         # key into region_templates.json
     assumptions: AssumptionSet = field(default_factory=AssumptionSet)
     overrides: dict[str, Any] = field(default_factory=dict)
+    # Headline results cached from the last successful run — lets the
+    # dashboard show FIRE number / progress / MC success without re-running
+    # the full engine for every card.
+    summary: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -176,6 +180,8 @@ class YearProjection:
     net_from_portfolio_jpy: int = 0
     year1_residence_tax_jpy: int = 0
     year1_tax_shock_jpy: int = 0                  # total year-1 tax shock (residence tax + any RSU/equity liquidation income)
+    expenses_jpy: int = 0                         # inflated living expenses for this year
+    ideco_locked_jpy: int = 0                     # iDeCo pot still locked (pre-60)
 
 
 @dataclass
@@ -189,6 +195,7 @@ class MonteCarloResult:
     success_rate_pct: float = 0.0
     n_simulations: int = 0
     ruin_year_median: int | None = None           # median year of ruin for failed paths (None if no failures)
+    emergency_liquidation_pct: float = 0.0        # paths that used future lump sums early
 
 
 @dataclass
@@ -259,7 +266,8 @@ class ScenarioResult:
     # --- Retirement cash flow breakdown ------------------------------------
     annual_expenses_jpy: int = 0
     annual_pension_net_jpy: int = 0               # after-tax pension
-    annual_nhi_jpy: int = 0                       # NHI premium at FIRE withdrawal level
+    annual_nhi_jpy: int = 0                       # NHI premium once pension income starts
+    annual_nhi_gap_jpy: int = 0                   # NHI premium in pre-pension gap years (軽減 minimum)
     annual_withdrawal_needed_jpy: int = 0         # net from portfolio per year
     year1_residence_tax_shock_jpy: int = 0
 
@@ -281,6 +289,8 @@ class ScenarioResult:
 
     # --- Simulation results -------------------------------------------------
     monte_carlo: MonteCarloResult | None = None
+    mc_safe_withdrawal_rate_pct: float = 0.0
+    mc_safe_withdrawal_target_pct: float = 90.0
     sensitivity: list[SensitivityItem] = field(default_factory=list)
 
     # --- Foreigners mode ----------------------------------------------------

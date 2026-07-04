@@ -9,7 +9,7 @@ Key Japan-specific design decisions:
   2. NHI premium is solved iteratively (circular dependency with withdrawal).
   3. Year-1 residence tax shock is modelled as a one-time retirement expense.
   4. iDeCo is excluded from accessible portfolio if FIRE age < 60.
-  5. Recommended withdrawal rate is 3.0–3.5% for Japan (not the US 4% rule).
+  5. Withdrawal-rate safety is checked with scenario-specific Monte Carlo.
 
 All monetary values in JPY (int). Rates/percentages as floats (e.g. 0.05 = 5%).
 """
@@ -22,8 +22,14 @@ from engine.tax_calculator import (
     calculate_income_tax,
     calculate_residence_tax,
     calculate_year1_retirement_tax_shock,
+    calculate_retirement_income_tax,
+    TAX_FREE_SALARY_WALL_JPY,
 )
-from engine.nhi_calculator import solve_withdrawal_with_nhi, calculate_nhi_for_retiree
+from engine.nhi_calculator import (
+    solve_withdrawal_with_nhi,
+    calculate_nhi_for_retiree,
+    calculate_nhi_income_base,
+)
 from engine.pension_calculator import (
     calculate_kokumin_nenkin,
     calculate_kosei_nenkin,
@@ -35,6 +41,51 @@ from engine.ideco_calculator import (
     calculate_ideco_bridge_need,
 )
 from engine.nisa_calculator import calculate_nisa_growth
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+def _retirement_nhi_premium(
+    pension_gross_annual_jpy: int,
+    age: int,
+    num_members: int,
+    municipality_key: str,
+    other_income_jpy: int = 0,
+) -> int:
+    """
+    Annual NHI premium for a retiree, assessed on actual taxable income.
+
+    Assumes NISA withdrawals and 特定口座(源泉徴収あり) gains do NOT enter the
+    NHI income base (the default for most Japan FIRE plans). Pension income
+    enters after the 公的年金等控除; part-time salary via other_income_jpy.
+    """
+    income = calculate_nhi_income_base(
+        pension_gross_annual_jpy, age, other_income_jpy=other_income_jpy
+    )
+    return calculate_nhi_for_retiree(income, num_members, municipality_key, age)["total"]
+
+
+def _ideco_tenure_years(profile: FinancialProfile) -> int:
+    """
+    Estimate iDeCo contribution years for the 退職所得控除 at lump-sum withdrawal.
+
+    Counts from the (assumed) start age to the earlier of 65 or retirement.
+    Conservative when the user has an existing balance but no start age set —
+    the deduction is understated, so the tax estimate errs slightly high.
+    """
+    start = profile.ideco_start_age if profile.ideco_start_age is not None else profile.current_age
+    end = min(65, max(profile.target_retirement_age, profile.current_age))
+    return max(1, end - min(start, end))
+
+
+def _ideco_net_of_lump_sum_tax(balance_jpy: int, tenure_years: int) -> int:
+    """iDeCo balance net of retirement-income tax on a lump-sum withdrawal at 60."""
+    if balance_jpy <= 0:
+        return 0
+    tax = calculate_retirement_income_tax(balance_jpy, tenure_years)["income_tax"]
+    return max(0, balance_jpy - tax)
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +126,8 @@ def calculate_fire_number(
     if withdrawal_rate > 0.04:
         warning = (
             f"Withdrawal rate {withdrawal_rate*100:.1f}% exceeds 4%. "
-            "Japan research suggests 3.0–3.5% for higher safety."
+            "Above 4% is aggressive by conventional FIRE standards; check "
+            "the Monte Carlo success rate for this scenario."
         )
 
     return {
@@ -339,19 +391,24 @@ def calculate_accessible_portfolio(
     rsu     = getattr(profile, 'rsu_unvested_value_jpy', 0)
     other   = getattr(profile, 'other_assets_jpy', 0)
 
-    # Taxable brokerage: if a cost basis is provided, count only the gain as
-    # accessible (the original cost basis is returned to the user; only the
-    # gain is available to fund retirement).  If cost_basis is None, assume
-    # the full market value is gain (i.e. user has no tax-cost basis tracking).
+    # Taxable brokerage: the full market value is accessible, minus the
+    # 20.315% capital gains tax due on the unrealised gain when sold.
+    # If cost_basis is None, conservatively assume the entire balance is gain.
     taxable_gain = max(
         0,
         profile.taxable_brokerage_jpy
-        - (profile.taxable_brokerage_cost_basis_jpy or 0),
+        - (
+            profile.taxable_brokerage_cost_basis_jpy
+            if profile.taxable_brokerage_cost_basis_jpy is not None
+            else 0
+        ),
     )
+    taxable_cgt = int(taxable_gain * 0.20315)
+    taxable_net = max(0, profile.taxable_brokerage_jpy - taxable_cgt)
 
     liquid = (
         profile.nisa_balance_jpy
-        + taxable_gain
+        + taxable_net
         + profile.cash_savings_jpy
         + foreign_jpy
         + (profile.ideco_balance_jpy if ideco_accessible else 0)
@@ -362,6 +419,8 @@ def calculate_accessible_portfolio(
         "nisa_jpy": profile.nisa_balance_jpy,
         "ideco_jpy": profile.ideco_balance_jpy,
         "taxable_jpy": profile.taxable_brokerage_jpy,
+        "taxable_net_jpy": taxable_net,
+        "taxable_cgt_reserve_jpy": taxable_cgt,
         "cash_jpy": profile.cash_savings_jpy,
         "foreign_jpy": foreign_jpy,
         "ideco_accessible": ideco_accessible,
@@ -493,7 +552,7 @@ def calculate_barista_fire_number(
     This lets you retire earlier with a smaller portfolio by covering some
     expenses through enjoyable/low-stress part-time work.
 
-    Note: Part-time income above 1,030,000 yen/year affects tax and NHI.
+    Note: Part-time income above the current dependent-income wall affects tax and NHI.
     Income below the non-taxable threshold (103万円) has minimal tax impact.
 
     Args:
@@ -510,11 +569,13 @@ def calculate_barista_fire_number(
     barista_number = int(net_need / withdrawal_rate) if net_need > 0 else 0
 
     # Warn if barista income exceeds the non-taxable threshold
+    # (the "160万円の壁" since the 2025 tax reform).
     taxable_warning = None
-    if barista_income_annual_jpy > 1_030_000:
+    if barista_income_annual_jpy > TAX_FREE_SALARY_WALL_JPY:
         taxable_warning = (
-            f"Part-time income ¥{barista_income_annual_jpy:,} exceeds the ¥1,030,000 "
-            "non-taxable threshold — income tax and NHI implications apply."
+            f"Part-time income ¥{barista_income_annual_jpy:,} exceeds the "
+            f"¥{TAX_FREE_SALARY_WALL_JPY:,} non-taxable threshold — income tax "
+            "and NHI implications apply."
         )
 
     return {
@@ -551,20 +612,17 @@ def project_net_worth(
 
     Retirement phase (target_retirement_age → end):
       - Portfolio grows at retirement_return_pct
-      - Withdrawals made (solved iteratively with NHI)
+      - Expenses inflate at retirement_expense_growth_pct (consistent with MC)
       - Pension income offsets withdrawals from pension start age
+        (Japan pension grows ~1%/yr; foreign pension at foreign_inflation_pct)
+      - NHI is recomputed each year from that year's actual taxable income
+        (pension after 公的年金等控除) — NISA/brokerage withdrawals are not
+        income, so pre-pension NHI sits near the 7割軽減 minimum.
       - Year-1 residence tax shock added in first retirement year
 
-    KNOWN LIMITATION — NHI in retirement:
-      NHI is solved once at the FIRE withdrawal level and held constant for all
-      retirement years.  In practice, NHI depends on the withdrawal amount (which
-      is the proxy for income).  As the portfolio depletes, the withdrawal falls,
-      but because the portfolio also shrinks, the withdrawal rate (and hence the
-      implied income) stays roughly similar.  The main inaccuracy appears in the
-      pension gap years: withdrawals are larger pre-pension, so actual NHI should
-      be higher too.  The effect is small in most scenarios (< ¥50k/yr).
-
-    The iDeCo balance unlocks at age 60 (added to portfolio at that point).
+    The iDeCo balance is tracked separately, grown at the accumulation return,
+    and released into the portfolio at age 60 NET of retirement-income tax on
+    a lump-sum withdrawal (usually small thanks to the 退職所得控除).
 
     Returns:
         List of YearProjection dataclasses (one per year).
@@ -599,16 +657,20 @@ def project_net_worth(
     # pension income deduction, so the error is small.
     japan_pension_only = net_pension - foreign_pension_annual
 
-    # FIRE number and NHI solve at target withdrawal level
-    fire_info = calculate_fire_number(annual_expenses, withdrawal_rate, net_pension)
-    nhi_solve = solve_withdrawal_with_nhi(
-        target_net_expenses=fire_info["net_annual_need_jpy"],
-        num_members=nhi_members,
-        municipality_key=municipality_key,
-        age=profile.target_retirement_age,
+    # Gross pension figures — needed for the NHI income base (NHI is assessed
+    # on pension income after the 公的年金等控除, not on portfolio withdrawals).
+    japan_pension_gross = (
+        pension_info["kokumin_annual_jpy"] + pension_info["kosei_annual_jpy"]
     )
-    gross_withdrawal_at_fire = nhi_solve["gross_withdrawal"]
-    nhi_at_fire = nhi_solve["nhi_premium"]
+    foreign_pension_gross = foreign_pension_annual
+
+    # Retirement expense growth rate (matches the Monte Carlo engine)
+    g_expense = assumptions.retirement_expense_growth_pct / 100
+    g_jp_pension = 0.01   # nenkin is partially CPI-linked — same as MC default
+    g_fp_pension = assumptions.foreign_inflation_pct / 100
+
+    # iDeCo lump-sum tax tenure (for the 退職所得控除 at age-60 unlock)
+    ideco_tenure = _ideco_tenure_years(profile)
 
     # Year-1 retirement residence tax shock
     shock_result = calculate_year1_retirement_tax_shock(
@@ -619,28 +681,43 @@ def project_net_worth(
     )
     year1_shock = shock_result["year1_residence_tax"]
 
-    # Starting portfolio (accessible only, including alternative assets)
-    ideco_accessible_at_fire = profile.target_retirement_age >= 60
+    # Starting portfolio (accessible only, including alternative assets).
+    # Taxable brokerage is counted net of the CGT reserve on unrealised gains.
+    # iDeCo is tracked in a separate pot until age 60 regardless of FIRE age.
     foreign_jpy = int(profile.foreign_assets_usd * usd_jpy_rate)
     gold = getattr(profile, 'gold_silver_value_jpy', 0)
     crypto = getattr(profile, 'crypto_value_jpy', 0)
     rsu = getattr(profile, 'rsu_unvested_value_jpy', 0)
     other = getattr(profile, 'other_assets_jpy', 0)
+    taxable_gain_now = max(
+        0,
+        profile.taxable_brokerage_jpy
+        - (
+            profile.taxable_brokerage_cost_basis_jpy
+            if profile.taxable_brokerage_cost_basis_jpy is not None
+            else 0
+        ),
+    )
+    taxable_net_now = max(
+        0, profile.taxable_brokerage_jpy - int(taxable_gain_now * 0.20315)
+    )
     portfolio = (
         profile.nisa_balance_jpy
-        + profile.taxable_brokerage_jpy
+        + taxable_net_now
         + profile.cash_savings_jpy
         + foreign_jpy
-        + (profile.ideco_balance_jpy if ideco_accessible_at_fire else 0)
         + gold + crypto + rsu + other
     )
-    locked_ideco = 0 if ideco_accessible_at_fire else profile.ideco_balance_jpy
+    ideco_pot = profile.ideco_balance_jpy
 
+    # Accessible savings (NISA frames + RSU vesting). iDeCo contributions go
+    # into the locked pot until 60, not the accessible portfolio.
     annual_savings = (
-        (profile.monthly_nisa_contribution_jpy + profile.ideco_monthly_contribution_jpy) * 12
+        profile.monthly_nisa_contribution_jpy * 12
         + profile.nisa_growth_frame_annual_jpy
         + getattr(profile, 'rsu_vesting_annual_jpy', 0)
     )
+    ideco_annual_contribution = profile.ideco_monthly_contribution_jpy * 12
 
     # Build property-sale lump sum map: age → net_proceeds_jpy
     _prop_sale_by_age: dict[int, int] = {}
@@ -697,6 +774,16 @@ def project_net_worth(
         year = i + 1
         in_retirement = age >= profile.target_retirement_age
 
+        # --- iDeCo pot: grow, contribute while working and under 60, then
+        # release into the portfolio at 60 net of lump-sum retirement tax.
+        if ideco_pot > 0 or (not in_retirement and age < 60):
+            ideco_pot = int(ideco_pot * (1 + r_accum))
+            if not in_retirement and age < 60:
+                ideco_pot += ideco_annual_contribution
+        if age >= 60 and ideco_pot > 0:
+            portfolio += _ideco_net_of_lump_sum_tax(ideco_pot, ideco_tenure)
+            ideco_pot = 0
+
         if not in_retirement:
             # --- Accumulation phase ---
             gain = int(portfolio * r_accum)
@@ -706,18 +793,14 @@ def project_net_worth(
             if age in _prop_sale_by_age:
                 portfolio += _prop_sale_by_age[age]
 
-            # iDeCo unlocks at 60 during accumulation (edge case: FIRE > 60 but age hits 60)
-            if age == 60 and not ideco_accessible_at_fire and locked_ideco > 0:
-                portfolio += locked_ideco
-                locked_ideco = 0
-
             trajectory.append(YearProjection(
                 year=year,
                 age=age,
                 phase="accumulation",
                 portfolio_value_jpy=portfolio,
-                annual_savings_jpy=annual_savings,
+                annual_savings_jpy=annual_savings + (ideco_annual_contribution if age < 60 else 0),
                 investment_gain_jpy=gain,
+                ideco_locked_jpy=ideco_pot,
             ))
 
         else:
@@ -733,35 +816,47 @@ def project_net_worth(
                 )
                 portfolio = max(0, portfolio - payoff)
 
-            # iDeCo unlocks at 60 (if FIRE was before 60 and we're crossing 60)
-            if age == 60 and locked_ideco > 0:
-                portfolio += locked_ideco
-                locked_ideco = 0
-
-            # Pension income — Japan and foreign pensions may start at different ages.
-            # Japan pension (kokumin + kosei) starts at nenkin_claim_age.
-            # Foreign pension (US SS, UK state, etc.) starts at foreign_pension_start_age.
-            japan_pension_this_year = japan_pension_only if age >= pension_start_age else 0
-            foreign_pension_this_year = foreign_pension_annual if age >= foreign_pension_start_age else 0
+            # Pension income — Japan and foreign pensions may start at different
+            # ages and grow at different rates (nenkin ~1%/yr partial CPI link;
+            # foreign pensions track their home-country CPI).
+            if age >= pension_start_age:
+                jp_growth = (1 + g_jp_pension) ** (age - pension_start_age)
+                japan_pension_this_year = int(japan_pension_only * jp_growth)
+                japan_gross_this_year = int(japan_pension_gross * jp_growth)
+            else:
+                japan_pension_this_year = 0
+                japan_gross_this_year = 0
+            if age >= foreign_pension_start_age:
+                fp_growth = (1 + g_fp_pension) ** (age - foreign_pension_start_age)
+                foreign_pension_this_year = int(foreign_pension_annual * fp_growth)
+                foreign_gross_this_year = int(foreign_pension_gross * fp_growth)
+            else:
+                foreign_pension_this_year = 0
+                foreign_gross_this_year = 0
             pension_this_year = japan_pension_this_year + foreign_pension_this_year
 
-            # NHI simplification: uses the FIRE-level NHI premium for all retirement
-            # years rather than re-solving at the current withdrawal level each year.
-            # KNOWN LIMITATION: As portfolio depletes, withdrawal rate increases relative
-            # to portfolio, but NHI is income-based (on the withdrawal amount, not the
-            # portfolio size). In practice, if expenses stay constant, the withdrawal
-            # amount stays roughly constant too, so NHI stays roughly constant. The
-            # main inaccuracy is in the gap years before pension starts when withdrawals
-            # are higher — NHI should be higher in those years. This is a minor effect
-            # for most scenarios (<¥50k/yr difference).
-            nhi_this_year = nhi_at_fire if portfolio > 0 else 0
+            # NHI recomputed each year from that year's taxable income.
+            # Portfolio withdrawals (NISA, cash, 源泉徴収あり brokerage) are NOT
+            # income for NHI, so pre-pension years sit near the 軽減 minimum.
+            nhi_this_year = _retirement_nhi_premium(
+                japan_gross_this_year + foreign_gross_this_year,
+                age,
+                nhi_members,
+                municipality_key,
+            )
 
             # Rental cessation: when a rented property is sold, expenses increase
             if age in _rental_cessation_by_age:
                 rental_adjustment += _rental_cessation_by_age[age]
 
-            # Gross from portfolio = expenses + rental_adjustment - pension + NHI
-            net_need_this_year = max(0, (annual_expenses + rental_adjustment) - pension_this_year)
+            # Expenses inflate from retirement start (consistent with Monte Carlo)
+            expenses_this_year = int(
+                (annual_expenses + rental_adjustment)
+                * (1 + g_expense) ** retirement_year
+            )
+
+            # Gross from portfolio = expenses - pension + NHI
+            net_need_this_year = max(0, expenses_this_year - pension_this_year)
             net_from_portfolio = net_need_this_year + nhi_this_year
 
             # Year-1 residence tax shock
@@ -788,6 +883,8 @@ def project_net_worth(
                 net_from_portfolio_jpy=net_from_portfolio,
                 year1_residence_tax_jpy=shock_this_year,
                 investment_gain_jpy=gain,
+                expenses_jpy=expenses_this_year,
+                ideco_locked_jpy=ideco_pot,
             ))
 
     return trajectory
@@ -835,7 +932,7 @@ def run_fire_scenario(
         spouse_income_jpy=profile.spouse_income_jpy,
         social_insurance_premium=profile.social_insurance_annual_jpy,
     )
-    residence_tax = calculate_residence_tax(tax_result["taxable_income"])
+    residence_tax = calculate_residence_tax(tax_result["residence_taxable_income"])
 
     # --- Retirement expenses -------------------------------------------------
     expense_result = calculate_retirement_expenses(profile, region_key, use_region_template=False)
@@ -844,20 +941,34 @@ def run_fire_scenario(
     # --- Pension at retirement -----------------------------------------------
     pension_info = calculate_pension_at_retirement(profile, profile.years_to_retirement)
     net_pension = pension_info["net_pension_annual_jpy"]
-
-    # --- NHI in retirement (iterative solve) --------------------------------
-    fire_info = calculate_fire_number(annual_expenses, withdrawal_rate, net_pension)
-    nhi_solve = solve_withdrawal_with_nhi(
-        target_net_expenses=fire_info["net_annual_need_jpy"],
-        num_members=assumptions.nhi_household_members,
-        municipality_key=municipality_key,
-        age=profile.target_retirement_age,
+    pension_gross_total = (
+        pension_info["kokumin_annual_jpy"]
+        + pension_info["kosei_annual_jpy"]
+        + pension_info["foreign_pension_annual_jpy"]
     )
-    if not nhi_solve.get("converged", True):
-        warnings.append(
-            "NHI premium calculation did not fully converge. "
-            "The withdrawal estimate is approximate — consider adjusting municipality or household size."
-        )
+
+    # --- NHI in retirement (income-based) ------------------------------------
+    # NHI is assessed on taxable income (前年所得), NOT on cash withdrawn.
+    # Default plan assumption: NISA withdrawals and 特定口座(源泉徴収あり)
+    # gains do not enter the NHI base, so:
+    #   Gap years (before pension):  income ≈ 0  → 軽減-reduced minimum premium
+    #   Pension years:               income = pension − 公的年金等控除
+    fire_info = calculate_fire_number(annual_expenses, withdrawal_rate, net_pension)
+    steady_age = max(profile.target_retirement_age, profile.nenkin_claim_age)
+    nhi_steady = _retirement_nhi_premium(
+        pension_gross_total, steady_age,
+        assumptions.nhi_household_members, municipality_key,
+    )
+    nhi_gap = _retirement_nhi_premium(
+        0, profile.target_retirement_age,
+        assumptions.nhi_household_members, municipality_key,
+    )
+    warnings.append(
+        "NHI premiums are assessed on taxable income, not withdrawals — this model "
+        "assumes NISA and 特定口座(源泉徴収あり) sales stay off your tax return. "
+        f"Pre-pension NHI ≈ ¥{nhi_gap:,}/yr (軽減 minimum); with pension ≈ ¥{nhi_steady:,}/yr. "
+        "Declaring brokerage gains (e.g. for loss carryforward) would raise NHI."
+    )
 
     # --- Year-1 residence tax shock -----------------------------------------
     # Any RSU/equity liquidated in the FIRE year increases taxable income and
@@ -899,7 +1010,7 @@ def run_fire_scenario(
 
     # --- FIRE number ---------------------------------------------------------
     # Include NHI in annual need (NHI is paid from portfolio in retirement)
-    annual_need_with_nhi = fire_info["net_annual_need_jpy"] + nhi_solve["nhi_premium"]
+    annual_need_with_nhi = fire_info["net_annual_need_jpy"] + nhi_steady
     fire_number = int(annual_need_with_nhi / withdrawal_rate)
 
     # --- Pension gap adjustment to FIRE number --------------------------------
@@ -916,25 +1027,32 @@ def run_fire_scenario(
     #
     #   FIRE# = steady_FIRE# × (1+r)^(-n) + W_pre × (1 - (1+r)^(-n)) / r
     #
-    # where r = retirement return rate, n = pension gap years,
-    # W_pre = full annual expenses + NHI assessed on that higher withdrawal.
-    if pension_gap_years > 0 and withdrawal_rate > 0:
-        _pre_nhi = solve_withdrawal_with_nhi(
-            target_net_expenses=annual_expenses,   # no pension offset during gap
-            num_members=assumptions.nhi_household_members,
-            municipality_key=municipality_key,
-            age=profile.target_retirement_age,
-        )
-        _pre_w = _pre_nhi["gross_withdrawal"]      # expenses + NHI_pre
-        _disc = (1 + withdrawal_rate) ** (-pension_gap_years)
-        fire_number = int(fire_number * _disc + _pre_w * (1 - _disc) / withdrawal_rate)
+    # where r = retirement return rate (the rate at which the gap-year
+    # portfolio actually compounds), n = pension gap years,
+    # W_pre = full annual expenses + gap-year NHI (軽減 minimum — withdrawals
+    # are not income, so pre-pension NHI is near the floor).
+    if pension_gap_years > 0 and withdrawal_rate > 0 and r_retire > 0:
+        _pre_w = annual_expenses + nhi_gap
+        _disc = (1 + r_retire) ** (-pension_gap_years)
+        fire_number = int(fire_number * _disc + _pre_w * (1 - _disc) / r_retire)
 
     progress_pct = (current_portfolio / fire_number * 100) if fire_number > 0 else 100.0
 
     # --- Annual savings (used in years-to-fire below) -----------------------
+    # iDeCo contributions only count toward the accessible FIRE portfolio when
+    # retiring at 60+ — before that they land in a locked account and cannot
+    # fund the FIRE number they were being counted against.
+    ideco_savings_annual = (
+        profile.ideco_monthly_contribution_jpy * 12
+        if profile.target_retirement_age >= 60
+        else 0
+    )
     annual_savings = (
-        profile.monthly_nisa_contribution_jpy + profile.ideco_monthly_contribution_jpy
-    ) * 12 + profile.nisa_growth_frame_annual_jpy + getattr(profile, 'rsu_vesting_annual_jpy', 0)
+        profile.monthly_nisa_contribution_jpy * 12
+        + ideco_savings_annual
+        + profile.nisa_growth_frame_annual_jpy
+        + getattr(profile, 'rsu_vesting_annual_jpy', 0)
+    )
 
     # --- Coast FIRE ---------------------------------------------------------
     # Coast FIRE uses the configurable coast_target_retirement_age, NOT the
@@ -963,23 +1081,25 @@ def run_fire_scenario(
     # assumptions at a later age.
     barista_income_annual = assumptions.barista_income_monthly_jpy * 12
     barista_net_need = max(0, annual_expenses - net_pension - barista_income_annual)
-    barista_nhi_solve = solve_withdrawal_with_nhi(
-        target_net_expenses=barista_net_need,
-        num_members=assumptions.nhi_household_members,
-        municipality_key=municipality_key,
-        age=profile.target_retirement_age,
+    # Part-time salary IS income for NHI (after the ¥650k employment income
+    # deduction floor), unlike portfolio withdrawals.
+    barista_salary_income = max(0, barista_income_annual - 650_000)
+    barista_nhi_steady = _retirement_nhi_premium(
+        pension_gross_total, steady_age,
+        assumptions.nhi_household_members, municipality_key,
+        other_income_jpy=barista_salary_income,
     )
-    barista_annual_need_with_nhi = barista_net_need + barista_nhi_solve["nhi_premium"]
+    barista_nhi_gap = _retirement_nhi_premium(
+        0, profile.target_retirement_age,
+        assumptions.nhi_household_members, municipality_key,
+        other_income_jpy=barista_salary_income,
+    )
+    barista_annual_need_with_nhi = barista_net_need + barista_nhi_steady
     barista_steady = int(barista_annual_need_with_nhi / withdrawal_rate) if withdrawal_rate > 0 else 0
-    if pension_gap_years > 0 and withdrawal_rate > 0:
-        _barista_pre_nhi = solve_withdrawal_with_nhi(
-            target_net_expenses=max(0, annual_expenses - barista_income_annual),
-            num_members=assumptions.nhi_household_members,
-            municipality_key=municipality_key,
-            age=profile.target_retirement_age,
-        )
-        _disc = (1 + withdrawal_rate) ** (-pension_gap_years)
-        barista_fire_number = int(barista_steady * _disc + _barista_pre_nhi["gross_withdrawal"] * (1 - _disc) / withdrawal_rate)
+    if pension_gap_years > 0 and withdrawal_rate > 0 and r_retire > 0:
+        _barista_pre_w = max(0, annual_expenses - barista_income_annual) + barista_nhi_gap
+        _disc = (1 + r_retire) ** (-pension_gap_years)
+        barista_fire_number = int(barista_steady * _disc + _barista_pre_w * (1 - _disc) / r_retire)
     else:
         barista_fire_number = barista_steady
 
@@ -989,28 +1109,21 @@ def run_fire_scenario(
     # NHI is re-solved for each variant since it depends on withdrawal amount.
 
     def _variant_fire_number(variant_annual_expenses: int) -> tuple[int, int, int]:
-        """Compute (fire_number, annual_withdrawal, nhi) for a given expense level."""
+        """Compute (fire_number, annual_withdrawal, nhi) for a given expense level.
+
+        NHI is income-based, so it does not change with the expense level —
+        only the pension income base matters.
+        """
         v_fire_info = calculate_fire_number(variant_annual_expenses, withdrawal_rate, net_pension)
-        v_nhi_solve = solve_withdrawal_with_nhi(
-            target_net_expenses=v_fire_info["net_annual_need_jpy"],
-            num_members=assumptions.nhi_household_members,
-            municipality_key=municipality_key,
-            age=profile.target_retirement_age,
-        )
-        v_annual_need = v_fire_info["net_annual_need_jpy"] + v_nhi_solve["nhi_premium"]
+        v_annual_need = v_fire_info["net_annual_need_jpy"] + nhi_steady
         v_steady = int(v_annual_need / withdrawal_rate) if withdrawal_rate > 0 else 0
-        if pension_gap_years > 0 and withdrawal_rate > 0:
-            _v_pre_nhi = solve_withdrawal_with_nhi(
-                target_net_expenses=variant_annual_expenses,
-                num_members=assumptions.nhi_household_members,
-                municipality_key=municipality_key,
-                age=profile.target_retirement_age,
-            )
-            _disc = (1 + withdrawal_rate) ** (-pension_gap_years)
-            v_fire_number = int(v_steady * _disc + _v_pre_nhi["gross_withdrawal"] * (1 - _disc) / withdrawal_rate)
+        if pension_gap_years > 0 and withdrawal_rate > 0 and r_retire > 0:
+            _v_pre_w = variant_annual_expenses + nhi_gap
+            _disc = (1 + r_retire) ** (-pension_gap_years)
+            v_fire_number = int(v_steady * _disc + _v_pre_w * (1 - _disc) / r_retire)
         else:
             v_fire_number = v_steady
-        return v_fire_number, v_nhi_solve["gross_withdrawal"], v_nhi_solve["nhi_premium"]
+        return v_fire_number, v_annual_need, nhi_steady
 
     # Lean / Fat: scale from the same baseline the regular FIRE number uses
     # (profile.monthly_expenses_jpy directly — not the region template).
@@ -1043,24 +1156,28 @@ def run_fire_scenario(
     # "years to FIRE" metric and which expense level the MC simulates.
     # MC receives FULL annual costs (not pension-subtracted) because the
     # MC engine handles pension timing internally via pension_start_year.
+    # NHI is passed to Monte Carlo as a separate per-year schedule (it follows
+    # pension income, not expenses), so MC expenses here exclude NHI.
     variant = assumptions.fire_variant
+    mc_nhi_extra_income = 0
     if variant == 'lean':
         active_fire_number = lean_fire_number
-        active_mc_expenses = lean_annual + lean_nhi
+        active_mc_expenses = lean_annual
     elif variant == 'fat':
         active_fire_number = fat_fire_number
-        active_mc_expenses = fat_annual + fat_nhi
+        active_mc_expenses = fat_annual
     elif variant == 'barista':
         active_fire_number = barista_fire_number
         # Barista income supplements portfolio — reduces required withdrawal
-        active_mc_expenses = max(0, annual_expenses + barista_nhi_solve["nhi_premium"] - barista_income_annual)
+        active_mc_expenses = max(0, annual_expenses - barista_income_annual)
+        mc_nhi_extra_income = barista_salary_income
     elif variant == 'coast':
         # Coast "years to fire" = time to reach the coast number (stop saving)
         active_fire_number = coast["coast_fire_number_jpy"]
-        active_mc_expenses = annual_expenses + nhi_solve["nhi_premium"]
+        active_mc_expenses = annual_expenses
     else:  # regular
         active_fire_number = fire_number
-        active_mc_expenses = annual_expenses + nhi_solve["nhi_premium"]
+        active_mc_expenses = annual_expenses
 
     # --- Years to FIRE (variant-aware) --------------------------------------
     years_to_fire = calculate_years_to_fire(
@@ -1129,11 +1246,6 @@ def run_fire_scenario(
             f"Nenkin claim age ({profile.nenkin_claim_age}) is before your target retirement "
             f"age ({profile.target_retirement_age}) — a {gap}-year pension gap. "
             f"You'll need portfolio withdrawals to cover expenses until nenkin starts."
-        )
-    if assumptions.withdrawal_rate_pct > 4.0:
-        warnings.append(
-            f"Withdrawal rate {assumptions.withdrawal_rate_pct}% is above 4%. "
-            "Japan research suggests 3.0–3.5% for long-term safety."
         )
     # iDeCo monthly cap: employees ≤ 55 = ¥23,000/mo; 56-59 = ¥53,000/mo;
     # self-employed / full-time domestic worker = ¥68,000/mo.
@@ -1268,7 +1380,7 @@ def run_fire_scenario(
     fire_age = profile.current_age + years_to_fire
 
     # --- Monte Carlo simulation ---------------------------------------------
-    from engine.monte_carlo import run_monte_carlo
+    from engine.monte_carlo import find_safe_withdrawal_rate, run_monte_carlo
     pension_start_year = max(0, profile.nenkin_claim_age - profile.target_retirement_age)
 
     # Split pension into Japan-only and foreign for MC so they can have
@@ -1277,13 +1389,36 @@ def run_fire_scenario(
     japan_pension_for_mc = net_pension - foreign_pension_annual
     foreign_pension_start_yr = max(0, profile.foreign_pension_start_age - profile.target_retirement_age)
 
-# For Barista FIRE, the side income should reduce portfolio withdrawals
+    # For Barista FIRE, the side income should reduce portfolio withdrawals
     # throughout retirement, not just lower the headline FIRE number. Feed it
     # into Monte Carlo as a withdrawal reduction schedule from year 0 onward.
     if assumptions.fire_variant == 'barista' and assumptions.barista_income_monthly_jpy > 0:
         barista_reduction = assumptions.barista_income_monthly_jpy * 12
         mc_withdrawal_reductions = list(mc_withdrawal_reductions or [])
         mc_withdrawal_reductions.append((0, barista_reduction))
+    # Per-year NHI schedule for MC — NHI follows pension income (nominal,
+    # grown at the pension growth rates), not expense inflation.
+    japan_pension_gross_mc = (
+        pension_info["kokumin_annual_jpy"] + pension_info["kosei_annual_jpy"]
+    )
+    nhi_schedule = []
+    for _yr in range(assumptions.simulation_years):
+        _age = profile.target_retirement_age + _yr
+        _jp_gross = (
+            int(japan_pension_gross_mc * (1.01 ** (_yr - pension_start_year)))
+            if _yr >= pension_start_year else 0
+        )
+        _fp_gross = (
+            int(foreign_pension_annual * ((1 + assumptions.foreign_inflation_pct / 100) ** (_yr - foreign_pension_start_yr)))
+            if foreign_pension_annual > 0 and _yr >= foreign_pension_start_yr else 0
+        )
+        nhi_schedule.append(
+            _retirement_nhi_premium(
+                _jp_gross + _fp_gross, _age,
+                assumptions.nhi_household_members, municipality_key,
+                other_income_jpy=mc_nhi_extra_income,
+            )
+        )
 
     # Stochastic mortgage rate path (optional, off by default)
     stoch_rate_path = None
@@ -1320,6 +1455,7 @@ def run_fire_scenario(
         annual_expenses_jpy=active_mc_expenses,
         net_pension_annual_jpy=japan_pension_for_mc,
         pension_start_year=pension_start_year,
+        extra_expense_schedule=nhi_schedule,
         simulation_years=assumptions.simulation_years,
         n_simulations=min(assumptions.monte_carlo_simulations, 10_000),  # engine-level safety cap
         mean_return=assumptions.retirement_return_pct / 100,
@@ -1339,6 +1475,59 @@ def run_fire_scenario(
         mortgage_tax_credit_rate=getattr(profile, "mortgage_tax_credit_rate_pct", 0.7) / 100,
         mortgage_tax_credit_cap_jpy=getattr(profile, "mortgage_tax_credit_principal_cap_jpy", 30_000_000),
     )
+
+    mc_safe_wr_target_pct = 90.0
+    mc_safe_wr_pct = 0.0
+    if current_portfolio > 0:
+        # This uses the existing MC safe-rate helper as a fast approximation.
+        # It intentionally excludes one-off events such as planned property
+        # sales, so scenarios with rescue assets may have a higher true safe
+        # rate than the number shown here.
+        mc_safe = find_safe_withdrawal_rate(
+            initial_portfolio_jpy=current_portfolio,
+            annual_expenses_jpy=active_mc_expenses + nhi_steady,
+            net_pension_annual_jpy=japan_pension_for_mc,
+            pension_start_year=pension_start_year,
+            simulation_years=assumptions.simulation_years,
+            n_simulations=min(assumptions.monte_carlo_simulations, 2_000),
+            mean_return=assumptions.retirement_return_pct / 100,
+            volatility=assumptions.return_volatility_pct / 100,
+            target_success_rate=mc_safe_wr_target_pct,
+            seed=42,
+        )
+        mc_safe_wr_pct = mc_safe["safe_rate_pct"]
+
+    if property_lump_sums and mc_result.emergency_liquidation_pct > 5:
+        sale_ages = [
+            profile.target_retirement_age + year
+            for year, _amount in property_lump_sums
+        ]
+        sale_age_text = (
+            f"age {sale_ages[0]}"
+            if len(sale_ages) == 1
+            else "ages " + ", ".join(str(age) for age in sale_ages)
+        )
+        warnings.append(
+            f"In {mc_result.emergency_liquidation_pct:.0f}% of Monte Carlo simulations, "
+            f"your liquid portfolio depletes before the planned property sale at {sale_age_text}. "
+            "The simulation pulls the sale proceeds forward as an emergency liquidation, "
+            "but those paths still count as failures."
+        )
+
+    if mc_safe_wr_pct > 0:
+        if assumptions.withdrawal_rate_pct > mc_safe_wr_pct + 0.25:
+            warnings.append(
+                f"Your chosen withdrawal rate of {assumptions.withdrawal_rate_pct:.1f}% is above "
+                f"the ~{mc_safe_wr_pct:.1f}% rate that clears {mc_safe_wr_target_pct:.0f}% "
+                "Monte Carlo success under your return/volatility assumptions "
+                "(excluding one-off events like a property sale)."
+            )
+        else:
+            warnings.append(
+                f"Your Monte Carlo-implied safe withdrawal rate is ~{mc_safe_wr_pct:.1f}% "
+                f"at a {mc_safe_wr_target_pct:.0f}% target success rate under your current "
+                "return/volatility assumptions."
+            )
 
     # --- Sensitivity analysis -----------------------------------------------
     from engine.sensitivity import run_sensitivity_analysis
@@ -1420,8 +1609,9 @@ def run_fire_scenario(
         fat_annual_withdrawal_jpy=fat_withdrawal,
         annual_expenses_jpy=annual_expenses,
         annual_pension_net_jpy=net_pension,
-        annual_nhi_jpy=nhi_solve["nhi_premium"],
-        annual_withdrawal_needed_jpy=nhi_solve["gross_withdrawal"],
+        annual_nhi_jpy=nhi_steady,
+        annual_nhi_gap_jpy=nhi_gap,
+        annual_withdrawal_needed_jpy=fire_info["net_annual_need_jpy"] + nhi_steady,
         year1_residence_tax_shock_jpy=shock["year1_residence_tax"],
         nisa_at_retirement_jpy=nisa_at_retirement,
         ideco_at_retirement_jpy=ideco_at_retirement,
@@ -1436,6 +1626,8 @@ def run_fire_scenario(
         ) if profile.annual_gross_income_jpy > 0 else 0.0,
         trajectory=trajectory,
         monte_carlo=mc_result,
+        mc_safe_withdrawal_rate_pct=mc_safe_wr_pct,
+        mc_safe_withdrawal_target_pct=mc_safe_wr_target_pct,
         sensitivity=sensitivity,
         foreigners_warnings=foreigners.warnings,
         foreigners_notes=foreigners.notes,

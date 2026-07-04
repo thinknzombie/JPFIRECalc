@@ -246,7 +246,11 @@
         <span class="kv-val text-success">−¥{{ "{:,}".format(result.annual_pension_net_jpy) }}</span>
       </div>
       <div class="kv-row">
-        <span class="kv-key" data-i18n="result.nhi">NHI Premium</span>
+        <span class="kv-key" data-i18n="result.nhi_gap">NHI Premium (before pension)</span>
+        <span class="kv-val">¥{{ "{:,}".format(result.annual_nhi_gap_jpy) }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key" data-i18n="result.nhi">NHI Premium (with pension)</span>
         <span class="kv-val">¥{{ "{:,}".format(result.annual_nhi_jpy) }}</span>
       </div>
       <div class="kv-row kv-row--total">
@@ -307,7 +311,7 @@
       </svg>
     </button>
   </h3>
-  <div class="chart-info-panel" id="chart-info-mc" hidden
+  <div class="chart-info-panel" id="chart-info-mc" hidden>
     <p class="chart-info__intro" data-i18n="chart.mc.intro">Runs 10,000 retirement scenarios with randomised annual returns — each one models a different possible future. The lines and shaded bands below show how your portfolio value spreads across all those outcomes.</p>
     <div class="chart-legend">
       <div class="chart-legend__item">
@@ -333,9 +337,23 @@
     </div>
     <div class="chart-info__note">
       <strong data-i18n="chart.note_label">Japan note:</strong>
-      <span data-i18n="chart.mc.note">The <em>success rate</em> above is the % of simulations where the portfolio never hits ¥0. Japan research recommends targeting 90%+ success at a 3–3.5% withdrawal rate — lower than the US 4% rule, because Japanese equity returns have historically been lower and inflation has been more variable.</span>
+      <span data-i18n="chart.mc.note">The <em>success rate</em> above is the % of simulations where the portfolio never depletes. Use the scenario-specific safe withdrawal rate shown here instead of a universal rule of thumb.</span>
     </div>
   </div>
+  {% if result.mc_safe_withdrawal_rate_pct > 0 %}
+  <div class="kv-list" style="margin: var(--space-3) 0;">
+    <div class="kv-row">
+      <span class="kv-key" data-i18n="result.mc_safe_wr">MC-implied safe withdrawal rate</span>
+      <span class="kv-val">
+        ~{{ "%.1f" | format(result.mc_safe_withdrawal_rate_pct) }}%
+        <span class="text-muted">
+          (<span data-i18n="result.mc_safe_wr_target">{{ "%.0f" | format(result.mc_safe_withdrawal_target_pct) }}% success target</span>;
+          <span data-i18n="result.mc_safe_wr_chosen">chosen</span> {{ "%.1f" | format(scenario.assumptions.withdrawal_rate_pct) }}%)
+        </span>
+      </span>
+    </div>
+  </div>
+  {% endif %}
   <div id="mcChart" class="chart-container"
     data-p10='{{ result.monte_carlo.p10 | tojson }}'
     data-p25='{{ result.monte_carlo.p25 | tojson }}'
@@ -361,7 +379,7 @@
       </svg>
     </button>
   </h3>
-  <div class="chart-info-panel" id="chart-info-tornado" hidden
+  <div class="chart-info-panel" id="chart-info-tornado" hidden>
     <p class="chart-info__intro" data-i18n="chart.tornado.intro">Each variable in your plan is shifted ±20% from your input value. The bar shows how many years earlier or later you would reach FIRE as a result. Bars at the top have the biggest impact — those are the levers most worth pulling.</p>
     <div class="chart-legend">
       <div class="chart-legend__item">
@@ -540,7 +558,7 @@
       </svg>
     </button>
   </h3>
-  <div class="chart-info-panel" id="chart-info-trajectory" hidden
+  <div class="chart-info-panel" id="chart-info-trajectory" hidden>
     <p class="chart-info__intro" data-i18n="chart.traj.intro">A deterministic year-by-year projection using your fixed return assumptions — not randomised like Monte Carlo. Shows the single expected path: how your portfolio grows while working, and how it draws down in retirement. Hover any point to see the exact portfolio value at that age.</p>
     <div class="chart-legend">
       <div class="chart-legend__item">
@@ -571,6 +589,74 @@
   ]
   </script>
   <div id="trajectoryChart" class="chart-container"></div>
+</div>
+
+{# ── Year-by-Year Cash Flow Table ─────────────────────────────────────────── #}
+<div class="results-card">
+  <h3 class="results-card__title">
+    <span data-i18n="result.cashflow_table">Year-by-Year Cash Flow</span>
+    <a href="{{ url_for('scenarios.cashflow_csv', scenario_id=scenario.id) }}"
+       class="btn btn--ghost btn--sm" download style="margin-left:auto"
+       data-i18n="result.download_csv">
+      ⬇ CSV
+    </a>
+    <button type="button" class="btn btn--secondary btn--sm" id="cashflowToggle"
+            aria-expanded="false" aria-controls="cashflowTableWrap">
+      <span data-i18n="result.show_table">Show table</span>
+    </button>
+  </h3>
+  <div class="table-responsive" id="cashflowTableWrap" hidden>
+    <table class="data-table data-table--compact">
+      <thead>
+        <tr>
+          <th data-i18n="cf.age">Age</th>
+          <th data-i18n="cf.phase">Phase</th>
+          <th data-i18n="cf.expenses">Expenses</th>
+          <th data-i18n="cf.pension">Pension</th>
+          <th data-i18n="cf.nhi">NHI</th>
+          <th data-i18n="cf.withdrawal">From Portfolio</th>
+          <th data-i18n="cf.savings">Savings</th>
+          <th data-i18n="cf.portfolio">Portfolio</th>
+          <th data-i18n="cf.ideco">iDeCo (locked)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in result.trajectory %}
+        <tr class="{% if t.phase == 'retirement' %}cf-row--retirement{% endif %} {% if t.year1_residence_tax_jpy > 0 %}cf-row--shock{% endif %}">
+          <td>{{ t.age }}</td>
+          <td>{% if t.phase == 'retirement' %}🔥{% else %}💼{% endif %}</td>
+          <td>{% if t.expenses_jpy %}¥{{ "{:,}".format(t.expenses_jpy) }}{% else %}—{% endif %}</td>
+          <td>{% if t.pension_income_jpy %}¥{{ "{:,}".format(t.pension_income_jpy) }}{% else %}—{% endif %}</td>
+          <td>{% if t.nhi_premium_jpy %}¥{{ "{:,}".format(t.nhi_premium_jpy) }}{% else %}—{% endif %}</td>
+          <td>
+            {% if t.net_from_portfolio_jpy %}¥{{ "{:,}".format(t.net_from_portfolio_jpy) }}{% else %}—{% endif %}
+            {% if t.year1_residence_tax_jpy > 0 %}
+            <span class="badge badge--danger" title="Includes year-1 residence tax shock of ¥{{ '{:,}'.format(t.year1_residence_tax_jpy) }}">+住民税</span>
+            {% endif %}
+          </td>
+          <td>{% if t.annual_savings_jpy %}¥{{ "{:,}".format(t.annual_savings_jpy) }}{% else %}—{% endif %}</td>
+          <td>¥{{ "{:,}".format(t.portfolio_value_jpy) }}</td>
+          <td>{% if t.ideco_locked_jpy %}¥{{ "{:,}".format(t.ideco_locked_jpy) }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <script>
+    (function() {
+      const btn = document.getElementById('cashflowToggle');
+      const wrap = document.getElementById('cashflowTableWrap');
+      if (!btn || !wrap) return;
+      btn.addEventListener('click', function() {
+        const open = !wrap.hidden;
+        wrap.hidden = open;
+        btn.setAttribute('aria-expanded', String(!open));
+        btn.querySelector('span').textContent = open
+          ? (typeof I18n !== 'undefined' ? I18n.t('result.show_table') : 'Show table')
+          : (typeof I18n !== 'undefined' ? I18n.t('result.hide_table') : 'Hide table');
+      });
+    })();
+  </script>
 </div>
 {% endif %}
 

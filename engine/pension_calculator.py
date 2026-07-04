@@ -234,13 +234,24 @@ def calculate_pension_after_tax(
         calculate_pension_income_deduction,
         calculate_income_tax_from_taxable,
         calculate_residence_tax,
+        calculate_basic_deduction,
+        calculate_residence_basic_deduction,
     )
 
     deduction = calculate_pension_income_deduction(total_pension_annual_jpy, age)
-    taxable = max(0, total_pension_annual_jpy - deduction - other_deductions)
+    # Pension income after the pension deduction is 雑所得 — the taxpayer's
+    # 合計所得金額. The basic deduction then applies on top, like for any
+    # other taxpayer (previously omitted, which overstated pension tax).
+    pension_net_income = max(0, total_pension_annual_jpy - deduction)
+    basic_ded = calculate_basic_deduction(pension_net_income)
+    taxable = max(0, pension_net_income - basic_ded - other_deductions)
+
+    # Residence tax uses its own ¥430k basic deduction (higher taxable base).
+    residence_basic_ded = calculate_residence_basic_deduction(pension_net_income)
+    residence_taxable = max(0, pension_net_income - residence_basic_ded - other_deductions)
 
     income_tax = calculate_income_tax_from_taxable(taxable)
-    residence_tax_result = calculate_residence_tax(taxable, per_capita_levy)
+    residence_tax_result = calculate_residence_tax(residence_taxable, per_capita_levy)
     residence_tax = residence_tax_result["total"]
 
     total_tax = income_tax + residence_tax
@@ -393,8 +404,8 @@ def calculate_pension_offset_on_fire_number(
 
     FIRE number = (expenses - pension_income) / withdrawal_rate
 
-    For Japan, the recommended safe withdrawal rate is 3–3.5% (lower than
-    the US 4% rule due to Japan's lower expected equity returns).
+    For Japan, withdrawal-rate safety depends on the scenario's return,
+    volatility, inflation, and pension assumptions.
 
     Args:
         annual_expenses_jpy:   Target annual retirement expenses (JPY).

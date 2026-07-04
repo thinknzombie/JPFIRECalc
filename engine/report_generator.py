@@ -148,8 +148,11 @@ def generate_markdown_report(
     portfolio_annual = int(result.current_portfolio_jpy * wr)
     portfolio_monthly = portfolio_annual // 12
     nhi_monthly = result.annual_nhi_jpy // 12
+    nhi_gap_monthly = result.annual_nhi_gap_jpy // 12
     pension_monthly = result.annual_pension_net_jpy // 12
-    max_pre_pension = portfolio_monthly - nhi_monthly
+    # Pre-pension years use the gap-year NHI (軽減 minimum — withdrawals are
+    # not income); post-pension years use the pension-based NHI.
+    max_pre_pension = portfolio_monthly - nhi_gap_monthly
     max_post_pension = portfolio_monthly + pension_monthly - nhi_monthly
     stated_monthly = profile.monthly_expenses_jpy
     gap_pre = stated_monthly - max_pre_pension
@@ -179,11 +182,15 @@ def generate_markdown_report(
             ],
         ],
     )
-    p(f"> **Interpretation:** This is the maximum monthly amount you could sustainably draw from your "
-      f"portfolio — before accounting for rental income, Social Security, or other non-portfolio sources. "
-      f"Your stated expenses of **¥{stated_monthly:,}/mo** are well within this capacity, leaving a "
-      f"substantial safety margin. The gap closes further once pension income starts at age "
-      f"{profile.nenkin_claim_age}.")
+    if gap_pre <= 0:
+        p(f"> **Interpretation:** This is the maximum monthly amount you could sustainably draw from your "
+          f"portfolio — before accounting for rental income, Social Security, or other non-portfolio sources. "
+          f"Your stated expenses of **¥{stated_monthly:,}/mo** are within this capacity, and the margin "
+          f"widens once pension income starts at age {profile.nenkin_claim_age}.")
+    else:
+        p(f"> **Interpretation:** Your stated expenses of **¥{stated_monthly:,}/mo** currently exceed the "
+          f"sustainable pre-pension draw by **¥{abs(gap_pre):,}/mo**. Continued saving, lower expenses, or "
+          f"waiting until pension income starts at age {profile.nenkin_claim_age} closes the gap.")
 
     rule()
 
@@ -290,7 +297,8 @@ def generate_markdown_report(
              f"{_yen(result.annual_expenses_jpy // 12)}/month"],
             ["Less: pension income", f"−{_yen(result.annual_pension_net_jpy)}",
              f"Claim age {profile.nenkin_claim_age}"],
-            ["Plus: NHI premium", _yen(result.annual_nhi_jpy), "Solved iteratively"],
+            ["Plus: NHI premium", _yen(result.annual_nhi_jpy),
+             f"Income-based; pre-pension years ≈ {_yen(result.annual_nhi_gap_jpy)} (軽減 minimum)"],
             ["= Net portfolio need", _yen(result.annual_withdrawal_needed_jpy),
              f"÷ {_pct(scenario.assumptions.withdrawal_rate_pct)} WR"],
             ["**FIRE number**", f"**{_yen(result.fire_number_jpy)}**", ""],
@@ -331,6 +339,11 @@ def generate_markdown_report(
         mc = result.monte_carlo
         kv("Simulations run", f"{mc.n_simulations:,}")
         kv("Portfolio survival rate", f"{_pct(mc.success_rate_pct)}")
+        if result.mc_safe_withdrawal_rate_pct > 0:
+            kv(
+                f"MC-implied safe withdrawal rate ({result.mc_safe_withdrawal_target_pct:.0f}% target)",
+                f"~{result.mc_safe_withdrawal_rate_pct:.1f}%",
+            )
         kv("Mean return assumption", _pct(scenario.assumptions.retirement_return_pct))
         kv("Volatility assumption", _pct(scenario.assumptions.return_volatility_pct))
         kv("Simulation horizon", f"{scenario.assumptions.simulation_years} years")
@@ -574,6 +587,33 @@ def generate_markdown_report(
                 annotation,
             ])
         table(["Age", "Phase", "Portfolio Value", "Notes"], traj_rows)
+
+        # ── Retirement cash flow detail (first 15 retirement years) ─────────
+        retirement_years = [yr for yr in result.trajectory if yr.phase == "retirement"]
+        if retirement_years:
+            h(3, "Retirement Cash Flow — First 15 Years")
+            p("Expenses inflate at the retirement expense growth rate; NHI is "
+              "recomputed each year from actual taxable income (pension after "
+              "公的年金等控除 — portfolio withdrawals are not income). "
+              "Download the full table as CSV from the scenario page.")
+            cf_rows = []
+            for yr in retirement_years[:15]:
+                note = ""
+                if yr.year1_residence_tax_jpy > 0:
+                    note = f"incl. year-1 residence tax {_yen(yr.year1_residence_tax_jpy)}"
+                cf_rows.append([
+                    str(yr.age),
+                    _yen(yr.expenses_jpy),
+                    _yen(yr.pension_income_jpy) if yr.pension_income_jpy else "—",
+                    _yen(yr.nhi_premium_jpy),
+                    _yen(yr.net_from_portfolio_jpy),
+                    _yen(yr.portfolio_value_jpy),
+                    note,
+                ])
+            table(
+                ["Age", "Expenses", "Pension (net)", "NHI", "From Portfolio", "Portfolio EOY", "Notes"],
+                cf_rows,
+            )
         rule()
 
     # ── Current tax summary ───────────────────────────────────────────────────
@@ -690,8 +730,9 @@ def generate_markdown_report(
       "during the first 5 years of retirement (the most vulnerable period).")
     p("A simulation **succeeds** if the portfolio never reaches ¥0 over the configured horizon "
       "(default 40 years). The **success rate** is the percentage of simulations that survive. "
-      "Japan-focused research recommends targeting 90%+ success at a 3–3.5% withdrawal rate — "
-      "more conservative than the US 4% rule due to historically lower Japanese equity returns.")
+      "Rather than relying on a universal safe-withdrawal-rate rule, JPFIRECalc computes a "
+      "scenario-specific Monte Carlo safe rate from the configured return and volatility "
+      "assumptions and shows it beside the user's selected withdrawal rate.")
 
     h(3, "Pension Estimation")
     p("**Kokumin nenkin (国民年金):** Base amount ≈ ¥795,000/year × (contribution months ÷ 480). "

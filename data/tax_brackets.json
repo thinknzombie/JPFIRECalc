@@ -1,6 +1,6 @@
 {
-  "_source": "National Tax Agency (国税庁) — 2024 tax year",
-  "_url": "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2260.htm",
+  "_source": "National Tax Agency (国税庁) — reflects 令和7年度税制改正 (2025 reform), applicable from the 2025 tax year",
+  "_url": "https://www.nta.go.jp/users/gensen/2025kiso/index.htm",
   "_notes": "Income tax (所得税) brackets apply to taxable income after all deductions. Rates are marginal.",
 
   "income_tax_brackets": [
@@ -16,12 +16,11 @@
   "surtax_rate": 0.021,
 
   "employment_income_deduction": {
-    "_notes": "給与所得控除 — deduction from gross employment income before applying brackets. Source: NTA 2024 https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1410.htm",
+    "_notes": "給与所得控除 — deduction from gross employment income before applying brackets. 2025 reform raised the minimum from ¥550,000 to ¥650,000 (binds for salaries up to ¥1,900,000).",
     "_formula": "For rate-based brackets: deduction = income × rate + base",
     "brackets": [
-      { "min": 0,        "max": 1625000,  "deduction": 550000,  "rate": null, "base": 0        },
-      { "min": 1625000,  "max": 1800000,  "deduction": null,    "rate": 0.40, "base": -100000  },
-      { "min": 1800000,  "max": 3600000,  "deduction": null,    "rate": 0.30, "base": 80000    },
+      { "min": 0,        "max": 1900000,  "deduction": 650000,  "rate": null, "base": 0        },
+      { "min": 1900000,  "max": 3600000,  "deduction": null,    "rate": 0.30, "base": 80000    },
       { "min": 3600000,  "max": 6600000,  "deduction": null,    "rate": 0.20, "base": 440000   },
       { "min": 6600000,  "max": 8500000,  "deduction": null,    "rate": 0.10, "base": 1100000  },
       { "min": 8500000,  "max": null,     "deduction": 1950000, "rate": null, "base": 0        }
@@ -29,8 +28,13 @@
   },
 
   "basic_deduction": {
-    "_notes": "基礎控除 — phases out at high income",
+    "_notes": "基礎控除 — keyed off 合計所得金額 (NET income after employment income deduction), NOT gross salary. 2025 reform: ¥580,000 baseline up to ¥23.5M, with temporary low-income boosts (¥950k/¥880k/¥680k/¥630k) for the 2025 and 2026 tax years. From 2027 the boosted tiers above ¥1.32M revert to ¥580,000 (the ¥950,000 tier for income ≤ ¥1.32M is permanent).",
     "brackets": [
+      { "max_income": 1320000,  "deduction": 950000 },
+      { "max_income": 3360000,  "deduction": 880000 },
+      { "max_income": 4890000,  "deduction": 680000 },
+      { "max_income": 6550000,  "deduction": 630000 },
+      { "max_income": 23500000, "deduction": 580000 },
       { "max_income": 24000000, "deduction": 480000 },
       { "max_income": 24500000, "deduction": 320000 },
       { "max_income": 25000000, "deduction": 160000 },
@@ -38,12 +42,18 @@
     ]
   },
 
+  "residence_tax_basic_deduction": 430000,
+  "_notes_residence_basic": "住民税の基礎控除 — unchanged by the 2025 reform (43万円, income ≤ ¥24M). Residence tax therefore has a HIGHER taxable base than income tax.",
+
   "spouse_deduction": {
-    "_notes": "配偶者控除 / 配偶者特別控除",
+    "_notes": "配偶者控除 — 2025 reform raised the spouse salary limit from ¥1.03M to ¥1.23M (spouse 合計所得金額 ≤ ¥580,000).",
     "full_deduction": 380000,
     "taxpayer_income_limit": 10000000,
-    "spouse_income_limit_full": 1030000
+    "spouse_income_limit_full": 1230000
   },
+
+  "tax_free_salary_wall_jpy": 1600000,
+  "_notes_wall": "The '103万円の壁' became the '160万円の壁' from 2025: basic deduction ¥950,000 + employment income deduction minimum ¥650,000.",
 
   "dependent_deduction_per_person": 380000,
   "dependent_deduction_aged_70_plus": 580000,

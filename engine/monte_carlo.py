@@ -53,6 +53,7 @@ def run_simulation(
     seed: int | None = None,
     lump_sums: list[tuple[int, int]] | None = None,
     withdrawal_reductions: list[tuple[int, int]] | None = None,
+    extra_expense_schedule: "list[int] | np.ndarray | None" = None,
     foreign_pension_annual_jpy: int = 0,
     foreign_pension_start_year: int | None = None,
     foreign_pension_growth_rate: float | None = None,
@@ -114,18 +115,22 @@ def run_simulation(
     """
     rng = np.random.default_rng(seed)
 
-    # Log-normal parameters (exact conversion from arithmetic mean to log-space)
-    # If R ~ LogNormal then: mu_log = ln(1+r) - 0.5*sigma_log^2
-    sigma_log = np.log(1 + volatility)
-    mu_log = np.log(1 + mean_return) - 0.5 * sigma_log ** 2
+    # Log-normal parameters — exact moment matching so the simulated returns
+    # have arithmetic mean = mean_return and std dev = volatility:
+    #   sigma_log² = ln(1 + (σ / (1+μ))²)
+    #   mu_log     = ln(1+μ) − 0.5·sigma_log²
+    def _lognormal_params(mu: float, sigma: float) -> tuple[float, float]:
+        sigma_log_sq = np.log(1 + (sigma / (1 + mu)) ** 2)
+        return np.log(1 + mu) - 0.5 * sigma_log_sq, np.sqrt(sigma_log_sq)
+
+    mu_log, sigma_log = _lognormal_params(mean_return, volatility)
 
     # Generate return matrix: shape (n_simulations, simulation_years)
     log_returns = rng.normal(mu_log, sigma_log, size=(n_simulations, simulation_years))
 
     # Apply sequence-of-returns risk: amplify volatility in early years
     if sequence_of_returns_risk and sor_years > 0:
-        sor_sigma = sigma_log * sor_amplifier
-        sor_mu = np.log(1 + mean_return) - 0.5 * sor_sigma ** 2
+        sor_mu, sor_sigma = _lognormal_params(mean_return, volatility * sor_amplifier)
         sor_returns = rng.normal(sor_mu, sor_sigma, size=(n_simulations, sor_years))
         log_returns[:, :sor_years] = sor_returns
 
@@ -153,6 +158,13 @@ def run_simulation(
             pension_schedule[yr] += foreign_pension_annual_jpy * fp_factor
 
     net_withdrawal = expense_schedule - pension_schedule  # net from portfolio each year
+
+    # Additional pre-computed nominal expenses per year (e.g. the NHI premium
+    # schedule, which follows pension income rather than expense inflation).
+    if extra_expense_schedule is not None:
+        extra = np.asarray(extra_expense_schedule, dtype=float)
+        n = min(len(extra), simulation_years)
+        net_withdrawal[:n] += extra[:n]
 
     # Apply withdrawal reductions (e.g. mortgage stops after property sale)
     if withdrawal_reductions:
@@ -235,6 +247,21 @@ def run_simulation(
             if 0 < yr_idx <= simulation_years:  # must be within the simulated window
                 lump_sum_map[yr_idx] = lump_sum_map.get(yr_idx, 0) + int(amount)
 
+    # Remaining scheduled lump sums after each retirement year. If a path
+    # would otherwise deplete before a planned sale, the still-unsold assets
+    # are treated as an emergency liquidation in that year.
+    remaining_lump_by_year = np.zeros(simulation_years + 1)
+    if lump_sum_map:
+        remaining = 0
+        for yr in range(simulation_years, -1, -1):
+            remaining_lump_by_year[yr] = remaining
+            if yr in lump_sum_map:
+                remaining += lump_sum_map[yr]
+
+    emergency_triggered = np.zeros(n_simulations, dtype=bool)
+    depleted_once = np.zeros(n_simulations, dtype=bool)
+    depletion_year = np.full(n_simulations, -1, dtype=int)
+
     # Simulate portfolios: vectorised over all paths simultaneously
     # portfolios[i, 0] = initial value; portfolios[i, t+1] after year t
     portfolios = np.zeros((n_simulations, simulation_years + 1))
@@ -248,25 +275,41 @@ def run_simulation(
             effective_withdrawal = base_net + mortgage_delta[:, yr]
         else:
             effective_withdrawal = base_net
-        portfolios[:, yr + 1] = portfolios[:, yr] * gross_returns[:, yr] - effective_withdrawal
+        raw = portfolios[:, yr] * gross_returns[:, yr] - effective_withdrawal
         # Inject property-sale lump sum (same amount on all paths — deterministic event)
         if yr + 1 in lump_sum_map:
-            portfolios[:, yr + 1] += lump_sum_map[yr + 1]
+            raw = raw + np.where(~emergency_triggered, lump_sum_map[yr + 1], 0.0)
         # Floor at zero — portfolio cannot go negative (ruin state)
-        portfolios[:, yr + 1] = np.maximum(portfolios[:, yr + 1], 0)
+        newly_depleted = (raw <= 0) & (~depleted_once)
+        if newly_depleted.any():
+            depletion_year = np.where(newly_depleted, yr + 1, depletion_year)
+            depleted_once = depleted_once | newly_depleted
 
-    # Success rate: paths that never hit zero
-    min_portfolio = portfolios[:, 1:].min(axis=1)
-    successes = (min_portfolio > 0).sum()
+        # Known limitation: only the cash lump sum is pulled forward. Withdrawal
+        # reductions tied to the original sale date, such as mortgage/rental
+        # schedule changes, remain on the existing deterministic 1D schedule.
+        emergency_mask = (
+            newly_depleted
+            & (~emergency_triggered)
+            & (remaining_lump_by_year[yr + 1] > 0)
+        )
+        if emergency_mask.any():
+            raw = raw + np.where(emergency_mask, remaining_lump_by_year[yr + 1], 0.0)
+            emergency_triggered = emergency_triggered | emergency_mask
+
+        portfolios[:, yr + 1] = np.maximum(raw, 0)
+
+    # Success rate: paths that never depleted. Emergency liquidation changes
+    # the visible portfolio trajectory, but it still counts as a failed path
+    # because the original liquid portfolio could not fund that year.
+    successes = (~depleted_once).sum()
     success_rate = float(successes / n_simulations * 100)
 
     # Median ruin year for failed paths
-    failed_mask = min_portfolio <= 0
+    failed_mask = depleted_once
     ruin_year_median = None
     if failed_mask.any():
-        failed_portfolios = portfolios[failed_mask, 1:]
-        # Ruin year = first year where portfolio hits zero
-        ruin_years = (failed_portfolios == 0).argmax(axis=1) + 1
+        ruin_years = depletion_year[failed_mask]
         ruin_year_median = int(np.median(ruin_years))
 
     # Percentile trajectories (shape: simulation_years+1 each)
@@ -287,6 +330,7 @@ def run_simulation(
         "simulation_years": simulation_years,
         "mean_return_pct": mean_return * 100,
         "volatility_pct": volatility * 100,
+        "emergency_liquidation_pct": round(float(emergency_triggered.mean() * 100), 1),
     }
 
 
@@ -308,6 +352,7 @@ def run_monte_carlo(
     seed: int | None = None,
     lump_sums: list[tuple[int, int]] | None = None,
     withdrawal_reductions: list[tuple[int, int]] | None = None,
+    extra_expense_schedule: "list[int] | np.ndarray | None" = None,
     foreign_pension_annual_jpy: int = 0,
     foreign_pension_start_year: int | None = None,
     foreign_pension_growth_rate: float | None = None,
@@ -345,6 +390,7 @@ def run_monte_carlo(
         seed=seed,
         lump_sums=lump_sums,
         withdrawal_reductions=withdrawal_reductions,
+        extra_expense_schedule=extra_expense_schedule,
         foreign_pension_annual_jpy=foreign_pension_annual_jpy,
         foreign_pension_start_year=foreign_pension_start_year,
         foreign_pension_growth_rate=foreign_pension_growth_rate,
@@ -365,6 +411,7 @@ def run_monte_carlo(
         success_rate_pct=raw["success_rate_pct"],
         n_simulations=n_simulations,
         ruin_year_median=raw.get("ruin_year_median"),
+        emergency_liquidation_pct=raw["emergency_liquidation_pct"],
     )
 
 

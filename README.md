@@ -130,7 +130,7 @@ tests/                    # Per-engine unit tests (pytest)
 
 > These are baked into the calculator's defaults and warnings.
 
-- **Safe withdrawal rate: 3–3.5%** — lower than the US 4% rule due to Japan's historically lower equity returns and higher home-country bias toward JGBs
+- **Withdrawal rate safety is scenario-specific** — rules of thumb are only starting points; the app computes a Monte Carlo-derived safe rate from each scenario's return and volatility assumptions
 - **Residence tax shock** — in year 1 of retirement you still pay full residence tax on your last salary; budget an extra ¥200,000–¥600,000
 - **iDeCo lock-up** — completely illiquid before age 60; pre-60 FIRE requires 新NISA + taxable brokerage to bridge the gap
 - **NHI is withdrawal-dependent** — unlike shakai hoken, NHI is calculated on your declared income, which is driven by how much you withdraw

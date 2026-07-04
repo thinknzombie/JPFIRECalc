@@ -33,8 +33,8 @@ from engine.fire_calculator import (
     calculate_accessible_portfolio,
     calculate_pension_at_retirement,
     _amortise_mortgage,
+    _retirement_nhi_premium,
 )
-from engine.nhi_calculator import solve_withdrawal_with_nhi
 from models.region_data import get_nhi_municipality_key
 
 
@@ -69,18 +69,36 @@ def _compute_for_params(
 
     pension_info = calculate_pension_at_retirement(profile, profile.years_to_retirement)
     net_pension = pension_info["net_pension_annual_jpy"]
+    pension_gross_total = (
+        pension_info["kokumin_annual_jpy"]
+        + pension_info["kosei_annual_jpy"]
+        + pension_info["foreign_pension_annual_jpy"]
+    )
 
     fire_info = calculate_fire_number(annual_expenses, withdrawal_rate, net_pension)
 
-    nhi_solve = solve_withdrawal_with_nhi(
-        target_net_expenses=fire_info["net_annual_need_jpy"],
-        num_members=assumptions.nhi_household_members,
-        municipality_key=municipality_key,
-        age=profile.target_retirement_age,
+    # Income-based NHI (mirrors run_fire_scenario): assessed on pension income,
+    # not on portfolio withdrawals.
+    steady_age = max(profile.target_retirement_age, profile.nenkin_claim_age)
+    nhi_steady = _retirement_nhi_premium(
+        pension_gross_total, steady_age,
+        assumptions.nhi_household_members, municipality_key,
     )
 
-    annual_need_with_nhi = fire_info["net_annual_need_jpy"] + nhi_solve["nhi_premium"]
+    annual_need_with_nhi = fire_info["net_annual_need_jpy"] + nhi_steady
     fire_number = int(annual_need_with_nhi / withdrawal_rate)
+
+    # Pension-gap adjustment (mirrors run_fire_scenario)
+    pension_gap_years = max(0, profile.nenkin_claim_age - profile.target_retirement_age)
+    r_retire = assumptions.retirement_return_pct / 100
+    if pension_gap_years > 0 and withdrawal_rate > 0 and r_retire > 0:
+        nhi_gap = _retirement_nhi_premium(
+            0, profile.target_retirement_age,
+            assumptions.nhi_household_members, municipality_key,
+        )
+        _pre_w = annual_expenses + nhi_gap
+        _disc = (1 + r_retire) ** (-pension_gap_years)
+        fire_number = int(fire_number * _disc + _pre_w * (1 - _disc) / r_retire)
 
     portfolio_info = calculate_accessible_portfolio(profile, profile.target_retirement_age)
     current_portfolio = portfolio_info["total_accessible_jpy"]
@@ -94,9 +112,19 @@ def _compute_for_params(
         )
         current_portfolio = max(0, current_portfolio - payoff)
 
+    # iDeCo contributions only count toward accessible savings when retiring
+    # at 60+ (mirrors run_fire_scenario).
+    ideco_savings = (
+        profile.ideco_monthly_contribution_jpy * 12
+        if profile.target_retirement_age >= 60
+        else 0
+    )
     annual_savings = (
-        profile.monthly_nisa_contribution_jpy + profile.ideco_monthly_contribution_jpy
-    ) * 12 + profile.nisa_growth_frame_annual_jpy + getattr(profile, 'rsu_vesting_annual_jpy', 0)
+        profile.monthly_nisa_contribution_jpy * 12
+        + ideco_savings
+        + profile.nisa_growth_frame_annual_jpy
+        + getattr(profile, 'rsu_vesting_annual_jpy', 0)
+    )
 
     years = calculate_years_to_fire(current_portfolio, annual_savings, fire_number, r)
     surplus_pct = ((current_portfolio / fire_number) - 1) * 100 if fire_number > 0 else 0.0

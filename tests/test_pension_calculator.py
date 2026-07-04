@@ -2,8 +2,8 @@
 Pension calculator tests — verified against nenkin.go.jp published figures
 and official formula documentation.
 
-Key reference figures (FY2024):
-  - Full kokumin nenkin: 816,000 yen/year for 480 months
+Key reference figures (FY2026):
+  - Full kokumin nenkin: 847,296 yen/year (¥70,608/month) for 480 months
   - Early claim at 60: -24% (0.4% × 60 months) → × 0.76
   - Deferral to 70: +42% (0.7% × 60 months) → × 1.42
   - Deferral to 75: +84% (0.7% × 120 months) → × 1.84
@@ -22,7 +22,7 @@ from engine.pension_calculator import (
     calculate_pension_offset_on_fire_number,
 )
 
-FULL_BENEFIT = 816_000  # FY2024 full kokumin nenkin
+FULL_BENEFIT = 847_296  # FY2026 full kokumin nenkin (¥70,608/month)
 
 
 # ---------------------------------------------------------------------------
@@ -37,15 +37,15 @@ class TestKokuminNenkin:
         assert result["claim_modifier"] == 1.0
 
     def test_pro_rated_360_months(self):
-        # 360/480 = 0.75 → 816,000 * 0.75 = 612,000
+        # 360/480 = 0.75 → 847,296 * 0.75 = 635,472
         result = calculate_kokumin_nenkin(360, claim_age=65)
-        assert result["annual_benefit_jpy"] == 612_000
+        assert result["annual_benefit_jpy"] == 635_472
         assert result["pro_rate_factor"] == 0.75
 
     def test_pro_rated_120_months_minimum(self):
-        # 120/480 = 0.25 → 816,000 * 0.25 = 204,000
+        # 120/480 = 0.25 → 847,296 * 0.25 = 211,824
         result = calculate_kokumin_nenkin(120, claim_age=65)
-        assert result["annual_benefit_jpy"] == 204_000
+        assert result["annual_benefit_jpy"] == 211_824
         assert result["eligible"] is True
 
     def test_below_minimum_ineligible(self):
@@ -202,10 +202,18 @@ class TestTotalPension:
 
 class TestPensionAfterTax:
     def test_65plus_deduction_applied(self):
-        """At 65+, 1,100,000 yen deduction applies to pension ≤ 3,300,000."""
+        """At 65+, ¥1.1M pension deduction applies, then the basic deduction.
+
+        2,000,000 pension → net income 900,000 → basic deduction 950,000
+        (boosted low-income tier) → income-tax taxable is 0. Residence tax
+        still applies on 900,000 − 430,000 = 470,000.
+        """
         result = calculate_pension_after_tax(2_000_000, age=65)
         assert result["pension_deduction"] == 1_100_000
-        assert result["taxable_pension"] == 900_000
+        assert result["taxable_pension"] == 0
+        assert result["income_tax"] == 0
+        # Residence: 470,000 × 10% + 5,000 per-capita = 52,000
+        assert result["residence_tax"] == 52_000
 
     def test_low_pension_below_deduction_floor(self):
         """Pension of 800,000 at 65+ → taxable is 0 (deduction > pension)."""

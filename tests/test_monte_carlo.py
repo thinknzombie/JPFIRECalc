@@ -191,6 +191,61 @@ class TestRunSimulation:
         r2 = run_simulation(30_000_000, 1_200_000, 0, 10, 20, 100, 0.05, 0.15, seed=7)
         assert r1["success_rate_pct"] == r2["success_rate_pct"]
 
+    def test_future_lump_sum_is_pulled_forward_on_depletion(self):
+        raw = run_simulation(
+            initial_portfolio_jpy=100,
+            annual_withdrawal_jpy=150,
+            annual_pension_jpy=0,
+            pension_start_year=10,
+            simulation_years=4,
+            n_simulations=10,
+            mean_return=0.0,
+            volatility=0.0,
+            sequence_of_returns_risk=False,
+            lump_sums=[(3, 500)],
+            seed=SEED,
+        )
+
+        assert (raw["portfolios"][:, 1] == 450).all()
+        assert raw["success_rate_pct"] == 0.0
+        assert raw["ruin_year_median"] == 1
+        assert raw["emergency_liquidation_pct"] == 100.0
+
+    def test_emergency_lump_sum_is_not_added_again_at_scheduled_year(self):
+        raw = run_simulation(
+            initial_portfolio_jpy=100,
+            annual_withdrawal_jpy=100,
+            annual_pension_jpy=0,
+            pension_start_year=10,
+            simulation_years=2,
+            n_simulations=10,
+            mean_return=0.0,
+            volatility=0.0,
+            sequence_of_returns_risk=False,
+            lump_sums=[(2, 500)],
+            seed=SEED,
+        )
+
+        assert (raw["portfolios"][:, 1] == 500).all()
+        assert (raw["portfolios"][:, 2] == 398).all()
+
+    def test_no_lump_sum_still_flatlines_after_depletion(self):
+        raw = run_simulation(
+            initial_portfolio_jpy=100,
+            annual_withdrawal_jpy=150,
+            annual_pension_jpy=0,
+            pension_start_year=10,
+            simulation_years=3,
+            n_simulations=10,
+            mean_return=0.0,
+            volatility=0.0,
+            sequence_of_returns_risk=False,
+            seed=SEED,
+        )
+
+        assert (raw["portfolios"][:, 1:] == 0).all()
+        assert raw["emergency_liquidation_pct"] == 0.0
+
 
 class TestRunMonteCarlo:
     def test_returns_monte_carlo_result(self):
@@ -227,6 +282,15 @@ class TestRunMonteCarlo:
         )
         assert len(result.p50) == 21   # 20 years + t=0
         assert len(result.p10) == len(result.p90)
+
+    def test_exposes_emergency_liquidation_pct(self):
+        result = run_monte_carlo(
+            100, 150, 0, 10, 4, 10, 0.0, 0.0,
+            sequence_of_returns_risk=False,
+            lump_sums=[(3, 500)],
+            seed=SEED,
+        )
+        assert result.emergency_liquidation_pct == 100.0
 
 
 class TestFindSafeWithdrawalRate:
@@ -269,3 +333,23 @@ class TestFindSafeWithdrawalRate:
         for key in ["safe_rate_pct", "annual_safe_withdrawal_jpy",
                     "monthly_safe_withdrawal_jpy", "target_success_rate_pct"]:
             assert key in result
+
+    def test_safe_rate_moves_with_return_and_volatility(self):
+        base_kwargs = dict(
+            initial_portfolio_jpy=50_000_000,
+            annual_expenses_jpy=2_000_000,
+            net_pension_annual_jpy=0,
+            pension_start_year=20,
+            simulation_years=25,
+            n_simulations=500,
+            target_success_rate=90.0,
+            seed=SEED,
+        )
+
+        low_return = find_safe_withdrawal_rate(**base_kwargs, mean_return=0.03, volatility=0.15)
+        high_return = find_safe_withdrawal_rate(**base_kwargs, mean_return=0.07, volatility=0.15)
+        low_vol = find_safe_withdrawal_rate(**base_kwargs, mean_return=0.05, volatility=0.05)
+        high_vol = find_safe_withdrawal_rate(**base_kwargs, mean_return=0.05, volatility=0.25)
+
+        assert high_return["safe_rate_pct"] >= low_return["safe_rate_pct"]
+        assert high_vol["safe_rate_pct"] <= low_vol["safe_rate_pct"]

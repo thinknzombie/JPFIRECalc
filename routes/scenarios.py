@@ -116,7 +116,7 @@ def _assumptions_from_form(form) -> AssumptionSet:
 def _run_and_render_detail(profile, scenario, region_key):
     """Run calculation engine and return ScenarioResult, or raise EngineError."""
     try:
-        return run_fire_scenario(
+        result = run_fire_scenario(
             profile=profile,
             scenario_name=scenario.name,
             scenario_id=scenario.id,
@@ -128,6 +128,29 @@ def _run_and_render_detail(profile, scenario, region_key):
             "Engine error for scenario %s (%s)", scenario.id, scenario.name
         )
         raise
+    _cache_summary(profile, scenario, result)
+    return result
+
+
+def _cache_summary(profile, scenario, result) -> None:
+    """Persist headline results on the scenario so the dashboard can show them."""
+    from datetime import datetime, timezone
+    try:
+        scenario.summary = {
+            "fire_number_jpy": result.fire_number_jpy,
+            "current_portfolio_jpy": result.current_portfolio_jpy,
+            "progress_pct": result.progress_pct,
+            "years_to_fire": result.years_to_fire,
+            "fire_age": result.fire_age,
+            "mc_success_rate_pct": (
+                result.monte_carlo.success_rate_pct if result.monte_carlo else None
+            ),
+            "computed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        }
+        store.save(profile, scenario)
+    except Exception:
+        # Caching the summary must never break the page render.
+        logger.warning("Could not cache summary for scenario %s", scenario.id, exc_info=True)
 
 
 @scenarios_bp.route("/")
@@ -262,6 +285,49 @@ def report_md(scenario_id):
     return Response(
         md.encode("utf-8"),
         mimetype="text/markdown",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@scenarios_bp.route("/<scenario_id>/cashflow.csv")
+def cashflow_csv(scenario_id):
+    """Download the year-by-year projection as CSV (Excel-friendly UTF-8 BOM)."""
+    store.init_store(current_app.config["SCENARIOS_DIR"])
+    try:
+        profile, scenario = store.load(scenario_id)
+    except (FileNotFoundError, ValueError):
+        flash("Scenario not found.", "error")
+        return redirect(url_for("scenarios.index"))
+
+    try:
+        result = _run_and_render_detail(profile, scenario, scenario.region)
+    except Exception:
+        flash("Could not generate CSV — calculation error.", "error")
+        return redirect(url_for("scenarios.detail", scenario_id=scenario_id))
+
+    import csv
+    import io
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "year", "age", "phase", "portfolio_jpy", "annual_savings_jpy",
+        "expenses_jpy", "pension_income_jpy", "nhi_premium_jpy",
+        "from_portfolio_jpy", "year1_residence_tax_jpy",
+        "investment_gain_jpy", "ideco_locked_jpy",
+    ])
+    for t in result.trajectory:
+        writer.writerow([
+            t.year, t.age, t.phase, t.portfolio_value_jpy, t.annual_savings_jpy,
+            t.expenses_jpy, t.pension_income_jpy, t.nhi_premium_jpy,
+            t.net_from_portfolio_jpy, t.year1_residence_tax_jpy,
+            t.investment_gain_jpy, t.ideco_locked_jpy,
+        ])
+
+    safe_name = "".join(c if c.isalnum() or c in "-_ " else "_" for c in scenario.name).strip()
+    filename = f"jpfirecalc_{safe_name}_cashflow.csv".replace(" ", "_")
+    return Response(
+        ("﻿" + buf.getvalue()).encode("utf-8"),
+        mimetype="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 

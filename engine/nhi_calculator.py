@@ -138,8 +138,43 @@ def calculate_nhi_premium(
 # Retirement-specific helpers
 # ---------------------------------------------------------------------------
 
+def calculate_nhi_income_base(
+    pension_gross_annual_jpy: int,
+    age: int,
+    declared_gains_jpy: int = 0,
+    other_income_jpy: int = 0,
+) -> int:
+    """
+    Return the income (前年総所得金額等) used for NHI assessment in retirement.
+
+    Key point for FIRE planning: NHI is assessed on taxable INCOME, not on
+    cash withdrawn from a portfolio.
+
+      - NISA withdrawals:          NOT income — invisible to NHI.
+      - Cash savings drawdown:     NOT income.
+      - 特定口座 (源泉徴収あり):     gains are excluded unless declared on a
+                                    tax return (pass declared_gains_jpy if so).
+      - Public pension:            income AFTER the 公的年金等控除.
+      - Part-time work etc.:       pass via other_income_jpy (after 給与所得控除).
+
+    A retiree living off NISA + a withholding brokerage account before pension
+    age therefore has near-zero NHI income and qualifies for the 7割軽減
+    per-capita reduction — a well-known feature of Japan FIRE planning.
+    """
+    from engine.tax_calculator import calculate_pension_income_deduction
+
+    pension_income = 0
+    if pension_gross_annual_jpy > 0:
+        pension_income = max(
+            0,
+            pension_gross_annual_jpy
+            - calculate_pension_income_deduction(pension_gross_annual_jpy, age),
+        )
+    return pension_income + max(0, declared_gains_jpy) + max(0, other_income_jpy)
+
+
 def calculate_nhi_for_retiree(
-    withdrawal_jpy: int,
+    nhi_income_jpy: int,
     num_members: int,
     municipality_key: str,
     age: int,
@@ -153,14 +188,17 @@ def calculate_nhi_for_retiree(
       - 65+:       LTC collected via pension, not NHI
 
     Args:
-        withdrawal_jpy:     Annual portfolio withdrawal (used as income for NHI).
+        nhi_income_jpy:     NHI-assessed income (前年総所得) — use
+                            calculate_nhi_income_base() to build this from
+                            pension / declared gains. NOT the gross portfolio
+                            withdrawal: NISA and cash drawdowns are not income.
         num_members:        Enrolled NHI household members.
         municipality_key:   Municipality rate key.
         age:                Age of the primary member (used for LTC eligibility).
     """
     ltc_eligible = 1 if 40 <= age <= 64 else 0
     result = calculate_nhi_premium(
-        annual_income=withdrawal_jpy,
+        annual_income=nhi_income_jpy,
         num_members=num_members,
         municipality_key=municipality_key,
         ltc_eligible_members=ltc_eligible,
@@ -184,6 +222,12 @@ def solve_withdrawal_with_nhi(
 ) -> dict:
     """
     Solve for the gross withdrawal amount needed to cover expenses after NHI.
+
+    NOTE: this treats the full withdrawal as NHI-assessed income, which only
+    applies when the retiree DECLARES all brokerage gains (or draws income
+    that is fully taxable). The main engine now uses the income-based model
+    (calculate_nhi_income_base) instead; this solver is kept for the
+    declared-gains case and the /api/nhi endpoint.
 
     The circular dependency:
         withdrawal = expenses + NHI(withdrawal)

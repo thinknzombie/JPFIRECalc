@@ -21,6 +21,11 @@ _PENSION_DEDUCTION_UNDER65 = _TAX["public_pension_income_deduction"]["under_65"]
 _PENSION_DEDUCTION_65PLUS = _TAX["public_pension_income_deduction"]["age_65_plus"]
 _RETIREMENT_DEDUCTION = _TAX["retirement_income_deduction"]
 _SURTAX_RATE = _TAX["surtax_rate"]
+_RESIDENCE_BASIC_DEDUCTION = _TAX.get("residence_tax_basic_deduction", 430_000)
+
+# The tax-free salary threshold ("160万円の壁" since the 2025 reform).
+# Part-time income below this incurs no income tax for the earner.
+TAX_FREE_SALARY_WALL_JPY = _TAX.get("tax_free_salary_wall_jpy", 1_600_000)
 
 
 # ---------------------------------------------------------------------------
@@ -54,11 +59,30 @@ def calculate_employment_income(gross_income: int) -> int:
 # Basic deduction  (基礎控除)
 # ---------------------------------------------------------------------------
 
-def calculate_basic_deduction(gross_income: int) -> int:
-    """Return the basic deduction amount based on gross income."""
+def calculate_basic_deduction(net_income: int) -> int:
+    """Return the basic deduction amount based on 合計所得金額.
+
+    IMPORTANT: the thresholds are keyed off NET income (after the employment
+    income deduction for salary earners), not gross salary. Post-2025-reform
+    the deduction is tiered: ¥950k for net income ≤ ¥1.32M down to ¥580k at
+    ¥23.5M, then phasing out entirely above ¥25M.
+    """
     for bracket in _BASIC_DEDUCTION:
-        if bracket["max_income"] is None or gross_income <= bracket["max_income"]:
+        if bracket["max_income"] is None or net_income <= bracket["max_income"]:
             return bracket["deduction"]
+    return 0
+
+
+def calculate_residence_basic_deduction(net_income: int) -> int:
+    """Return the residence-tax basic deduction (住民税の基礎控除).
+
+    Flat ¥430,000 for net income ≤ ¥24M (unchanged by the 2025 reform),
+    phasing out above — approximated here as zero beyond ¥25M.
+    """
+    if net_income <= 24_000_000:
+        return _RESIDENCE_BASIC_DEDUCTION
+    if net_income <= 25_000_000:
+        return _RESIDENCE_BASIC_DEDUCTION // 2
     return 0
 
 
@@ -148,8 +172,9 @@ def calculate_income_tax(
         # Self-employed: gross_income is already net business income (事業所得)
         emp_income = gross_income
 
-    # Step 2: build deductions
-    basic_ded = calculate_basic_deduction(gross_income)
+    # Step 2: build deductions.
+    # The basic deduction is keyed off 合計所得金額 (net income), not gross.
+    basic_ded = calculate_basic_deduction(emp_income)
     ideco_ded = ideco_monthly_jpy * 12
     dependent_ded = num_dependents * _TAX["dependent_deduction_per_person"]
 
@@ -173,6 +198,15 @@ def calculate_income_tax(
 
     taxable_income = max(0, emp_income - total_deductions)
 
+    # Residence tax has its own (smaller) basic deduction of ¥430k, so its
+    # taxable base is higher than the income-tax base. Other 所得控除 also
+    # differ slightly (spouse/dependent are ¥330k vs ¥380k) — the basic
+    # deduction difference dominates, so only that is modelled.
+    residence_basic_ded = calculate_residence_basic_deduction(emp_income)
+    residence_taxable_income = max(
+        0, emp_income - (total_deductions - basic_ded + residence_basic_ded)
+    )
+
     # Step 3: apply tax brackets
     income_tax = calculate_income_tax_from_taxable(taxable_income)
 
@@ -188,6 +222,7 @@ def calculate_income_tax(
         "social_insurance_deduction": social_insurance_premium,
         "total_deductions": total_deductions,
         "taxable_income": taxable_income,
+        "residence_taxable_income": residence_taxable_income,
         "income_tax": income_tax,
         "effective_rate_pct": round(effective_rate, 2),
     }
@@ -283,13 +318,13 @@ def calculate_year1_retirement_tax_shock(
         social_insurance_premium=social_insurance_premium,
     )
     residence_tax = calculate_residence_tax(
-        last_year_result["taxable_income"], per_capita_levy
+        last_year_result["residence_taxable_income"], per_capita_levy
     )
 
     return {
         "last_working_year_gross": last_working_gross,
         "liquidated_assets_jpy": liquidated_assets_jpy,
-        "last_working_year_taxable_income": last_year_result["taxable_income"],
+        "last_working_year_taxable_income": last_year_result["residence_taxable_income"],
         "year1_residence_tax": residence_tax["total"],
         "income_based_component": residence_tax["income_based"],
         "per_capita_component": residence_tax["per_capita"],

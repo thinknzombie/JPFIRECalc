@@ -108,7 +108,8 @@ class TestCalculateNhiPremium:
         # Very high income should hit the cap
         result = calculate_nhi_premium(20_000_000, 1, self.MUNICIPALITY)
         assert result["cap_hit"] is True
-        assert result["medical_support_capped"] == 1_060_000
+        # FY2026 cap: medical 670,000 + support 260,000 = 930,000
+        assert result["medical_support_capped"] == 930_000
 
     def test_no_cap_at_moderate_income(self):
         result = calculate_nhi_premium(3_000_000, 1, self.MUNICIPALITY)

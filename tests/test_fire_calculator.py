@@ -179,7 +179,10 @@ class TestAccessiblePortfolio:
         )
         result = calculate_accessible_portfolio(profile, fire_age=60)
         assert result["ideco_accessible"] is True
-        assert result["total_accessible_jpy"] == 10_000_000
+        # Taxable brokerage (no cost basis → all gain) is net of 20.315% CGT:
+        # 2,000,000 - 406,300 = 1,593,700
+        assert result["taxable_cgt_reserve_jpy"] == 406_300
+        assert result["total_accessible_jpy"] == 9_593_700
 
     def test_fire_before_60_ideco_excluded(self):
         profile = base_profile(
@@ -191,7 +194,8 @@ class TestAccessiblePortfolio:
         )
         result = calculate_accessible_portfolio(profile, fire_age=45)
         assert result["ideco_accessible"] is False
-        assert result["total_accessible_jpy"] == 7_000_000  # no iDeCo
+        # No iDeCo; taxable net of CGT (2,000,000 - 406,300)
+        assert result["total_accessible_jpy"] == 6_593_700
 
     def test_foreign_assets_converted_at_rate(self):
         profile = base_profile(
@@ -308,14 +312,16 @@ class TestBaristaFireNumber:
         assert result["barista_fire_number_jpy"] == 0
 
     def test_taxable_income_warning_above_threshold(self):
+        # The wall is ¥1.6M since the 2025 reform (was ¥1.03M)
         result = calculate_barista_fire_number(
-            3_600_000, 0.035, barista_income_annual_jpy=1_500_000
+            3_600_000, 0.035, barista_income_annual_jpy=2_000_000
         )
         assert result["taxable_income_warning"] is not None
 
     def test_no_warning_below_threshold(self):
+        # ¥1.5M was above the old ¥1.03M wall but is under the new ¥1.6M wall
         result = calculate_barista_fire_number(
-            3_600_000, 0.035, barista_income_annual_jpy=1_000_000
+            3_600_000, 0.035, barista_income_annual_jpy=1_500_000
         )
         assert result["taxable_income_warning"] is None
 
@@ -429,6 +435,14 @@ class TestRunFireScenario:
         assumptions = base_assumptions(withdrawal_rate_pct=5.0)
         result = run_fire_scenario(profile, "Test", "test-id", assumptions, "national_average")
         assert any("4%" in w or "4.0%" in w or "withdrawal" in w.lower() for w in result.warnings)
+        assert not any("3.0–3.5" in w or "3–3.5" in w for w in result.warnings)
+
+    def test_mc_safe_withdrawal_rate_is_populated(self):
+        profile = base_profile()
+        result = run_fire_scenario(profile, "Test", "test-id", base_assumptions(), "national_average")
+        assert result.mc_safe_withdrawal_rate_pct > 0
+        assert result.mc_safe_withdrawal_target_pct == 90.0
+        assert any("Monte Carlo" in w and "withdrawal rate" in w for w in result.warnings)
 
     def test_trajectory_populated(self):
         profile = base_profile()

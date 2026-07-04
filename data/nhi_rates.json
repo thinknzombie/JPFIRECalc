@@ -1,9 +1,9 @@
 {
-  "_source": "Municipal websites and厚生労働省 — approximate FY2024 rates. Verify annually.",
-  "_notes": "National Health Insurance (国民健康保険) premiums = medical component + support component + long-term care component (age 40-64). Rates are % of taxable income (前年所得 - 430,000 deduction). Per-capita charges are per household member.",
+  "_source": "Municipal websites and厚生労働省 — caps updated to FY2026 (令和8年度); municipal rates are approximate FY2024-25 figures. Verify annually.",
+  "_notes": "National Health Insurance (国民健康保険) premiums = medical component + support component + long-term care component (age 40-64). Rates are % of taxable income (前年所得 - 430,000 deduction). Per-capita charges are per household member. FY2026 adds a new 子ども・子育て支援納付金 component (cap ¥30,000) — not modelled per-municipality yet; premiums here are slightly understated by roughly that amount at high incomes.",
 
-  "annual_cap_jpy": 1060000,
-  "_notes_cap": "FY2024 combined cap (medical + support). Long-term care has a separate cap of 170,000.",
+  "annual_cap_jpy": 930000,
+  "_notes_cap": "FY2026 combined cap: medical (基礎) 670,000 + support (後期高齢者支援金) 260,000 = 930,000. Long-term care (介護) has a separate cap of 170,000. Total incl. new child-support levy: 1,130,000.",
 
   "long_term_care_annual_cap_jpy": 170000,
 

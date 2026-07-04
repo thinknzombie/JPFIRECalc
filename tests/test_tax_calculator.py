@@ -26,15 +26,16 @@ from engine.tax_calculator import (
 # ---------------------------------------------------------------------------
 
 class TestEmploymentIncomeDeduction:
-    def test_below_1625000_fixed_deduction(self):
-        # Gross ≤ 1,625,000 → fixed 550,000 deduction
-        assert calculate_employment_income_deduction(1_000_000) == 550_000
-        assert calculate_employment_income_deduction(1_625_000) == 550_000
+    def test_minimum_650000_deduction(self):
+        # 2025 reform: gross ≤ 1,900,000 → fixed 650,000 minimum deduction
+        assert calculate_employment_income_deduction(1_000_000) == 650_000
+        assert calculate_employment_income_deduction(1_625_000) == 650_000
 
-    def test_rate_bracket_1800000(self):
-        # 1,625,001–1,800,000: income × 40% - 100,000
-        # 1,700,000 * 0.40 - 100,000 = 580,000
-        assert calculate_employment_income_deduction(1_700_000) == 580_000
+    def test_minimum_binds_up_to_1900000(self):
+        # 1,700,000 sits under the ¥650k floor (old 40%−100k formula would
+        # give 580,000 — superseded by the 2025 reform)
+        assert calculate_employment_income_deduction(1_700_000) == 650_000
+        assert calculate_employment_income_deduction(1_900_000) == 650_000
 
     def test_rate_bracket_3600000(self):
         # 1,800,001–3,600,000: income × 30% + 80,000
@@ -69,10 +70,25 @@ class TestEmploymentIncomeDeduction:
 # ---------------------------------------------------------------------------
 
 class TestBasicDeduction:
-    def test_standard_income_gets_full_deduction(self):
-        # Income ≤ 24,000,000 → 480,000
-        assert calculate_basic_deduction(5_000_000) == 480_000
-        assert calculate_basic_deduction(24_000_000) == 480_000
+    # NOTE: since the 2025 reform, thresholds are keyed off NET income
+    # (合計所得金額), and low incomes get temporary boosted tiers (2025–26).
+
+    def test_low_income_boosted_tier(self):
+        # Net income ≤ 1,320,000 → 950,000
+        assert calculate_basic_deduction(1_000_000) == 950_000
+
+    def test_mid_tiers(self):
+        assert calculate_basic_deduction(3_000_000) == 880_000   # ≤ 3.36M
+        assert calculate_basic_deduction(4_500_000) == 680_000   # ≤ 4.89M
+        assert calculate_basic_deduction(6_000_000) == 630_000   # ≤ 6.55M
+
+    def test_standard_income_gets_580000(self):
+        # Net income ≤ 23,500,000 → 580,000 baseline
+        assert calculate_basic_deduction(10_000_000) == 580_000
+        assert calculate_basic_deduction(23_500_000) == 580_000
+
+    def test_phaseout_24m(self):
+        assert calculate_basic_deduction(23_900_000) == 480_000
 
     def test_phaseout_24_5m(self):
         assert calculate_basic_deduction(24_100_000) == 320_000
@@ -130,21 +146,24 @@ class TestIncomeTaxFromTaxable:
 class TestCalculateIncomeTax:
     def test_single_employee_6m(self):
         """
-        Single company employee, 6M gross, no iDeCo, no dependents.
+        Single company employee, 6M gross, no iDeCo, no dependents (2025 rules).
         EI deduction: 6,000,000 * 0.20 + 440,000 = 1,640,000
         Employment income: 6,000,000 - 1,640,000 = 4,360,000
-        Taxable: 4,360,000 - 480,000 (basic) = 3,880,000
-        Tax on 3,880,000 (20% bracket): 3,880,000 * 0.20 - 427,500 = 348,500
-        Surtax: 348,500 * 0.021 = 7,318 → total 355,818 → rounded to 355,800
+        Basic deduction (net income 4,360,000 ≤ 4,890,000): 680,000
+        Taxable: 4,360,000 - 680,000 = 3,680,000
+        Tax on 3,680,000 (20% bracket): 3,680,000 * 0.20 - 427,500 = 308,500
+        Surtax: 308,500 * 0.021 = 6,478 → total 314,978 → rounded to 314,900
+        Residence taxable: 4,360,000 - 430,000 = 3,930,000
         """
         result = calculate_income_tax(
             gross_income=6_000_000,
             employment_type="company_employee",
         )
         assert result["employment_income"] == 4_360_000
-        assert result["basic_deduction"] == 480_000
-        assert result["taxable_income"] == 3_880_000
-        assert result["income_tax"] == 355_800
+        assert result["basic_deduction"] == 680_000
+        assert result["taxable_income"] == 3_680_000
+        assert result["income_tax"] == 314_900
+        assert result["residence_taxable_income"] == 3_930_000
 
     def test_ideco_reduces_taxable_income(self):
         """iDeCo contribution of 23,000/month = 276,000/year deduction."""

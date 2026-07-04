@@ -1701,3 +1701,17 @@ details.form-card--collapsible[open] > summary::after {
   .results-hero { grid-template-columns: 1fr; }
   .scenario-card__stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Dashboard card result stats & cash-flow table (2026-07) ─────────────── */
+.progress-bar--card { margin: var(--space-2) 0 0; }
+
+.data-table--compact { font-size: var(--text-xs); }
+.data-table--compact th,
+.data-table--compact td { padding: 4px 8px; white-space: nowrap; }
+.data-table--compact tbody tr:hover { background: rgba(91, 106, 240, 0.06); }
+
+.cf-row--retirement td:first-child { color: var(--color-accent, #e8b84b); font-weight: 600; }
+.cf-row--shock { background: rgba(224, 82, 82, 0.07); }
+
+#cashflowTableWrap { max-height: 480px; overflow-y: auto; margin-top: var(--space-3); }
+#cashflowTableWrap thead th { position: sticky; top: 0; background: var(--color-surface, #1c1f2b); z-index: 1; }

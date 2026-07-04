@@ -49,6 +49,36 @@
               <span class="badge badge--variant">{{ scenario.assumptions.fire_variant | title }}</span>
             </div>
           </div>
+          {% set s = scenario.summary %}
+          {% if s and s.fire_number_jpy %}
+          <div class="scenario-card__stats">
+            <div class="scenario-stat">
+              <div class="scenario-stat__label" data-i18n="card.fire_number">FIRE Number</div>
+              <div class="scenario-stat__val">¥{{ "{:,}".format(s.fire_number_jpy // 10000) }}万</div>
+            </div>
+            <div class="scenario-stat">
+              <div class="scenario-stat__label" data-i18n="card.years_to_fire">Years to FIRE</div>
+              <div class="scenario-stat__val">
+                {% if s.years_to_fire <= 0 %}<span class="text-success">Done ✓</span>
+                {% elif s.years_to_fire >= 99 %}<span class="text-danger">—</span>
+                {% else %}{{ "%.1f" | format(s.years_to_fire) }}{% endif %}
+              </div>
+            </div>
+            <div class="scenario-stat">
+              <div class="scenario-stat__label" data-i18n="card.progress">Progress</div>
+              <div class="scenario-stat__val">{{ "%.0f" | format([s.progress_pct, 100] | min) }}%</div>
+            </div>
+            {% if s.mc_success_rate_pct is not none %}
+            <div class="scenario-stat">
+              <div class="scenario-stat__label" data-i18n="card.mc">MC Success</div>
+              <div class="scenario-stat__val {% if s.mc_success_rate_pct >= 90 %}text-success{% elif s.mc_success_rate_pct < 75 %}text-danger{% endif %}">{{ s.mc_success_rate_pct }}%</div>
+            </div>
+            {% endif %}
+          </div>
+          <div class="progress-bar progress-bar--card">
+            <div class="progress-fill" style="width: {{ [s.progress_pct, 100] | min }}%"></div>
+          </div>
+          {% else %}
           <div class="scenario-card__stats">
             <div class="scenario-stat">
               <div class="scenario-stat__label" data-i18n="card.variant">Strategy</div>
@@ -67,6 +97,7 @@
               <div class="scenario-stat__val">{{ profile.target_retirement_age }}</div>
             </div>
           </div>
+          {% endif %}
           <div class="scenario-card__footer">
             <span class="scenario-card__age">
               <span data-i18n="card.age_prefix">Age</span> {{ profile.current_age }} → {{ profile.target_retirement_age }}

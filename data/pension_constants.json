@@ -1,14 +1,14 @@
 {
-  "_source": "日本年金機構 (Japan Pension Service) — FY2024 values",
-  "_url": "https://www.nenkin.go.jp",
+  "_source": "日本年金機構 (Japan Pension Service) — FY2026 (令和8年度) values",
+  "_url": "https://www.nenkin.go.jp/oshirase/taisetu/kojin/2026/202604/0401.html",
 
   "kokumin_nenkin": {
     "_notes": "老齢基礎年金 — National/Basic Pension",
-    "full_annual_benefit_jpy": 816000,
-    "_notes_full": "Full benefit for 40 years (480 months) of contributions as of 2024",
+    "full_annual_benefit_jpy": 847296,
+    "_notes_full": "Full benefit for 40 years (480 months): ¥70,608/month from April 2026 (born on/after 1956-04-02)",
     "full_contribution_months": 480,
-    "monthly_premium_jpy": 16980,
-    "_notes_premium": "FY2024 flat-rate monthly premium for self-employed/non-employed",
+    "monthly_premium_jpy": 17920,
+    "_notes_premium": "FY2026 flat-rate monthly premium for self-employed/non-employed",
     "eligible_from_age": 65,
     "early_claim_min_age": 60,
     "early_reduction_per_month": 0.004,
