@@ -82,19 +82,27 @@ def api():
         payload.append({
             "id": item["scenario"].id,
             "name": item["scenario"].name,
+            "fire_variant": item["scenario"].assumptions.fire_variant,
             "fire_number_jpy": r.fire_number_jpy,
             "years_to_fire": r.years_to_fire,
             "fire_age": r.fire_age,
             "progress_pct": r.progress_pct,
             "success_rate_pct": r.monte_carlo.success_rate_pct if r.monte_carlo else None,
-            "annual_expenses_jpy": r.annual_expenses_jpy,
+            # Active (variant-aware) cash-flow figures — what Monte Carlo and the
+            # trajectory actually simulate for this scenario's fire_variant, not
+            # always the base "Regular" figures (see ScenarioResult docstring).
+            "annual_expenses_jpy": r.active_annual_expenses_jpy,
             "annual_pension_net_jpy": r.annual_pension_net_jpy,
-            "annual_nhi_jpy": r.annual_nhi_jpy,
-            "annual_withdrawal_needed_jpy": r.annual_withdrawal_needed_jpy,
+            "annual_nhi_jpy": r.active_annual_nhi_jpy,
+            "annual_withdrawal_needed_jpy": r.active_annual_withdrawal_jpy,
             "nisa_at_retirement_jpy": r.nisa_at_retirement_jpy,
             "ideco_at_retirement_jpy": r.ideco_at_retirement_jpy,
             "coast_fire_number_jpy": r.coast_fire_number_jpy,
             "coast_fire_reached": r.coast_fire_reached,
+            "investment_return_pct": item["scenario"].assumptions.investment_return_pct,
+            "retirement_return_pct": item["scenario"].assumptions.retirement_return_pct,
+            "withdrawal_rate_pct": item["scenario"].assumptions.withdrawal_rate_pct,
+            "retirement_expense_growth_pct": item["scenario"].assumptions.retirement_expense_growth_pct,
             "trajectory_p50": [
                 {"age": yr.age, "phase": yr.phase, "value": yr.portfolio_value_jpy}
                 for yr in r.trajectory

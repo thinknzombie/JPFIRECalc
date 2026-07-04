@@ -58,7 +58,7 @@
             {% for item in items %}
             <th class="compare-table__scenario" style="--col-color: {{ loop.index | scenario_color }}">
               {{ item.scenario.name }}
-              <div class="compare-table__sub">{{ item.scenario.region | replace('_',' ') | title }} · {{ item.scenario.assumptions.withdrawal_rate_pct }}% WR</div>
+              <div class="compare-table__sub">{{ item.scenario.region | replace('_',' ') | title }} · {{ item.scenario.assumptions.withdrawal_rate_pct }}% WR · {{ item.scenario.assumptions.fire_variant | title }}</div>
             </th>
             {% endfor %}
           </tr>
@@ -126,11 +126,17 @@
           <tr class="compare-table__group-header">
             <td colspan="{{ items | length + 1 }}" data-i18n="compare.cashflow">Retirement Cash Flow</td>
           </tr>
-          {# Annual Expenses #}
+          {# Annual Expenses — the ACTIVE (variant-aware) figure Monte Carlo and the
+             trajectory actually simulate, not always the base "Regular" number. #}
           <tr>
             <td class="compare-table__label" data-i18n="compare.annual_expenses">Annual Expenses</td>
             {% for item in items %}
-            <td class="compare-table__val">¥{{ "{:,}".format(item.result.annual_expenses_jpy) }}</td>
+            <td class="compare-table__val">
+              ¥{{ "{:,}".format(item.result.active_annual_expenses_jpy) }}
+              {% if item.scenario.assumptions.fire_variant != 'regular' %}
+              <span class="text-muted" style="font-size:0.85em;">({{ item.scenario.assumptions.fire_variant | title }})</span>
+              {% endif %}
+            </td>
             {% endfor %}
           </tr>
           {# Pension #}
@@ -144,16 +150,16 @@
           <tr>
             <td class="compare-table__label" data-i18n="compare.nhi">NHI Premium</td>
             {% for item in items %}
-            <td class="compare-table__val">¥{{ "{:,}".format(item.result.annual_nhi_jpy) }}</td>
+            <td class="compare-table__val">¥{{ "{:,}".format(item.result.active_annual_nhi_jpy) }}</td>
             {% endfor %}
           </tr>
           {# Net Withdrawal #}
           <tr class="compare-table__highlight">
             <td class="compare-table__label" data-i18n="compare.net_portfolio">Net from Portfolio / yr</td>
             {% for item in items %}
-            {% set best = items | map(attribute='result.annual_withdrawal_needed_jpy') | min %}
-            <td class="compare-table__val {% if item.result.annual_withdrawal_needed_jpy == best %}compare-table__val--best{% endif %}">
-              ¥{{ "{:,}".format(item.result.annual_withdrawal_needed_jpy) }}
+            {% set best = items | map(attribute='result.active_annual_withdrawal_jpy') | min %}
+            <td class="compare-table__val {% if item.result.active_annual_withdrawal_jpy == best %}compare-table__val--best{% endif %}">
+              ¥{{ "{:,}".format(item.result.active_annual_withdrawal_jpy) }}
             </td>
             {% endfor %}
           </tr>
@@ -197,14 +203,52 @@
             </td>
             {% endfor %}
           </tr>
+          {# Profile settings — these live on the PROFILE, not scenario.assumptions,
+             so two scenarios can differ here even when every AssumptionSet field
+             matches. nenkin_claim_age in particular materially changes Pension
+             (net) and NHI above via the deferral bonus/penalty — a real driver of
+             divergent results that was previously invisible on this page. #}
+          <tr class="compare-table__group-header">
+            <td colspan="{{ items | length + 1 }}" data-i18n="compare.profile">Profile</td>
+          </tr>
+          <tr>
+            <td class="compare-table__label" data-i18n="compare.current_age">Current Age</td>
+            {% for item in items %}
+            <td class="compare-table__val">{{ item.profile.current_age }}</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td class="compare-table__label" data-i18n="compare.target_retirement_age">Target Retirement Age</td>
+            {% for item in items %}
+            <td class="compare-table__val">{{ item.profile.target_retirement_age }}</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td class="compare-table__label" data-i18n="compare.nenkin_claim_age">Pension Claim Age</td>
+            {% for item in items %}
+            <td class="compare-table__val">{{ item.profile.nenkin_claim_age }}</td>
+            {% endfor %}
+          </tr>
           {# Assumptions summary #}
           <tr class="compare-table__group-header">
             <td colspan="{{ items | length + 1 }}" data-i18n="compare.assumptions">Assumptions</td>
           </tr>
           <tr>
-            <td class="compare-table__label" data-i18n="compare.investment_return">Investment Return</td>
+            <td class="compare-table__label" data-i18n="compare.investment_return">Investment Return (Accumulation)</td>
             {% for item in items %}
             <td class="compare-table__val">{{ item.scenario.assumptions.investment_return_pct }}%</td>
+            {% endfor %}
+          </tr>
+          {# Retirement-phase return — the rate that actually drives the FIRE number's
+             pension-gap discount, the trajectory drawdown, Coast FIRE, and Monte Carlo
+             for anyone at or near FIRE. Previously missing from this table entirely,
+             which made two scenarios that differed ONLY in this assumption look
+             inexplicably different (identical "Investment Return" shown, but that was
+             the accumulation-phase rate, irrelevant once already retired). #}
+          <tr>
+            <td class="compare-table__label" data-i18n="compare.retirement_return">Investment Return (Retirement)</td>
+            {% for item in items %}
+            <td class="compare-table__val">{{ item.scenario.assumptions.retirement_return_pct }}%</td>
             {% endfor %}
           </tr>
           <tr>
@@ -213,10 +257,15 @@
             <td class="compare-table__val">{{ item.scenario.assumptions.withdrawal_rate_pct }}%</td>
             {% endfor %}
           </tr>
+          {# Retirement expense growth — what the engine actually uses to inflate
+             expenses in retirement (trajectory + Monte Carlo). "japan_inflation_pct"
+             used to be shown here instead; it is not consumed by any calculation
+             anywhere in the engine, so showing it implied it explained differences
+             between scenarios when it never could. #}
           <tr>
-            <td class="compare-table__label" data-i18n="compare.inflation">Inflation</td>
+            <td class="compare-table__label" data-i18n="compare.expense_growth">Retirement Expense Growth</td>
             {% for item in items %}
-            <td class="compare-table__val">{{ item.scenario.assumptions.japan_inflation_pct }}%</td>
+            <td class="compare-table__val">{{ item.scenario.assumptions.retirement_expense_growth_pct }}%</td>
             {% endfor %}
           </tr>
         </tbody>
