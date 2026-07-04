@@ -290,20 +290,29 @@ def generate_markdown_report(
     h(2, "FIRE Projections")
 
     h(3, "FIRE Number Breakdown")
+    variant_label = scenario.assumptions.fire_variant.replace("_", " ").title()
     table(
         ["Component", "Annual (JPY)", "Notes"],
         [
-            ["Retirement expenses", _yen(result.annual_expenses_jpy),
-             f"{_yen(result.annual_expenses_jpy // 12)}/month"],
+            [f"Retirement expenses ({variant_label})", _yen(result.active_annual_expenses_jpy),
+             f"{_yen(result.active_annual_expenses_jpy // 12)}/month — the figure Monte Carlo actually simulates"],
             ["Less: pension income", f"−{_yen(result.annual_pension_net_jpy)}",
              f"Claim age {profile.nenkin_claim_age}"],
-            ["Plus: NHI premium", _yen(result.annual_nhi_jpy),
+            ["Plus: NHI premium", _yen(result.active_annual_nhi_jpy),
              f"Income-based; pre-pension years ≈ {_yen(result.annual_nhi_gap_jpy)} (軽減 minimum)"],
-            ["= Net portfolio need", _yen(result.annual_withdrawal_needed_jpy),
+            ["= Net portfolio need", _yen(result.active_annual_withdrawal_jpy),
              f"÷ {_pct(scenario.assumptions.withdrawal_rate_pct)} WR"],
             ["**FIRE number**", f"**{_yen(result.fire_number_jpy)}**", ""],
         ],
     )
+    if result.active_annual_expenses_jpy != result.annual_expenses_jpy:
+        p(f"> ℹ️ This is the **{variant_label}** scenario — Monte Carlo and the FIRE number "
+          f"above are based on {_yen(result.active_annual_expenses_jpy)}/yr, not your "
+          f"baseline **Regular** expenses of {_yen(result.annual_expenses_jpy)}/yr. If you're "
+          f"comparing this report against a Regular (or other variant) report for the same "
+          f"profile, remember the two are simulating **different spending levels** — a "
+          f"difference in Monte Carlo survival between them may be driven by that, not by "
+          f"the withdrawal rate.")
 
     if result.year1_residence_tax_shock_jpy > 0:
         p(f"> ⚠️ **Year-1 residence tax shock:** {_yen(result.year1_residence_tax_shock_jpy)} "

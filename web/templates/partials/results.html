@@ -235,11 +235,14 @@
 
 <div class="results-grid results-grid--2">
   <div class="results-card">
-    <h3 class="results-card__title" data-i18n="result.cashflow">Retirement Cash Flow</h3>
+    <h3 class="results-card__title">
+      <span data-i18n="result.cashflow">Retirement Cash Flow</span>
+      {% if v != 'regular' %}<span class="text-muted">({{ v | title }})</span>{% endif %}
+    </h3>
     <div class="kv-list">
       <div class="kv-row">
         <span class="kv-key" data-i18n="result.expenses">Annual Expenses</span>
-        <span class="kv-val">¥{{ "{:,}".format(result.annual_expenses_jpy) }}</span>
+        <span class="kv-val">¥{{ "{:,}".format(result.active_annual_expenses_jpy) }}</span>
       </div>
       <div class="kv-row">
         <span class="kv-key" data-i18n="result.pension">Pension Income (net)</span>
@@ -251,12 +254,20 @@
       </div>
       <div class="kv-row">
         <span class="kv-key" data-i18n="result.nhi">NHI Premium (with pension)</span>
-        <span class="kv-val">¥{{ "{:,}".format(result.annual_nhi_jpy) }}</span>
+        <span class="kv-val">¥{{ "{:,}".format(result.active_annual_nhi_jpy) }}</span>
       </div>
       <div class="kv-row kv-row--total">
         <span class="kv-key" data-i18n="result.net_portfolio">Net from Portfolio / yr</span>
-        <span class="kv-val">¥{{ "{:,}".format(result.annual_withdrawal_needed_jpy) }}</span>
+        <span class="kv-val">¥{{ "{:,}".format(result.active_annual_withdrawal_jpy) }}</span>
       </div>
+      {% if result.active_annual_expenses_jpy != result.annual_expenses_jpy %}
+      <p class="form-help">
+        This is the <strong>{{ v | title }}</strong> plan — Monte Carlo below simulates
+        ¥{{ "{:,}".format(result.active_annual_expenses_jpy) }}/yr, not the baseline Regular
+        expenses of ¥{{ "{:,}".format(result.annual_expenses_jpy) }}/yr shown elsewhere on
+        this page.
+      </p>
+      {% endif %}
       {% if result.year1_residence_tax_shock_jpy > 0 %}
       <div class="kv-row kv-row--warning">
         <span class="kv-key" data-i18n="result.year1_shock">Year-1 Residence Tax Shock</span>

@@ -1158,26 +1158,47 @@ def run_fire_scenario(
     # MC engine handles pension timing internally via pension_start_year.
     # NHI is passed to Monte Carlo as a separate per-year schedule (it follows
     # pension income, not expenses), so MC expenses here exclude NHI.
+    # NOTE: active_annual_expenses/nhi/withdrawal below are the figures MC and
+    # the trajectory actually simulate for the CHOSEN variant. Bug history:
+    # the report and the "Retirement Cash Flow" card used to always display
+    # the base/regular annual_expenses_jpy regardless of fire_variant, which
+    # made lean/fat/barista scenarios look like they shared identical inputs
+    # with "regular" even though Monte Carlo was simulating a different
+    # (lower/higher) expense burn under the hood — the actual driver of any
+    # MC success-rate difference between variants, not the withdrawal rate.
+    # Compute the active figures ONCE here so every display surface (web
+    # results, dashboard, markdown report) reads the same values instead of
+    # re-deriving variant branching independently and risking drift.
     variant = assumptions.fire_variant
     mc_nhi_extra_income = 0
     if variant == 'lean':
         active_fire_number = lean_fire_number
         active_mc_expenses = lean_annual
+        active_annual_nhi = nhi_steady
+        active_annual_withdrawal = lean_withdrawal
     elif variant == 'fat':
         active_fire_number = fat_fire_number
         active_mc_expenses = fat_annual
+        active_annual_nhi = nhi_steady
+        active_annual_withdrawal = fat_withdrawal
     elif variant == 'barista':
         active_fire_number = barista_fire_number
         # Barista income supplements portfolio — reduces required withdrawal
         active_mc_expenses = max(0, annual_expenses - barista_income_annual)
         mc_nhi_extra_income = barista_salary_income
+        active_annual_nhi = barista_nhi_steady
+        active_annual_withdrawal = barista_annual_need_with_nhi
     elif variant == 'coast':
         # Coast "years to fire" = time to reach the coast number (stop saving)
         active_fire_number = coast["coast_fire_number_jpy"]
         active_mc_expenses = annual_expenses
+        active_annual_nhi = nhi_steady
+        active_annual_withdrawal = annual_need_with_nhi
     else:  # regular
         active_fire_number = fire_number
         active_mc_expenses = annual_expenses
+        active_annual_nhi = nhi_steady
+        active_annual_withdrawal = annual_need_with_nhi
 
     # --- Years to FIRE (variant-aware) --------------------------------------
     years_to_fire = calculate_years_to_fire(
@@ -1593,6 +1614,9 @@ def run_fire_scenario(
         scenario_name=scenario_name,
         fire_variant=assumptions.fire_variant,
         fire_number_jpy=fire_number,
+        active_annual_expenses_jpy=active_mc_expenses,
+        active_annual_nhi_jpy=active_annual_nhi,
+        active_annual_withdrawal_jpy=active_annual_withdrawal,
         current_portfolio_jpy=current_portfolio,
         progress_pct=round(min(progress_pct, 100.0), 1),
         years_to_fire=round(years_to_fire, 1) if math.isfinite(years_to_fire) else 999.0,

@@ -251,6 +251,18 @@ class ScenarioResult:
     # --- FIRE variant -------------------------------------------------------
     fire_variant: str = "regular"                 # which mode drives the hero display
 
+    # --- Active (variant-aware) cash flow figures ----------------------------
+    # What Monte Carlo / the trajectory ACTUALLY simulate for the chosen
+    # fire_variant — as opposed to annual_expenses_jpy/annual_nhi_jpy/
+    # annual_withdrawal_needed_jpy below, which are always the base "regular"
+    # figures regardless of variant. Display code should prefer these three
+    # when showing "what this scenario's Monte Carlo ran against" so lean/fat/
+    # barista scenarios don't appear to share inputs with regular when they
+    # actually simulate a different expense burn.
+    active_annual_expenses_jpy: int = 0
+    active_annual_nhi_jpy: int = 0
+    active_annual_withdrawal_jpy: int = 0
+
     # --- Coast / Barista / Lean / Fat variants ------------------------------
     coast_fire_number_jpy: int = 0                # needed today to coast to retirement
     coast_fire_reached: bool = False
