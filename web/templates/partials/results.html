@@ -108,15 +108,14 @@
 {% endif %}
 
 {# ── All FIRE Variants Comparison ──────────────────────────────────────────── #}
-{% set wr = scenario.assumptions.withdrawal_rate_pct / 100 %}
 
-{# Max sustainable monthly budget from CURRENT portfolio.
-   Before pension: only portfolio withdrawals fund expenses (minus NHI).
-   After pension: pension income supplements portfolio withdrawals.
-   We show both so users retiring before pension age see the real picture. #}
-{% set portfolio_only_annual = (result.current_portfolio_jpy * wr) | int %}
-{% set max_monthly_before_pension = ((portfolio_only_annual - result.annual_nhi_jpy) / 12) | int %}
-{% set max_monthly_after_pension = ((portfolio_only_annual + result.annual_pension_net_jpy - result.annual_nhi_jpy) / 12) | int %}
+{# Max sustainable monthly budget — sourced directly from wr_budget_annual_jpy
+   (portfolio × WR, computed once in the engine — Model B1'), not recomputed
+   here. Before pension: the WR budget minus NHI funds spending. After
+   pension: pension income adds on top. We show both so users retiring
+   before pension age see the real picture. #}
+{% set max_monthly_before_pension = ((result.wr_budget_annual_jpy - result.annual_nhi_gap_jpy) / 12) | int %}
+{% set max_monthly_after_pension = ((result.wr_budget_annual_jpy + result.annual_pension_net_jpy - result.active_annual_nhi_jpy) / 12) | int %}
 
 <div class="results-card">
   <h3 class="results-card__title">
@@ -127,25 +126,28 @@
     </label>
   </h3>
 
-  {# Current portfolio sustainable budget #}
+  {# Your WR budget — the lifestyle your chosen withdrawal rate actually
+     funds against your current portfolio (Model B1'): this, not a
+     separately stated expense figure, is what Monte Carlo below simulates. #}
   <div class="monthly-budget-panel" id="monthlyBudgetPanel" style="display:block;">
     <div class="kv-list">
       <div class="kv-row" style="background: rgba(52,199,123,0.08); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);">
-        <span class="kv-key" data-i18n="result.max_spend_before">💰 Max monthly spend (before pension)</span>
+        <span class="kv-key" data-i18n="result.max_spend_before">💰 Your WR budget (before pension)</span>
         <span class="kv-val text-success">¥{{ "{:,}".format(max_monthly_before_pension) }}/mo</span>
       </div>
       {% if result.annual_pension_net_jpy > 0 %}
       <div class="kv-row" style="background: rgba(52,199,123,0.05); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);">
-        <span class="kv-key">💰 Your max monthly spend (after pension at {{ scenario.assumptions.coast_target_retirement_age if scenario.assumptions.fire_variant == 'coast' else profile.nenkin_claim_age if profile is defined else '65' }})</span>
+        <span class="kv-key">💰 Your WR budget (after pension at {{ scenario.assumptions.coast_target_retirement_age if scenario.assumptions.fire_variant == 'coast' else profile.nenkin_claim_age if profile is defined else '65' }})</span>
         <span class="kv-val text-success">¥{{ "{:,}".format(max_monthly_after_pension) }}/mo</span>
       </div>
       {% endif %}
       <p class="form-help" style="margin: var(--space-2) 0 var(--space-3);">
         Portfolio ¥{{ "{:,}".format(result.current_portfolio_jpy) }}
         × {{ scenario.assumptions.withdrawal_rate_pct }}% WR
-        = ¥{{ "{:,}".format(portfolio_only_annual // 12) }}/mo from portfolio,
-        minus NHI ¥{{ "{:,}".format(result.annual_nhi_jpy // 12) }}/mo{% if result.annual_pension_net_jpy > 0 %},
+        = ¥{{ "{:,}".format(result.wr_budget_annual_jpy // 12) }}/mo,
+        minus NHI ¥{{ "{:,}".format(result.annual_nhi_gap_jpy // 12) }}/mo{% if result.annual_pension_net_jpy > 0 %},
         plus pension ¥{{ "{:,}".format(result.annual_pension_net_jpy // 12) }}/mo (when it starts){% endif %}.
+        This is what Monte Carlo below actually simulates withdrawing — not your stated spending, shown for comparison in Retirement Cash Flow below.
       </p>
     </div>
   </div>
@@ -239,10 +241,14 @@
       <span data-i18n="result.cashflow">Retirement Cash Flow</span>
       {% if v != 'regular' %}<span class="text-muted">({{ v | title }})</span>{% endif %}
     </h3>
+    {# WR Budget → pension offset → NHI → net portfolio draw (Model B1'): this
+       is what Monte Carlo and the trajectory actually simulate. It's the same
+       regardless of FIRE variant (portfolio × WR doesn't reference stated
+       expenses), unlike the comparison block below. #}
     <div class="kv-list">
-      <div class="kv-row">
-        <span class="kv-key" data-i18n="result.expenses">Annual Expenses</span>
-        <span class="kv-val">¥{{ "{:,}".format(result.active_annual_expenses_jpy) }}</span>
+      <div class="kv-row kv-row--total">
+        <span class="kv-key" data-i18n="result.wr_budget">WR Budget (funded lifestyle)</span>
+        <span class="kv-val">¥{{ "{:,}".format(result.wr_budget_annual_jpy) }}</span>
       </div>
       <div class="kv-row">
         <span class="kv-key" data-i18n="result.pension">Pension Income (net)</span>
@@ -256,24 +262,42 @@
         <span class="kv-key" data-i18n="result.nhi">NHI Premium (with pension)</span>
         <span class="kv-val">¥{{ "{:,}".format(result.active_annual_nhi_jpy) }}</span>
       </div>
+      {% set net_portfolio_draw = ([result.wr_budget_annual_jpy - result.annual_pension_net_jpy, 0] | max) + result.active_annual_nhi_jpy %}
       <div class="kv-row kv-row--total">
         <span class="kv-key" data-i18n="result.net_portfolio">Net from Portfolio / yr</span>
-        <span class="kv-val">¥{{ "{:,}".format(result.active_annual_withdrawal_jpy) }}</span>
+        <span class="kv-val">¥{{ "{:,}".format(net_portfolio_draw) }}</span>
       </div>
-      {% if result.active_annual_expenses_jpy != result.annual_expenses_jpy %}
-      <p class="form-help">
-        This is the <strong>{{ v | title }}</strong> plan — Monte Carlo below simulates
-        ¥{{ "{:,}".format(result.active_annual_expenses_jpy) }}/yr, not the baseline Regular
-        expenses of ¥{{ "{:,}".format(result.annual_expenses_jpy) }}/yr shown elsewhere on
-        this page.
+      <p class="form-help" data-i18n="result.mc_simulates_note">
+        This is what Monte Carlo actually simulates withdrawing — the same for every FIRE variant, since it comes from your portfolio and chosen withdrawal rate, not stated expenses.
       </p>
-      {% endif %}
       {% if result.year1_residence_tax_shock_jpy > 0 %}
       <div class="kv-row kv-row--warning">
         <span class="kv-key" data-i18n="result.year1_shock">Year-1 Residence Tax Shock</span>
         <span class="kv-val">¥{{ "{:,}".format(result.year1_residence_tax_shock_jpy) }}</span>
       </div>
       {% endif %}
+    </div>
+
+    {# Does the WR budget actually cover what you say you want to spend?
+       Deemed WR = the rate your STATED spending would require against your
+       CURRENT portfolio — compare it to the chosen rate above. #}
+    <div class="kv-list" style="margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
+      <div class="kv-row">
+        <span class="kv-key">
+          <span data-i18n="result.stated_spending">Your Stated Spending</span>
+          {% if v != 'regular' %}<span class="text-muted">({{ v | title }})</span>{% endif %}
+        </span>
+        <span class="kv-val">¥{{ "{:,}".format(result.active_annual_expenses_jpy) }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key" data-i18n="result.deemed_wr">Deemed Withdrawal Rate (pre-pension)</span>
+        <span class="kv-val {% if result.deemed_wr_gap_pct > scenario.assumptions.withdrawal_rate_pct + 0.05 %}text-warning{% else %}text-success{% endif %}">
+          {{ "%.1f" | format(result.deemed_wr_gap_pct) }}%
+          <span class="text-muted" style="font-size: var(--text-xs);">
+            <span data-i18n="result.deemed_wr_vs">vs chosen</span> {{ "%.1f" | format(scenario.assumptions.withdrawal_rate_pct) }}%
+          </span>
+        </span>
+      </div>
     </div>
   </div>
 </div>
@@ -348,9 +372,14 @@
     </div>
     <div class="chart-info__note">
       <strong data-i18n="chart.note_label">Japan note:</strong>
-      <span data-i18n="chart.mc.note">The <em>success rate</em> above is the % of simulations where the portfolio never depletes. Use the scenario-specific safe withdrawal rate shown here instead of a universal rule of thumb.</span>
+      <span data-i18n="chart.mc.note">The <em>success rate</em> above measures whether your chosen withdrawal rate is sustainable — not whether your stated living expenses are covered. Check the deemed withdrawal rate in Retirement Cash Flow to see if your chosen rate actually funds your stated spending.</span>
     </div>
   </div>
+  <p class="form-help" style="margin: var(--space-2) 0;">
+    Simulates drawing ¥{{ "{:,}".format(result.wr_budget_annual_jpy) }}/yr
+    ({{ scenario.assumptions.withdrawal_rate_pct }}% of ¥{{ "{:,}".format(result.current_portfolio_jpy) }})
+    — not your stated expenses.
+  </p>
   {% if result.mc_safe_withdrawal_rate_pct > 0 %}
   <div class="kv-list" style="margin: var(--space-3) 0;">
     <div class="kv-row">
@@ -358,8 +387,8 @@
       <span class="kv-val">
         ~{{ "%.1f" | format(result.mc_safe_withdrawal_rate_pct) }}%
         <span class="text-muted">
-          (<span data-i18n="result.mc_safe_wr_target">{{ "%.0f" | format(result.mc_safe_withdrawal_target_pct) }}% success target</span>;
-          <span data-i18n="result.mc_safe_wr_chosen">chosen</span> {{ "%.1f" | format(scenario.assumptions.withdrawal_rate_pct) }}%)
+          (<span data-i18n="result.mc_safe_wr_target">success target:</span> {{ "%.0f" | format(result.mc_safe_withdrawal_target_pct) }}%;
+          <span data-i18n="result.mc_safe_wr_chosen">chosen:</span> {{ "%.1f" | format(scenario.assumptions.withdrawal_rate_pct) }}%)
         </span>
       </span>
     </div>
@@ -622,7 +651,7 @@
         <tr>
           <th data-i18n="cf.age">Age</th>
           <th data-i18n="cf.phase">Phase</th>
-          <th data-i18n="cf.expenses">Expenses</th>
+          <th data-i18n="cf.wr_budget">WR Budget</th>
           <th data-i18n="cf.pension">Pension</th>
           <th data-i18n="cf.nhi">NHI</th>
           <th data-i18n="cf.withdrawal">From Portfolio</th>

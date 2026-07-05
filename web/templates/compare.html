@@ -126,10 +126,21 @@
           <tr class="compare-table__group-header">
             <td colspan="{{ items | length + 1 }}" data-i18n="compare.cashflow">Retirement Cash Flow</td>
           </tr>
-          {# Annual Expenses — the ACTIVE (variant-aware) figure Monte Carlo and the
-             trajectory actually simulate, not always the base "Regular" number. #}
+          {# WR Budget — portfolio × WR (Model B1'): what Monte Carlo and the
+             trajectory actually simulate withdrawing. Variant-independent
+             (unlike Annual Expenses below), since it never references stated
+             spending. #}
+          <tr class="compare-table__highlight">
+            <td class="compare-table__label" data-i18n="compare.wr_budget">WR Budget / yr</td>
+            {% for item in items %}
+            <td class="compare-table__val">¥{{ "{:,}".format(item.result.wr_budget_annual_jpy) }}</td>
+            {% endfor %}
+          </tr>
+          {# Annual Expenses — the ACTIVE (variant-aware) STATED figure, used
+             to size the FIRE number and the deemed-WR check below, not what
+             Monte Carlo simulates (that's WR Budget, above). #}
           <tr>
-            <td class="compare-table__label" data-i18n="compare.annual_expenses">Annual Expenses</td>
+            <td class="compare-table__label" data-i18n="compare.annual_expenses">Stated Spending</td>
             {% for item in items %}
             <td class="compare-table__val">
               ¥{{ "{:,}".format(item.result.active_annual_expenses_jpy) }}
@@ -153,14 +164,13 @@
             <td class="compare-table__val">¥{{ "{:,}".format(item.result.active_annual_nhi_jpy) }}</td>
             {% endfor %}
           </tr>
-          {# Net Withdrawal #}
+          {# Net Portfolio Draw — WR Budget minus pension (floored) plus NHI:
+             this is the actual number Monte Carlo/trajectory withdraw. #}
           <tr class="compare-table__highlight">
-            <td class="compare-table__label" data-i18n="compare.net_portfolio">Net from Portfolio / yr</td>
+            <td class="compare-table__label" data-i18n="compare.net_portfolio">Net Portfolio Draw / yr</td>
             {% for item in items %}
-            {% set best = items | map(attribute='result.active_annual_withdrawal_jpy') | min %}
-            <td class="compare-table__val {% if item.result.active_annual_withdrawal_jpy == best %}compare-table__val--best{% endif %}">
-              ¥{{ "{:,}".format(item.result.active_annual_withdrawal_jpy) }}
-            </td>
+            {% set item_draw = ([item.result.wr_budget_annual_jpy - item.result.annual_pension_net_jpy, 0] | max) + item.result.active_annual_nhi_jpy %}
+            <td class="compare-table__val">¥{{ "{:,}".format(item_draw) }}</td>
             {% endfor %}
           </tr>
           {# Separator #}
@@ -252,9 +262,22 @@
             {% endfor %}
           </tr>
           <tr>
-            <td class="compare-table__label" data-i18n="compare.withdrawal_rate">Withdrawal Rate</td>
+            <td class="compare-table__label" data-i18n="compare.withdrawal_rate">Withdrawal Rate (chosen)</td>
             {% for item in items %}
             <td class="compare-table__val">{{ item.scenario.assumptions.withdrawal_rate_pct }}%</td>
+            {% endfor %}
+          </tr>
+          {# Deemed WR — the rate the user's STATED spending would actually
+             require against their current portfolio (Model B1'). Placed
+             directly under the chosen rate so the two are easy to compare:
+             deemed > chosen means the chosen rate doesn't cover stated
+             spending pre-pension. #}
+          <tr>
+            <td class="compare-table__label" data-i18n="compare.deemed_wr">Deemed WR (from actual spending)</td>
+            {% for item in items %}
+            <td class="compare-table__val {% if item.result.deemed_wr_gap_pct > item.scenario.assumptions.withdrawal_rate_pct + 0.05 %}text-warning{% else %}text-success{% endif %}">
+              {{ "%.1f" | format(item.result.deemed_wr_gap_pct) }}%
+            </td>
             {% endfor %}
           </tr>
           {# Retirement expense growth — what the engine actually uses to inflate

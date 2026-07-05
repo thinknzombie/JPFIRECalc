@@ -88,9 +88,13 @@ def api():
             "fire_age": r.fire_age,
             "progress_pct": r.progress_pct,
             "success_rate_pct": r.monte_carlo.success_rate_pct if r.monte_carlo else None,
-            # Active (variant-aware) cash-flow figures — what Monte Carlo and the
-            # trajectory actually simulate for this scenario's fire_variant, not
-            # always the base "Regular" figures (see ScenarioResult docstring).
+            # Model B1': WR Budget (portfolio x WR) is what Monte Carlo and the
+            # trajectory actually withdraw, independent of FIRE variant.
+            # annual_expenses_jpy remains the STATED (variant-aware) figure,
+            # used only to size the FIRE number and the deemed-WR check.
+            "wr_budget_annual_jpy": r.wr_budget_annual_jpy,
+            "deemed_wr_gap_pct": r.deemed_wr_gap_pct,
+            "deemed_wr_steady_pct": r.deemed_wr_steady_pct,
             "annual_expenses_jpy": r.active_annual_expenses_jpy,
             "annual_pension_net_jpy": r.annual_pension_net_jpy,
             "annual_nhi_jpy": r.active_annual_nhi_jpy,

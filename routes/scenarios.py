@@ -145,6 +145,12 @@ def _cache_summary(profile, scenario, result) -> None:
             "mc_success_rate_pct": (
                 result.monte_carlo.success_rate_pct if result.monte_carlo else None
             ),
+            # Model B1': the WR budget (portfolio x WR) is what Monte Carlo
+            # actually simulates; deemed_wr_gap_pct is the rate the user's
+            # stated spending would actually require pre-pension. Shown as a
+            # dashboard chip only when it exceeds the chosen rate.
+            "wr_budget_annual_jpy": result.wr_budget_annual_jpy,
+            "deemed_wr_gap_pct": result.deemed_wr_gap_pct,
             "computed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         }
         store.save(profile, scenario)

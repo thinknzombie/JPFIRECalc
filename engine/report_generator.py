@@ -143,24 +143,26 @@ def generate_markdown_report(
         ],
     )
 
-    # ── Monthly Drawdown Capacity ─────────────────────────────────────────────
-    wr = scenario.assumptions.withdrawal_rate_pct / 100
-    portfolio_annual = int(result.current_portfolio_jpy * wr)
-    portfolio_monthly = portfolio_annual // 12
-    nhi_monthly = result.annual_nhi_jpy // 12
+    # ── Monthly Drawdown Capacity (WR Budget) ────────────────────────────────
+    # Model B1': portfolio × WR is the actual lifestyle budget Monte Carlo and
+    # the trajectory withdraw — sourced from the engine's wr_budget_annual_jpy
+    # rather than recomputed here, so this always matches what was simulated.
+    portfolio_monthly = result.wr_budget_annual_jpy // 12
+    nhi_monthly = result.active_annual_nhi_jpy // 12
     nhi_gap_monthly = result.annual_nhi_gap_jpy // 12
     pension_monthly = result.annual_pension_net_jpy // 12
     # Pre-pension years use the gap-year NHI (軽減 minimum — withdrawals are
     # not income); post-pension years use the pension-based NHI.
     max_pre_pension = portfolio_monthly - nhi_gap_monthly
     max_post_pension = portfolio_monthly + pension_monthly - nhi_monthly
-    stated_monthly = profile.monthly_expenses_jpy
+    stated_monthly = result.active_annual_expenses_jpy // 12
     gap_pre = stated_monthly - max_pre_pension
     gap_post = stated_monthly - max_post_pension
 
-    h(2, "Monthly Drawdown Capacity")
+    h(2, "Monthly Drawdown Capacity (WR Budget)")
     p(f"Your current portfolio of **{_yen(result.current_portfolio_jpy)}** at "
-      f"**{_pct(scenario.assumptions.withdrawal_rate_pct)} WR** supports the following monthly draw:")
+      f"**{_pct(scenario.assumptions.withdrawal_rate_pct)} WR** supports the following monthly draw — "
+      f"this is what Monte Carlo actually simulates, not your stated spending:")
     table(
         ["Phase", "From Portfolio", "Pension Tops Up", "Total Available", "Your Stated Spend", "Headroom"],
         [
@@ -182,15 +184,20 @@ def generate_markdown_report(
             ],
         ],
     )
+    p(f"**Deemed withdrawal rate** (the rate your stated spending would actually require against your "
+      f"current portfolio): **{_pct(result.deemed_wr_gap_pct)}** pre-pension, "
+      f"**{_pct(result.deemed_wr_steady_pct)}** once pension starts — compare to your chosen "
+      f"**{_pct(scenario.assumptions.withdrawal_rate_pct)}**.")
     if gap_pre <= 0:
-        p(f"> **Interpretation:** This is the maximum monthly amount you could sustainably draw from your "
-          f"portfolio — before accounting for rental income, Social Security, or other non-portfolio sources. "
-          f"Your stated expenses of **¥{stated_monthly:,}/mo** are within this capacity, and the margin "
-          f"widens once pension income starts at age {profile.nenkin_claim_age}.")
+        p(f"> **Interpretation:** This is the maximum monthly amount your chosen withdrawal rate lets you "
+          f"draw from your portfolio — before accounting for rental income, Social Security, or other "
+          f"non-portfolio sources. Your stated expenses of **¥{stated_monthly:,}/mo** are within this "
+          f"capacity, and the margin widens once pension income starts at age {profile.nenkin_claim_age}.")
     else:
-        p(f"> **Interpretation:** Your stated expenses of **¥{stated_monthly:,}/mo** currently exceed the "
-          f"sustainable pre-pension draw by **¥{abs(gap_pre):,}/mo**. Continued saving, lower expenses, or "
-          f"waiting until pension income starts at age {profile.nenkin_claim_age} closes the gap.")
+        p(f"> **Interpretation:** Your stated expenses of **¥{stated_monthly:,}/mo** currently exceed what "
+          f"your chosen withdrawal rate funds by **¥{abs(gap_pre):,}/mo**. Continued saving, a higher "
+          f"withdrawal rate, lower expenses, or waiting until pension income starts at age "
+          f"{profile.nenkin_claim_age} closes the gap.")
 
     rule()
 
@@ -291,11 +298,14 @@ def generate_markdown_report(
 
     h(3, "FIRE Number Breakdown")
     variant_label = scenario.assumptions.fire_variant.replace("_", " ").title()
+    p("This sizes your **savings target** from your stated spending — it does not drive Monte "
+      "Carlo, which simulates your actual portfolio at your chosen withdrawal rate instead "
+      "(see Monthly Drawdown Capacity above and the Monte Carlo section below).")
     table(
         ["Component", "Annual (JPY)", "Notes"],
         [
             [f"Retirement expenses ({variant_label})", _yen(result.active_annual_expenses_jpy),
-             f"{_yen(result.active_annual_expenses_jpy // 12)}/month — the figure Monte Carlo actually simulates"],
+             f"{_yen(result.active_annual_expenses_jpy // 12)}/month — your stated spending goal"],
             ["Less: pension income", f"−{_yen(result.annual_pension_net_jpy)}",
              f"Claim age {profile.nenkin_claim_age}"],
             ["Plus: NHI premium", _yen(result.active_annual_nhi_jpy),
@@ -306,13 +316,12 @@ def generate_markdown_report(
         ],
     )
     if result.active_annual_expenses_jpy != result.annual_expenses_jpy:
-        p(f"> ℹ️ This is the **{variant_label}** scenario — Monte Carlo and the FIRE number "
-          f"above are based on {_yen(result.active_annual_expenses_jpy)}/yr, not your "
-          f"baseline **Regular** expenses of {_yen(result.annual_expenses_jpy)}/yr. If you're "
-          f"comparing this report against a Regular (or other variant) report for the same "
-          f"profile, remember the two are simulating **different spending levels** — a "
-          f"difference in Monte Carlo survival between them may be driven by that, not by "
-          f"the withdrawal rate.")
+        p(f"> ℹ️ This is the **{variant_label}** scenario — the FIRE number above is sized from "
+          f"{_yen(result.active_annual_expenses_jpy)}/yr, not your baseline **Regular** expenses "
+          f"of {_yen(result.annual_expenses_jpy)}/yr. Monte Carlo itself is variant-independent "
+          f"(it simulates portfolio × withdrawal rate, not stated expenses), so a Monte Carlo "
+          f"survival difference between variant reports for the same profile comes from a "
+          f"different portfolio size or withdrawal rate, not the variant choice itself.")
 
     if result.year1_residence_tax_shock_jpy > 0:
         p(f"> ⚠️ **Year-1 residence tax shock:** {_yen(result.year1_residence_tax_shock_jpy)} "
@@ -383,28 +392,44 @@ def generate_markdown_report(
 
         if mc.success_rate_pct < 90:
             p("**Concrete levers to improve your survival rate:**")
-            # Estimate rough WR impact: dropping 0.5% WR typically adds 5-8% survival
-            # This is directionally accurate without running additional MCs
             current_wr = scenario.assumptions.withdrawal_rate_pct
-            p(f"  1. **Lower withdrawal rate:** At {current_wr}% WR, your survival rate is "
-              f"{_pct(mc.success_rate_pct)}. Reducing to {current_wr - 0.5:.1f}% WR "
-              f"(e.g. by spending ¥{int(result.fire_number_jpy * 0.005 / 12):,} less/month "
-              f"or targeting ¥{int(result.fire_number_jpy * 0.005):,} more in assets) "
-              f"typically adds 5–8 percentage points to survival.")
-            p(f"  2. **Delay pension claiming:** Every year you defer nenkin past 65 "
+            lever_num = 1
+            # Model B1': WR is now the literal draw (portfolio × WR), so
+            # lowering it mechanically and precisely raises survival — this
+            # references the actual computed safe rate, not a rule-of-thumb
+            # estimate of the effect.
+            if result.mc_safe_withdrawal_rate_pct > 0:
+                p(f"  {lever_num}. **Lower withdrawal rate:** At {current_wr}% WR your survival "
+                  f"rate is {_pct(mc.success_rate_pct)}. Your Monte Carlo-implied safe rate is "
+                  f"~{result.mc_safe_withdrawal_rate_pct:.1f}% for a "
+                  f"{result.mc_safe_withdrawal_target_pct:.0f}% target — dropping your chosen "
+                  f"rate to that level, or growing the portfolio so the same ¥ draw represents "
+                  f"a lower percentage, closes the gap directly (this is now an exact "
+                  f"relationship, not an estimate: WR sets the amount actually withdrawn).")
+                lever_num += 1
+            p(f"  {lever_num}. **Delay pension claiming:** Every year you defer nenkin past 65 "
               f"(up to 75) reduces the annual draw from the portfolio and meaningfully "
               f"improves survival — especially powerful if deferring to 70+, which adds "
               f"~42% to the annual benefit.")
+            lever_num += 1
             if result.monte_carlo.ruin_year_median:
-                p(f"  3. **Ruin timing:** In failed paths, the portfolio typically hits "
+                p(f"  {lever_num}. **Ruin timing:** In failed paths, the portfolio typically hits "
                   f"¥0 around retirement year {result.monte_carlo.ruin_year_median} "
                   f"(age {profile.target_retirement_age + result.monte_carlo.ruin_year_median}). "
                   f"This is concentrated in the first 10 years — exactly the SOR window.")
+                lever_num += 1
             if scenario.assumptions.sequence_of_returns_risk:
-                p(f"  4. **Sequence-of-returns risk:** Currently enabled — volatility is "
+                p(f"  {lever_num}. **Sequence-of-returns risk:** Currently enabled — volatility is "
                   f"amplified 1.5× for the first 5 years of retirement, which reduces the "
                   f"success rate compared to a constant-volatility model. This is "
                   f"conservative and consistent with Japan-focused research (Kitces/ERN).")
+                lever_num += 1
+            if result.deemed_wr_gap_pct > current_wr + 0.05:
+                p(f"  {lever_num}. **Check your stated spending against this rate:** your stated "
+                  f"expenses would actually require a ~{result.deemed_wr_gap_pct:.1f}% withdrawal "
+                  f"rate pre-pension — above the {current_wr}% tested here. If you plan to spend "
+                  f"at your stated level rather than the WR budget above, the real survival rate "
+                  f"for that spending is lower than {_pct(mc.success_rate_pct)}.")
             lines.append("")
         elif mc.success_rate_pct >= 90:
             p("**Your survival rate is solid.** At ≥90%, the probability that your "

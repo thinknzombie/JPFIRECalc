@@ -78,6 +78,11 @@
           <div class="progress-bar progress-bar--card">
             <div class="progress-fill" style="width: {{ [s.progress_pct, 100] | min }}%"></div>
           </div>
+          {% if s.deemed_wr_gap_pct is defined and s.deemed_wr_gap_pct > scenario.assumptions.withdrawal_rate_pct + 0.05 %}
+          <span class="badge badge--danger" title="Your stated spending needs a higher withdrawal rate than chosen">
+            Deemed WR {{ "%.1f" | format(s.deemed_wr_gap_pct) }}% &gt; chosen {{ scenario.assumptions.withdrawal_rate_pct }}%
+          </span>
+          {% endif %}
           {% else %}
           <div class="scenario-card__stats">
             <div class="scenario-stat">
