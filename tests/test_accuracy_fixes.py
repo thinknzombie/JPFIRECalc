@@ -342,3 +342,53 @@ class TestIdecoSavingsSplit:
             _skip_mortgage_rate_scenarios=True,
         )
         assert r1.years_to_fire == r2.years_to_fire
+
+
+# ---------------------------------------------------------------------------
+# Monte Carlo determinism (fixed seed)
+# ---------------------------------------------------------------------------
+# Without a fixed seed, every scenario render draws a fresh random sample, so
+# re-rendering the exact same scenario — or comparing two scenarios side by
+# side on the compare page — shows a different success_rate_pct each time.
+# That noise (observed ±0.5-0.8pp across repeated runs of an identical
+# scenario) was repeatedly misread as a real effect of whatever assumption
+# happened to differ between two compared scenarios. A fixed seed makes a
+# given scenario's MC output stable across renders, and gives compared
+# scenarios common random numbers so any difference between them is signal.
+
+class TestMonteCarloDeterminism:
+    def test_same_scenario_rerun_gives_identical_mc_output(self):
+        """Running the exact same scenario twice must yield byte-identical
+        Monte Carlo results — no more re-render noise."""
+        profile = base_profile()
+        assumptions = base_assumptions(monte_carlo_simulations=2000)
+        r1 = run_fire_scenario(
+            profile, "rerun", "00000000-0000-4000-8000-000000000006",
+            assumptions, "tokyo", _skip_mortgage_rate_scenarios=True,
+        )
+        r2 = run_fire_scenario(
+            profile, "rerun", "00000000-0000-4000-8000-000000000006",
+            assumptions, "tokyo", _skip_mortgage_rate_scenarios=True,
+        )
+        assert r1.monte_carlo.success_rate_pct == r2.monte_carlo.success_rate_pct
+        assert r1.monte_carlo.p50 == r2.monte_carlo.p50
+        assert r1.monte_carlo.p10 == r2.monte_carlo.p10
+        assert r1.monte_carlo.p90 == r2.monte_carlo.p90
+
+    def test_scenarios_differing_only_in_inert_field_match_exactly(self):
+        """Two scenarios identical except for a label-only field (scenario
+        name / id, which never enters the calculation) must produce identical
+        Monte Carlo output — confirms common random numbers, not just
+        per-call stability."""
+        profile = base_profile()
+        assumptions = base_assumptions(monte_carlo_simulations=2000)
+        r1 = run_fire_scenario(
+            profile, "Scenario One", "00000000-0000-4000-8000-000000000007",
+            assumptions, "tokyo", _skip_mortgage_rate_scenarios=True,
+        )
+        r2 = run_fire_scenario(
+            profile, "Scenario Two (copy)", "00000000-0000-4000-8000-000000000008",
+            assumptions, "tokyo", _skip_mortgage_rate_scenarios=True,
+        )
+        assert r1.monte_carlo.success_rate_pct == r2.monte_carlo.success_rate_pct
+        assert r1.monte_carlo.p50 == r2.monte_carlo.p50

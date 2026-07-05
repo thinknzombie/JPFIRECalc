@@ -43,6 +43,17 @@ from engine.ideco_calculator import (
 from engine.nisa_calculator import calculate_nisa_growth
 
 
+# Fixed Monte Carlo seed for the main scenario run. Without a fixed seed,
+# every page render draws a fresh random sample, so re-rendering the exact
+# same scenario (or comparing two scenarios side by side) shows a different
+# success_rate_pct each time — noise on the order of ±0.5pp that is easily
+# mistaken for a real effect of whatever assumption differs between them.
+# A fixed seed makes results stable across renders and gives compared
+# scenarios common random numbers, so any difference between them is signal,
+# not sampling variance.
+DEFAULT_MC_SEED = 42
+
+
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -1485,7 +1496,7 @@ def run_fire_scenario(
         sequence_of_returns_risk=assumptions.sequence_of_returns_risk,
         lump_sums=property_lump_sums or None,
         withdrawal_reductions=mc_withdrawal_reductions or None,
-        seed=None,
+        seed=DEFAULT_MC_SEED,
         foreign_pension_annual_jpy=foreign_pension_annual,
         foreign_pension_start_year=foreign_pension_start_yr,
         foreign_pension_growth_rate=assumptions.foreign_inflation_pct / 100,
