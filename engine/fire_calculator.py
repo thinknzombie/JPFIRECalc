@@ -623,7 +623,12 @@ def project_net_worth(
 
     Retirement phase (target_retirement_age → end):
       - Portfolio grows at retirement_return_pct
-      - Expenses inflate at retirement_expense_growth_pct (consistent with MC)
+      - The amount withdrawn is a WR-based lifestyle budget (Model B1'):
+        portfolio_at_retirement_start × withdrawal_rate_pct, set once and
+        inflated at retirement_expense_growth_pct thereafter (consistent with
+        MC) — not a separately stated expense figure. See ScenarioResult's
+        deemed_wr_gap_pct/deemed_wr_steady_pct for how this budget compares
+        to what the user actually says they want to spend.
       - Pension income offsets withdrawals from pension start age
         (Japan pension grows ~1%/yr; foreign pension at foreign_inflation_pct)
       - NHI is recomputed each year from that year's actual taxable income
@@ -644,10 +649,6 @@ def project_net_worth(
 
     municipality_key = get_nhi_municipality_key(region_key)
     nhi_members = assumptions.nhi_household_members
-
-    # Expense base in retirement
-    expense_result = calculate_retirement_expenses(profile, region_key, use_region_template=False)
-    annual_expenses = expense_result["annual_expenses_jpy"]
 
     # Pension details — project forward to retirement
     # Split into Japan pension and foreign pension so they can start at
@@ -778,6 +779,7 @@ def project_net_worth(
         )
 
     rental_adjustment = 0  # cumulative expense increase from rental income ceasing
+    lifestyle_base = 0     # WR-based lifestyle budget, set once at first retirement year
     trajectory: list[YearProjection] = []
 
     for i in range(projection_years):
@@ -827,6 +829,13 @@ def project_net_worth(
                 )
                 portfolio = max(0, portfolio - payoff)
 
+            # Property sale proceeds injected at sale age (retirement phase) —
+            # moved ahead of the pension/NHI/lifestyle-budget block so a
+            # same-year sale is reflected in the portfolio the WR-based
+            # lifestyle budget is sized from, below.
+            if age in _prop_sale_by_age:
+                portfolio += _prop_sale_by_age[age]
+
             # Pension income — Japan and foreign pensions may start at different
             # ages and grow at different rates (nenkin ~1%/yr partial CPI link;
             # foreign pensions track their home-country CPI).
@@ -860,23 +869,26 @@ def project_net_worth(
             if age in _rental_cessation_by_age:
                 rental_adjustment += _rental_cessation_by_age[age]
 
-            # Expenses inflate from retirement start (consistent with Monte Carlo)
-            expenses_this_year = int(
-                (annual_expenses + rental_adjustment)
-                * (1 + g_expense) ** retirement_year
+            # WR-based lifestyle budget (Model B1'): set once from the
+            # portfolio as it stands at the moment retirement begins (post
+            # mortgage-payoff / same-year property sale, pre-growth), then
+            # inflated every subsequent year. This — not a separately stated
+            # expense figure — is what actually gets drawn from the
+            # portfolio: "how much you can hope to live on" at the chosen
+            # withdrawal rate, consistent with Monte Carlo.
+            if retirement_year == 0:
+                lifestyle_base = int(portfolio * withdrawal_rate)
+            lifestyle_this_year = int(
+                (lifestyle_base + rental_adjustment) * (1 + g_expense) ** retirement_year
             )
 
-            # Gross from portfolio = expenses - pension + NHI
-            net_need_this_year = max(0, expenses_this_year - pension_this_year)
+            # Gross from portfolio = lifestyle - pension + NHI
+            net_need_this_year = max(0, lifestyle_this_year - pension_this_year)
             net_from_portfolio = net_need_this_year + nhi_this_year
 
             # Year-1 residence tax shock
             shock_this_year = year1_shock if retirement_year == 0 else 0
             net_from_portfolio += shock_this_year
-
-            # Property sale proceeds injected at sale age (retirement phase)
-            if age in _prop_sale_by_age:
-                portfolio += _prop_sale_by_age[age]
 
             # Grow then withdraw
             gain = int(portfolio * r_retire)
@@ -894,7 +906,7 @@ def project_net_worth(
                 net_from_portfolio_jpy=net_from_portfolio,
                 year1_residence_tax_jpy=shock_this_year,
                 investment_gain_jpy=gain,
-                expenses_jpy=expenses_this_year,
+                lifestyle_budget_jpy=lifestyle_this_year,
                 ideco_locked_jpy=ideco_pot,
             ))
 
@@ -1411,6 +1423,48 @@ def run_fire_scenario(
     )
     fire_age = profile.current_age + years_to_fire
 
+    # --- WR-based lifestyle budget (Model B1') -------------------------------
+    # The withdrawal rate now defines what Monte Carlo and the trajectory
+    # actually withdraw: portfolio × WR, "how much you can hope to live on"
+    # at the chosen rate — not stated expenses. Stated expenses
+    # (active_mc_expenses, aka active_annual_expenses_jpy) still size the FIRE
+    # number above; here they're compared against the WR budget to see
+    # whether the chosen rate actually funds the lifestyle the user described.
+    wr_budget_annual = int(current_portfolio * withdrawal_rate)
+
+    # Deemed WR: the withdrawal rate the user's STATED spending would actually
+    # require against their CURRENT portfolio — i.e. what withdrawal_rate_pct
+    # would have to be for wr_budget_annual to cover active_mc_expenses. Two
+    # versions because NHI (and hence total need) differs before/after
+    # pension starts; the gap-year figure is normally the binding constraint
+    # since there's no pension offset yet.
+    if current_portfolio > 0:
+        deemed_wr_gap_pct = round((active_mc_expenses + nhi_gap) / current_portfolio * 100, 2)
+        deemed_wr_steady_pct = round(
+            max(0, active_mc_expenses + nhi_steady - net_pension) / current_portfolio * 100, 2
+        )
+    else:
+        deemed_wr_gap_pct = 0.0
+        deemed_wr_steady_pct = 0.0
+
+    if deemed_wr_gap_pct > assumptions.withdrawal_rate_pct + 0.05:
+        shortfall_annual = max(0, (active_mc_expenses + nhi_gap) - wr_budget_annual)
+        warnings.append(
+            f"Your stated spending (¥{active_mc_expenses:,}/yr) is more than your chosen "
+            f"{assumptions.withdrawal_rate_pct:.1f}% withdrawal rate funds against your "
+            f"current portfolio (¥{wr_budget_annual:,}/yr, before NHI). Sustaining your "
+            f"stated spending would actually mean drawing at ~{deemed_wr_gap_pct:.1f}% "
+            f"pre-pension (~¥{shortfall_annual:,}/yr short) — you'd need a bigger portfolio, "
+            "a higher withdrawal rate, or lower spending."
+        )
+    else:
+        headroom_annual = max(0, wr_budget_annual - active_mc_expenses - nhi_gap)
+        warnings.append(
+            f"At your chosen {assumptions.withdrawal_rate_pct:.1f}% withdrawal rate, your "
+            f"current portfolio funds ¥{wr_budget_annual:,}/yr (before NHI) — "
+            f"¥{headroom_annual // 12:,}/mo more than your stated spending, before pension starts."
+        )
+
     # --- Monte Carlo simulation ---------------------------------------------
     from engine.monte_carlo import find_safe_withdrawal_rate, run_monte_carlo
     pension_start_year = max(0, profile.nenkin_claim_age - profile.target_retirement_age)
@@ -1484,7 +1538,7 @@ def run_fire_scenario(
 
     mc_result = run_monte_carlo(
         initial_portfolio_jpy=current_portfolio,
-        annual_expenses_jpy=active_mc_expenses,
+        annual_expenses_jpy=wr_budget_annual,
         net_pension_annual_jpy=japan_pension_for_mc,
         pension_start_year=pension_start_year,
         extra_expense_schedule=nhi_schedule,
@@ -1514,18 +1568,26 @@ def run_fire_scenario(
         # This uses the existing MC safe-rate helper as a fast approximation.
         # It intentionally excludes one-off events such as planned property
         # sales, so scenarios with rescue assets may have a higher true safe
-        # rate than the number shown here.
+        # rate than the number shown here. Mirrors the main run_monte_carlo
+        # call above (same NHI schedule, inflation rate, foreign pension) so
+        # the returned safe_rate_pct is directly comparable to
+        # assumptions.withdrawal_rate_pct — both are now a % of the same
+        # portfolio under the same draw model (Model B1').
         mc_safe = find_safe_withdrawal_rate(
             initial_portfolio_jpy=current_portfolio,
-            annual_expenses_jpy=active_mc_expenses + nhi_steady,
             net_pension_annual_jpy=japan_pension_for_mc,
             pension_start_year=pension_start_year,
             simulation_years=assumptions.simulation_years,
             n_simulations=min(assumptions.monte_carlo_simulations, 2_000),
             mean_return=assumptions.retirement_return_pct / 100,
             volatility=assumptions.return_volatility_pct / 100,
+            inflation_rate=assumptions.retirement_expense_growth_pct / 100,
             target_success_rate=mc_safe_wr_target_pct,
             seed=42,
+            extra_expense_schedule=nhi_schedule,
+            foreign_pension_annual_jpy=foreign_pension_annual,
+            foreign_pension_start_year=foreign_pension_start_yr,
+            foreign_pension_growth_rate=assumptions.foreign_inflation_pct / 100,
         )
         mc_safe_wr_pct = mc_safe["safe_rate_pct"]
 
@@ -1648,6 +1710,9 @@ def run_fire_scenario(
         annual_nhi_gap_jpy=nhi_gap,
         annual_withdrawal_needed_jpy=fire_info["net_annual_need_jpy"] + nhi_steady,
         year1_residence_tax_shock_jpy=shock["year1_residence_tax"],
+        wr_budget_annual_jpy=wr_budget_annual,
+        deemed_wr_gap_pct=deemed_wr_gap_pct,
+        deemed_wr_steady_pct=deemed_wr_steady_pct,
         nisa_at_retirement_jpy=nisa_at_retirement,
         ideco_at_retirement_jpy=ideco_at_retirement,
         taxable_at_retirement_jpy=taxable_at_retirement,

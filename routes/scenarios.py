@@ -311,14 +311,14 @@ def cashflow_csv(scenario_id):
     writer = csv.writer(buf)
     writer.writerow([
         "year", "age", "phase", "portfolio_jpy", "annual_savings_jpy",
-        "expenses_jpy", "pension_income_jpy", "nhi_premium_jpy",
+        "lifestyle_budget_jpy", "pension_income_jpy", "nhi_premium_jpy",
         "from_portfolio_jpy", "year1_residence_tax_jpy",
         "investment_gain_jpy", "ideco_locked_jpy",
     ])
     for t in result.trajectory:
         writer.writerow([
             t.year, t.age, t.phase, t.portfolio_value_jpy, t.annual_savings_jpy,
-            t.expenses_jpy, t.pension_income_jpy, t.nhi_premium_jpy,
+            t.lifestyle_budget_jpy, t.pension_income_jpy, t.nhi_premium_jpy,
             t.net_from_portfolio_jpy, t.year1_residence_tax_jpy,
             t.investment_gain_jpy, t.ideco_locked_jpy,
         ])

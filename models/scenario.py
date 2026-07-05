@@ -180,7 +180,7 @@ class YearProjection:
     net_from_portfolio_jpy: int = 0
     year1_residence_tax_jpy: int = 0
     year1_tax_shock_jpy: int = 0                  # total year-1 tax shock (residence tax + any RSU/equity liquidation income)
-    expenses_jpy: int = 0                         # inflated living expenses for this year
+    lifestyle_budget_jpy: int = 0                 # WR-funded lifestyle for this year (portfolio × WR at retirement start, inflated)
     ideco_locked_jpy: int = 0                     # iDeCo pot still locked (pre-60)
 
 
@@ -282,6 +282,19 @@ class ScenarioResult:
     annual_nhi_gap_jpy: int = 0                   # NHI premium in pre-pension gap years (軽減 minimum)
     annual_withdrawal_needed_jpy: int = 0         # net from portfolio per year
     year1_residence_tax_shock_jpy: int = 0
+
+    # --- Withdrawal-rate lifestyle budget (Model B1') -----------------------
+    # WR defines the actual amount Monte Carlo and the trajectory withdraw:
+    # wr_budget_annual_jpy = current_portfolio_jpy × withdrawal_rate_pct. This
+    # is "how much you can hope to live on" at the chosen rate — separate from
+    # annual_expenses_jpy above (what you SAY you want to spend, still used to
+    # size the FIRE number). deemed_wr_*_pct is the withdrawal rate your
+    # STATED spending would actually require against your current portfolio —
+    # compare it to withdrawal_rate_pct to see if your stated lifestyle is
+    # funded by your chosen rate, or more aggressive than you think.
+    wr_budget_annual_jpy: int = 0
+    deemed_wr_gap_pct: float = 0.0                 # implied WR for stated spending, pre-pension years
+    deemed_wr_steady_pct: float = 0.0              # implied WR for stated spending, once pension starts
 
     # --- Account balances at retirement ------------------------------------
     nisa_at_retirement_jpy: int = 0

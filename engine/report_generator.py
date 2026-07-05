@@ -612,7 +612,7 @@ def generate_markdown_report(
                     note = f"incl. year-1 residence tax {_yen(yr.year1_residence_tax_jpy)}"
                 cf_rows.append([
                     str(yr.age),
-                    _yen(yr.expenses_jpy),
+                    _yen(yr.lifestyle_budget_jpy),
                     _yen(yr.pension_income_jpy) if yr.pension_income_jpy else "—",
                     _yen(yr.nhi_premium_jpy),
                     _yen(yr.net_from_portfolio_jpy),

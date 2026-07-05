@@ -209,13 +209,14 @@ class TestIdecoLumpSumTax:
 # ---------------------------------------------------------------------------
 
 class TestTrajectoryInflationAndNhi:
-    def test_retirement_expenses_inflate(self):
+    def test_lifestyle_budget_inflates(self):
+        """The WR-based lifestyle budget (Model B1') set at retirement start
+        must inflate at retirement_expense_growth_pct in later years."""
         profile = base_profile()
         assumptions = base_assumptions(retirement_expense_growth_pct=2.0)
         traj = project_net_worth(profile, assumptions, "tokyo")
         retirement_years = [t for t in traj if t.phase == "retirement"]
-        # Expenses strictly increase year over year at 2% growth
-        assert retirement_years[5].expenses_jpy > retirement_years[1].expenses_jpy
+        assert retirement_years[5].lifestyle_budget_jpy > retirement_years[1].lifestyle_budget_jpy
 
     def test_gap_year_nhi_is_reduced_minimum(self):
         profile = base_profile()  # FIRE at 50, pension at 65

@@ -636,7 +636,7 @@
         <tr class="{% if t.phase == 'retirement' %}cf-row--retirement{% endif %} {% if t.year1_residence_tax_jpy > 0 %}cf-row--shock{% endif %}">
           <td>{{ t.age }}</td>
           <td>{% if t.phase == 'retirement' %}🔥{% else %}💼{% endif %}</td>
-          <td>{% if t.expenses_jpy %}¥{{ "{:,}".format(t.expenses_jpy) }}{% else %}—{% endif %}</td>
+          <td>{% if t.lifestyle_budget_jpy %}¥{{ "{:,}".format(t.lifestyle_budget_jpy) }}{% else %}—{% endif %}</td>
           <td>{% if t.pension_income_jpy %}¥{{ "{:,}".format(t.pension_income_jpy) }}{% else %}—{% endif %}</td>
           <td>{% if t.nhi_premium_jpy %}¥{{ "{:,}".format(t.nhi_premium_jpy) }}{% else %}—{% endif %}</td>
           <td>

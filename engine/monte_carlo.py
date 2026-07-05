@@ -421,48 +421,66 @@ def run_monte_carlo(
 
 def find_safe_withdrawal_rate(
     initial_portfolio_jpy: int,
-    annual_expenses_jpy: int,
     net_pension_annual_jpy: int,
     pension_start_year: int,
     simulation_years: int,
     n_simulations: int,
     mean_return: float,
     volatility: float,
+    inflation_rate: float = 0.02,
     target_success_rate: float = 95.0,
     min_rate: float = 0.01,
     max_rate: float = 0.08,
     precision: float = 0.001,
     seed: int | None = None,
+    extra_expense_schedule: "list[int] | np.ndarray | None" = None,
+    foreign_pension_annual_jpy: int = 0,
+    foreign_pension_start_year: int | None = None,
+    foreign_pension_growth_rate: float | None = None,
 ) -> dict:
     """
-    Binary search for the maximum withdrawal rate that achieves target_success_rate.
+    Binary search for the maximum withdrawal rate (as a % of initial_portfolio_jpy)
+    that achieves target_success_rate.
 
-    Useful for showing "your safe withdrawal rate given your portfolio and expenses".
+    Model B1': the withdrawal tested at each candidate rate `wr` is
+    `initial_portfolio_jpy × wr` — the same "WR defines the lifestyle budget"
+    draw used by the main run_fire_scenario() Monte Carlo call. That makes the
+    returned safe_rate_pct directly comparable to a scenario's chosen
+    withdrawal_rate_pct (both are a % of the same portfolio), unlike the
+    previous version of this function, which silently ignored whatever
+    expenses the caller passed in and doubled-up the pension offset by
+    subtracting it before also passing it to run_simulation.
+
+    Pension, extra expenses (e.g. NHI), and foreign pension are passed through
+    to run_simulation unchanged — mirroring run_monte_carlo() — so this finder
+    is consistent with whatever the main simulation actually models.
 
     Returns:
-        dict with safe_rate_pct, success_rate_pct, annual_withdrawal_jpy.
+        dict with safe_rate_pct, target_success_rate_pct, annual_safe_withdrawal_jpy,
+        monthly_safe_withdrawal_jpy, simulation_years, n_simulations.
     """
     lo, hi = min_rate, max_rate
 
     for _ in range(20):  # binary search, converges in ~20 steps
         mid = (lo + hi) / 2
-        test_withdrawal = int(initial_portfolio_jpy * mid) - net_pension_annual_jpy
-
-        if test_withdrawal <= 0:
-            hi = mid
-            continue
+        test_withdrawal = int(initial_portfolio_jpy * mid)
 
         raw = run_simulation(
             initial_portfolio_jpy=initial_portfolio_jpy,
-            annual_withdrawal_jpy=max(0, test_withdrawal),
+            annual_withdrawal_jpy=test_withdrawal,
             annual_pension_jpy=net_pension_annual_jpy,
             pension_start_year=pension_start_year,
             simulation_years=simulation_years,
             n_simulations=n_simulations,
             mean_return=mean_return,
             volatility=volatility,
+            inflation_rate=inflation_rate,
             sequence_of_returns_risk=True,
             seed=seed,
+            extra_expense_schedule=extra_expense_schedule,
+            foreign_pension_annual_jpy=foreign_pension_annual_jpy,
+            foreign_pension_start_year=foreign_pension_start_year,
+            foreign_pension_growth_rate=foreign_pension_growth_rate,
         )
 
         if raw["success_rate_pct"] >= target_success_rate:

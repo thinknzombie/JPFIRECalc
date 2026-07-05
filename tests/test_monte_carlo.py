@@ -297,7 +297,6 @@ class TestFindSafeWithdrawalRate:
     def test_returns_rate_below_8pct(self):
         result = find_safe_withdrawal_rate(
             initial_portfolio_jpy=50_000_000,
-            annual_expenses_jpy=2_000_000,
             net_pension_annual_jpy=0,
             pension_start_year=15,
             simulation_years=30,
@@ -312,7 +311,6 @@ class TestFindSafeWithdrawalRate:
     def test_higher_success_target_lower_rate(self):
         base_kwargs = dict(
             initial_portfolio_jpy=40_000_000,
-            annual_expenses_jpy=1_800_000,
             net_pension_annual_jpy=0,
             pension_start_year=15,
             simulation_years=30,
@@ -327,7 +325,7 @@ class TestFindSafeWithdrawalRate:
 
     def test_result_structure(self):
         result = find_safe_withdrawal_rate(
-            40_000_000, 1_800_000, 0, 15, 20, 200, 0.05, 0.15,
+            40_000_000, 0, 15, 20, 200, 0.05, 0.15,
             target_success_rate=90.0, seed=SEED
         )
         for key in ["safe_rate_pct", "annual_safe_withdrawal_jpy",
@@ -337,7 +335,6 @@ class TestFindSafeWithdrawalRate:
     def test_safe_rate_moves_with_return_and_volatility(self):
         base_kwargs = dict(
             initial_portfolio_jpy=50_000_000,
-            annual_expenses_jpy=2_000_000,
             net_pension_annual_jpy=0,
             pension_start_year=20,
             simulation_years=25,
