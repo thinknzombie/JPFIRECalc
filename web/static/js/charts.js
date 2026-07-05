@@ -262,10 +262,35 @@ const JPFIRECharts = (() => {
     Plotly.newPlot(chartEl, traces, layout, CONFIG);
   }
 
+  /** Generate log-spaced tick values (1-3-10 per decade) spanning [minVal, maxVal]. */
+  function _yenLogTickVals(minVal, maxVal) {
+    if (!(maxVal > 0)) return [0];
+    const ticks = [];
+    let mag = Math.pow(10, Math.floor(Math.log10(Math.max(minVal, 1))));
+    while (mag <= maxVal * 1.5) {
+      ticks.push(mag, mag * 3);
+      mag *= 10;
+    }
+    return ticks.filter(v => v <= maxVal * 1.5);
+  }
+
   // ── Comparison: overlaid trajectory chart ────────────────────────────────
   function renderCompareTrajectory(data) {
     const el = document.getElementById('compareTrajectoryChart');
     if (!el || !data || data.length === 0) return;
+
+    // Log-scale axis so scenarios of very different portfolio sizes (e.g.
+    // ¥100k vs ¥5bn, comparing a struggling plan against a well-funded one)
+    // are all visible at once rather than the smaller ones being crushed
+    // flat against a linear axis sized for the largest scenario. Log axes
+    // can't plot zero — floor ruined portfolios (¥0) just under the smallest
+    // real value in the comparison instead of letting the line vanish, but
+    // show "Depleted" on hover rather than the substitute number.
+    const allPositive = data.flatMap(s => (s.trajectory || []).map(d => d.value)).filter(v => v > 0);
+    const logFloor = allPositive.length ? Math.min(...allPositive) / 10 : 1;
+    const maxVal = allPositive.length ? Math.max(...allPositive) : 1;
+    const plotValue = v => (v > 0 ? v : logFloor);
+    const hoverText = v => (v > 0 ? formatYen(v) : 'Depleted (¥0)');
 
     const traces = [];
     data.forEach((scenario, idx) => {
@@ -278,31 +303,38 @@ const JPFIRECharts = (() => {
 
       if (accum.length > 0) {
         traces.push({
-          x: accum.map(d => d.age), y: accum.map(d => d.value),
+          x: accum.map(d => d.age), y: accum.map(d => plotValue(d.value)),
           mode: 'lines', name: scenario.name + ' (accum)',
           line: { color, width: 2.5 },
           legendgroup: scenario.name,
           hovertemplate: 'Age %{x}: %{text}<extra>' + scenario.name + '</extra>',
-          text: accum.map(d => formatYen(d.value)),
+          text: accum.map(d => hoverText(d.value)),
         });
       }
       if (retire.length > 0) {
         traces.push({
-          x: retire.map(d => d.age), y: retire.map(d => d.value),
+          x: retire.map(d => d.age), y: retire.map(d => plotValue(d.value)),
           mode: 'lines', name: scenario.name + ' (retire)',
           line: { color, width: 2.5, dash: 'dash' },
           legendgroup: scenario.name,
           showlegend: false,
           hovertemplate: 'Age %{x}: %{text}<extra>' + scenario.name + ' (ret)</extra>',
-          text: retire.map(d => formatYen(d.value)),
+          text: retire.map(d => hoverText(d.value)),
         });
       }
     });
 
+    const logTicks = _yenLogTickVals(logFloor, maxVal);
     const layout = {
       ...BASE_LAYOUT,
       xaxis: { ...BASE_LAYOUT.xaxis, title: 'Age' },
-      yaxis: { ...BASE_LAYOUT.yaxis, title: 'Portfolio Value', tickformat: ',.0f', tickprefix: '¥' },
+      yaxis: {
+        ...BASE_LAYOUT.yaxis,
+        title: 'Portfolio Value (log scale)',
+        type: 'log',
+        tickvals: logTicks,
+        ticktext: logTicks.map(formatYen),
+      },
     };
     Plotly.newPlot(el, traces, layout, CONFIG);
   }
