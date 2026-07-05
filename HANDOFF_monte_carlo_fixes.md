@@ -1,5 +1,21 @@
 # Hand-off: Monte Carlo fixes (2026-07-04)
 
+## SUPERSEDED (2026-07-05) by PLAN_wr_model_redesign.md Phases 0–2
+
+Everything in this file describing Monte Carlo simulating **stated expenses**
+(`annual_expenses_jpy` / `active_mc_expenses`) is now historical — as of
+`PLAN_wr_model_redesign.md` Phases 0–2 (Model B1'), Monte Carlo and the
+trajectory simulate the **WR budget** (`portfolio × withdrawal_rate_pct`)
+instead. That redesign was triggered by Andrew noticing the deeper issue this
+note's Item #2 only partially addressed: even with the safe-WR finder fixed
+to stop ignoring its own expenses parameter, WR itself still never reached
+the main simulation, so the WR slider still didn't move MC success in the
+intuitive direction. Phase 0 also separately fixed the `seed=None`
+non-determinism mentioned nowhere in this note but discovered while
+investigating the same complaint. See `PLAN_wr_model_redesign.md` for the
+current model; treat every "annual_expenses_jpy drives Monte Carlo" statement
+below as **describing the pre-2026-07-05 behavior**, not current behavior.
+
 ## UPDATE (later same day): items #1 and #2 below are DONE, committed as `09c45e8`
 
 Both the emergency-lump-sum pull-forward fix and the MC-derived safe-withdrawal-rate

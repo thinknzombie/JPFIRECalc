@@ -42,6 +42,11 @@ Generic FIRE calculators assume a 4% withdrawal rate, ignore pension systems, an
 
 ### Monte Carlo Simulation
 - Up to 10,000 simulation paths
+- Withdrawal rate defines the actual simulated draw (portfolio × WR, inflated
+  yearly) — success rate measures whether *that rate* is sustainable, not
+  whether your stated living expenses are covered. A **deemed withdrawal
+  rate** compares your stated spending against your current portfolio so you
+  can see whether your chosen rate actually funds your stated lifestyle
 - Sequence-of-returns risk modelling (amplified early-retirement volatility)
 - p10 / p25 / p50 / p75 / p90 percentile fan chart
 - Portfolio survival success rate
@@ -130,10 +135,11 @@ tests/                    # Per-engine unit tests (pytest)
 
 > These are baked into the calculator's defaults and warnings.
 
-- **Withdrawal rate safety is scenario-specific** — rules of thumb are only starting points; the app computes a Monte Carlo-derived safe rate from each scenario's return and volatility assumptions
+- **Withdrawal rate safety is scenario-specific** — rules of thumb are only starting points; the app computes a Monte Carlo-derived safe rate from each scenario's return and volatility assumptions, directly comparable to your chosen rate since both use the same portfolio × WR draw model
+- **Withdrawal rate defines your actual draw, not your stated expenses** — portfolio × WR is what Monte Carlo and the projection simulate; a **deemed withdrawal rate** tells you whether your stated spending fits inside that budget
 - **Residence tax shock** — in year 1 of retirement you still pay full residence tax on your last salary; budget an extra ¥200,000–¥600,000
 - **iDeCo lock-up** — completely illiquid before age 60; pre-60 FIRE requires 新NISA + taxable brokerage to bridge the gap
-- **NHI is withdrawal-dependent** — unlike shakai hoken, NHI is calculated on your declared income, which is driven by how much you withdraw
+- **NHI is income-based, not withdrawal-based** — unlike shakai hoken, NHI is calculated on declared income (pension after 公的年金等控除); NISA and 特定口座(源泉徴収あり) withdrawals are invisible to it, so pre-pension NHI sits near the 軽減 minimum
 
 ---
 
